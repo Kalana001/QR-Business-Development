@@ -1,0 +1,276 @@
+'use client';
+
+import React, { useEffect, useState } from 'react';
+import { Layers, Plus, Edit2, Trash2, ArrowUp, ArrowDown, AlertCircle } from 'lucide-react';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Modal } from '@/components/ui/Modal';
+import { createClient } from '@/lib/supabase/client';
+import { Business, Category } from '@/lib/types';
+
+export default function DashboardCategoriesPage() {
+  const [business, setBusiness] = useState<Business | null>(null);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Modal State
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
+
+  useEffect(() => {
+    loadCategories();
+  }, []);
+
+  async function loadCategories() {
+    setLoading(true);
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+      // Demo dataset
+      const demoBiz: Business = {
+        id: '11111111-1111-1111-1111-111111111111',
+        owner_id: 'demo', name: 'Bella Vista Bistro', slug: 'bella-vista-bistro', business_type: 'restaurant',
+        description: null, phone: null, email: null, address: null, website: null, logo_url: null, banner_url: null,
+        currency: 'USD', theme_color: '#0F172A', created_at: '', updated_at: '',
+      };
+      setBusiness(demoBiz);
+
+      setCategories([
+        { id: 'cat-1', business_id: demoBiz.id, name: 'Starters & Appetizers', description: 'Fresh Italian antipasti', display_order: 1, created_at: '' },
+        { id: 'cat-2', business_id: demoBiz.id, name: 'Pasta & Main Dishes', description: 'Handcrafted egg pasta', display_order: 2, created_at: '' },
+        { id: 'cat-3', business_id: demoBiz.id, name: 'Desserts & Coffee', description: 'Dolci & espresso', display_order: 3, created_at: '' },
+      ]);
+      setLoading(false);
+      return;
+    }
+
+    const { data: biz } = await supabase.from('businesses').select('*').eq('owner_id', user.id).single();
+    if (biz) {
+      setBusiness(biz as Business);
+      const { data: catData } = await supabase.from('categories').select('*').eq('business_id', biz.id).order('display_order');
+      if (catData) setCategories(catData as Category[]);
+    }
+    setLoading(false);
+  }
+
+  const openAddModal = () => {
+    setEditingCategory(null);
+    setName('');
+    setDescription('');
+    setFormError(null);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (cat: Category) => {
+    setEditingCategory(cat);
+    setName(cat.name);
+    setDescription(cat.description || '');
+    setFormError(null);
+    setIsModalOpen(true);
+  };
+
+  const handleSave = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!business || !name.trim()) return;
+    setSubmitting(true);
+
+    try {
+      const supabase = createClient();
+      if (editingCategory) {
+        await supabase
+          .from('categories')
+          .update({ name: name.trim(), description: description.trim() || null })
+          .eq('id', editingCategory.id);
+      } else {
+        const nextOrder = categories.length + 1;
+        await supabase
+          .from('categories')
+          .insert({
+            business_id: business.id,
+            name: name.trim(),
+            description: description.trim() || null,
+            display_order: nextOrder,
+          });
+      }
+      setIsModalOpen(false);
+      await loadCategories();
+    } catch {
+      // Offline fallback
+      if (editingCategory) {
+        setCategories(categories.map((c) => (c.id === editingCategory.id ? { ...c, name, description } : c)));
+      } else {
+        const newCat: Category = {
+          id: `cat-${Date.now()}`,
+          business_id: business.id,
+          name,
+          description,
+          display_order: categories.length + 1,
+          created_at: new Date().toISOString(),
+        };
+        setCategories([...categories, newCat]);
+      }
+      setIsModalOpen(false);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure? Items in this category will become uncategorized.')) return;
+    try {
+      const supabase = createClient();
+      await supabase.from('categories').delete().eq('id', id);
+    } catch {}
+    setCategories(categories.filter((c) => c.id !== id));
+  };
+
+  const moveOrder = async (index: number, direction: 'up' | 'down') => {
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= categories.length) return;
+
+    const updated = [...categories];
+    const temp = updated[index];
+    updated[index] = updated[targetIndex];
+    updated[targetIndex] = temp;
+
+    // Recalculate order index
+    const reordered = updated.map((item, idx) => ({
+      ...item,
+      display_order: idx + 1,
+    }));
+
+    setCategories(reordered);
+
+    // Sync display order to db
+    try {
+      const supabase = createClient();
+      for (const cat of reordered) {
+        await supabase.from('categories').update({ display_order: cat.display_order }).eq('id', cat.id);
+      }
+    } catch {}
+  };
+
+  return (
+    <div className="space-y-6 animate-fade-in max-w-4xl">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-extrabold text-slate-900">Categories</h1>
+          <p className="text-xs text-slate-500">
+            Organize catalog items into custom sections for fast customer browsing.
+          </p>
+        </div>
+        <Button onClick={openAddModal} className="gap-2 font-semibold">
+          <Plus className="w-4 h-4" /> Add Category
+        </Button>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center min-h-[300px]">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-slate-900" />
+        </div>
+      ) : categories.length === 0 ? (
+        <div className="p-12 text-center bg-white border border-slate-200 rounded-2xl space-y-3">
+          <Layers className="w-10 h-10 text-slate-400 mx-auto" />
+          <h3 className="text-base font-bold text-slate-800">No categories created yet</h3>
+          <p className="text-xs text-slate-500">
+            Create categories to group menu items or products together.
+          </p>
+          <Button onClick={openAddModal} size="sm" className="mt-2">
+            Create Category
+          </Button>
+        </div>
+      ) : (
+        <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs divide-y divide-slate-100">
+          {categories.map((cat, idx) => (
+            <div key={cat.id} className="p-4 flex items-center justify-between hover:bg-slate-50/60 transition-colors">
+              <div className="flex items-center gap-3">
+                <div className="flex flex-col gap-0.5">
+                  <button
+                    onClick={() => moveOrder(idx, 'up')}
+                    disabled={idx === 0}
+                    className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-30 cursor-pointer"
+                  >
+                    <ArrowUp className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    onClick={() => moveOrder(idx, 'down')}
+                    disabled={idx === categories.length - 1}
+                    className="p-1 text-slate-400 hover:text-slate-700 disabled:opacity-30 cursor-pointer"
+                  >
+                    <ArrowDown className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900">{cat.name}</h3>
+                  {cat.description && (
+                    <p className="text-xs text-slate-500 mt-0.5">{cat.description}</p>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => openEditModal(cat)}
+                  className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-200/50 rounded-lg transition-colors"
+                >
+                  <Edit2 className="w-4 h-4" />
+                </button>
+                <button
+                  onClick={() => handleDelete(cat.id)}
+                  className="p-2 text-rose-500 hover:text-rose-700 hover:bg-rose-50 rounded-lg transition-colors"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Add / Edit Category Modal */}
+      <Modal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingCategory ? 'Edit Category' : 'Create New Category'}
+      >
+        <form onSubmit={handleSave} className="space-y-4">
+          <Input
+            label="Category Name"
+            placeholder="e.g. Starters, Main Course, Fiction"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+          />
+
+          <div className="space-y-1">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+              Description (Optional)
+            </label>
+            <textarea
+              rows={2}
+              placeholder="Brief summary of this category section..."
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-950"
+            />
+          </div>
+
+          <div className="pt-4 flex justify-end gap-3 border-t border-slate-100">
+            <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" isLoading={submitting}>
+              {editingCategory ? 'Save Changes' : 'Create Category'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
+    </div>
+  );
+}
