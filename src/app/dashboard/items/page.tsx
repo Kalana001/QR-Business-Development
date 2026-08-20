@@ -413,14 +413,24 @@ export default function DashboardItemsPage() {
         </div>
       )}
 
-      {/* Add / Edit Modal */}
+      {/* Add / Edit Modal with Sticky Action Footer */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={editingItem ? `Edit ${bMeta.itemTerm}` : `Add New ${bMeta.itemTerm}`}
         maxWidth="lg"
+        footer={
+          <>
+            <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" form="item-form" isLoading={submitting}>
+              {editingItem ? 'Save Changes' : `Add ${bMeta.itemTerm}`}
+            </Button>
+          </>
+        }
       >
-        <form onSubmit={handleSaveItem} className="space-y-4">
+        <form id="item-form" onSubmit={handleSaveItem} className="space-y-4">
           {formError && (
             <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-600 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -517,7 +527,7 @@ export default function DashboardItemsPage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
-              label={`Selling Price (${business?.currency || 'USD'})`}
+              label={`Selling Price (${business?.currency || 'LKR'})`}
               type="number"
               step="0.01"
               placeholder="0.00"
@@ -578,15 +588,6 @@ export default function DashboardItemsPage() {
               />
               <span className="text-xs font-semibold text-slate-700">Featured Highlight</span>
             </label>
-          </div>
-
-          <div className="pt-4 flex justify-end gap-3 border-t border-slate-100">
-            <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" isLoading={submitting}>
-              {editingItem ? 'Save Changes' : `Add ${bMeta.itemTerm}`}
-            </Button>
           </div>
         </form>
       </Modal>

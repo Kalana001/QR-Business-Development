@@ -218,13 +218,23 @@ export default function DashboardCategoriesPage() {
         </div>
       )}
 
-      {/* Add / Edit Category Modal */}
+      {/* Add / Edit Category Modal with Sticky Action Footer */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         title={editingCategory ? 'Edit Category' : 'Create New Category'}
+        footer={
+          <>
+            <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button type="submit" form="category-form" isLoading={submitting}>
+              {editingCategory ? 'Save Changes' : 'Create Category'}
+            </Button>
+          </>
+        }
       >
-        <form onSubmit={handleSave} className="space-y-4">
+        <form id="category-form" onSubmit={handleSave} className="space-y-4">
           {formError && (
             <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-600 text-xs flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
@@ -251,15 +261,6 @@ export default function DashboardCategoriesPage() {
               onChange={(e) => setDescription(e.target.value)}
               className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-950"
             />
-          </div>
-
-          <div className="pt-4 flex justify-end gap-3 border-t border-slate-100">
-            <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button type="submit" isLoading={submitting}>
-              {editingCategory ? 'Save Changes' : 'Create Category'}
-            </Button>
           </div>
         </form>
       </Modal>
