@@ -51,7 +51,8 @@ export default function DashboardLayout({
           : (user.user_metadata?.full_name ? `${user.user_metadata.full_name}'s Business` : 'My Business Catalog');
         
         const metaType = user.user_metadata?.business_type || 'restaurant';
-        const metaSlug = user.user_metadata?.business_slug || (slugify(defaultName) + '-' + Date.now().toString().slice(-4));
+        const uniqueSuffix = '-' + Math.floor(1000 + Math.random() * 9000);
+        const metaSlug = (slugify(defaultName) || 'biz') + uniqueSuffix;
         
         const { data: newBiz } = await supabase
           .from('businesses')
@@ -128,7 +129,7 @@ export default function DashboardLayout({
           </Link>
         </div>
 
-        {/* Public Catalog Quick Link Banner (Previous Clean Style with Full URL) */}
+        {/* Public Catalog Quick Link Banner */}
         {business && (
           <div className="p-4 mx-4 my-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
             <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">

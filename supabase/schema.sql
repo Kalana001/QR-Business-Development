@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS public.businesses (
   website TEXT,
   logo_url TEXT,
   banner_url TEXT,
-  currency TEXT NOT NULL DEFAULT 'USD',
+  currency TEXT NOT NULL DEFAULT 'LKR',
   theme_color TEXT NOT NULL DEFAULT '#0F172A',
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
@@ -204,17 +204,53 @@ CREATE POLICY "Authenticated update/delete"
   );
 
 -- ============================================================================
--- NEW USER TRIGGER: Auto-create profile on auth sign up
+-- NEW USER TRIGGER: Auto-create profile AND business workspace on auth signup
 -- ============================================================================
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
+DECLARE
+  b_name TEXT;
+  b_type TEXT;
+  base_slug TEXT;
+  final_slug TEXT;
+  counter INT := 0;
 BEGIN
+  -- 1. Create User Profile
   INSERT INTO public.profiles (id, full_name, avatar_url)
   VALUES (
     NEW.id,
     COALESCE(NEW.raw_user_meta_data->>'full_name', NEW.email),
     NEW.raw_user_meta_data->>'avatar_url'
-  );
+  )
+  ON CONFLICT (id) DO NOTHING;
+
+  -- 2. Extract Business Metadata if provided during signup
+  b_name := COALESCE(NEW.raw_user_meta_data->>'business_name', NEW.raw_user_meta_data->>'full_name', 'My Business Catalog');
+  b_type := COALESCE(NEW.raw_user_meta_data->>'business_type', 'restaurant');
+  
+  -- Generate clean base slug
+  base_slug := LOWER(REGEXP_REPLACE(b_name, '[^a-zA-Z0-9]+', '-', 'g'));
+  IF base_slug = '' OR base_slug IS NULL THEN base_slug := 'biz'; END IF;
+  final_slug := base_slug;
+
+  -- Ensure guaranteed uniqueness of slug
+  WHILE EXISTS (SELECT 1 FROM public.businesses WHERE slug = final_slug) LOOP
+    counter := counter + 1;
+    final_slug := base_slug || '-' || counter || '-' || SUBSTRING(NEW.id::text FROM 1 FOR 4);
+  END LOOP;
+
+  -- 3. Create Separate Business Workspace for New User
+  INSERT INTO public.businesses (owner_id, name, slug, business_type, currency, theme_color)
+  VALUES (
+    NEW.id,
+    b_name,
+    final_slug,
+    b_type,
+    'LKR',
+    '#0F172A'
+  )
+  ON CONFLICT (slug) DO NOTHING;
+
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
