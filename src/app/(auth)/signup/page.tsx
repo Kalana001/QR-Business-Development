@@ -25,17 +25,23 @@ export default function SignupPage() {
     setLoading(true);
     setError(null);
 
+    // Basic email format check
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setError('Please enter a valid email address (e.g. name@gmail.com).');
+      setLoading(false);
+      return;
+    }
+
     try {
       const supabase = createClient();
-      const redirectUrl = `${window.location.origin}/auth/callback`;
       const generatedSlug = slugify(businessName) || `biz-${Date.now()}`;
 
-      // 1. Sign up auth user storing business details in user_metadata
+      // 1. Register auth user storing business details in user_metadata
       const { data: authData, error: authError } = await supabase.auth.signUp({
-        email,
+        email: email.trim(),
         password,
         options: {
-          emailRedirectTo: redirectUrl,
           data: {
             full_name: fullName,
             business_name: businessName,
@@ -47,23 +53,18 @@ export default function SignupPage() {
 
       if (authError) throw authError;
 
-      const user = authData.user;
-      if (!user) throw new Error('Signup failed. Please try again.');
-
-      // 2. Create initial business workspace
-      const { error: bizError } = await supabase.from('businesses').insert({
-        owner_id: user.id,
-        name: businessName,
-        slug: generatedSlug,
-        business_type: businessType,
-        currency: 'LKR',
-        theme_color: '#0F172A',
-      });
-
-      if (bizError) {
-        console.log('Business insert notification (handled via metadata fallback):', bizError.message);
+      // 2. Immediately sign in so no email confirmation link is required
+      if (!authData.session) {
+        const { error: signInErr } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+        if (signInErr) {
+          console.log('Instant sign-in notification:', signInErr.message);
+        }
       }
 
+      // 3. Forward directly to dashboard
       router.push('/dashboard');
       router.refresh();
     } catch (err: any) {
@@ -85,7 +86,7 @@ export default function SignupPage() {
             <span>QR Catalog Studio</span>
           </Link>
           <h2 className="text-xl font-bold text-white pt-2">Create your Business Catalog</h2>
-          <p className="text-xs text-slate-400">Launch a digital catalog accessible via QR code scan in 2 minutes</p>
+          <p className="text-xs text-slate-400">Instant registration with zero email verification required</p>
         </div>
 
         {error && (
@@ -107,9 +108,9 @@ export default function SignupPage() {
               className="bg-slate-950 border-slate-800 text-white placeholder:text-slate-600 focus:border-teal-500"
             />
             <Input
-              label="Email Address"
+              label="Email Address (e.g. @gmail.com, @yahoo.com)"
               type="email"
-              placeholder="jane@business.com"
+              placeholder="name@gmail.com"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
@@ -184,7 +185,7 @@ export default function SignupPage() {
             isLoading={loading}
             className="w-full bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold border-none py-2.5 mt-2"
           >
-            Create Business & Dashboard <ArrowRight className="w-4 h-4 ml-2" />
+            Create Business & Open Dashboard <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
         </form>
 
