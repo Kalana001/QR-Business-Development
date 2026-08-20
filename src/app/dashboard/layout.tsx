@@ -33,6 +33,8 @@ export default function DashboardLayout({
         return;
       }
 
+      const isSuperAdmin = user.email?.toLowerCase() === 'adminkal@gmail.com';
+
       // Fetch user's business workspace
       const { data: bizData } = await supabase
         .from('businesses')
@@ -43,20 +45,39 @@ export default function DashboardLayout({
         .maybeSingle();
 
       if (bizData) {
-        setBusiness(bizData as Business);
+        // Ensure Super Admin account has Unlimited Enterprise features
+        if (isSuperAdmin && bizData.subscription_plan !== 'enterprise') {
+          const { data: updatedBiz } = await supabase
+            .from('businesses')
+            .update({
+              subscription_plan: 'enterprise',
+              subscription_status: 'active',
+              max_items: 999999,
+              max_categories: 999999,
+            })
+            .eq('id', bizData.id)
+            .select()
+            .single();
+          setBusiness((updatedBiz || bizData) as Business);
+        } else {
+          setBusiness(bizData as Business);
+        }
+
         if (typeof window !== 'undefined') {
           setFullCatalogUrl(`${window.location.origin}/c/${bizData.slug}`);
         }
       } else {
         // Read exact business name and type typed during sign-up from user_metadata
         const metaName = user.user_metadata?.business_name;
-        const defaultName = metaName && metaName.trim()
-          ? metaName.trim()
-          : (user.user_metadata?.full_name ? `${user.user_metadata.full_name}'s Business` : 'My Business Catalog');
+        const defaultName = isSuperAdmin
+          ? 'Master Super Admin Workspace'
+          : (metaName && metaName.trim()
+            ? metaName.trim()
+            : (user.user_metadata?.full_name ? `${user.user_metadata.full_name}'s Business` : 'My Business Catalog'));
         
-        const metaType = user.user_metadata?.business_type || 'restaurant';
+        const metaType = user.user_metadata?.business_type || 'general';
         const uniqueSuffix = '-' + Math.floor(1000 + Math.random() * 9000);
-        const metaSlug = (slugify(defaultName) || 'biz') + uniqueSuffix;
+        const metaSlug = (slugify(defaultName) || 'admin') + uniqueSuffix;
         
         const { data: newBiz } = await supabase
           .from('businesses')
@@ -67,6 +88,10 @@ export default function DashboardLayout({
             business_type: metaType,
             currency: 'LKR',
             theme_color: '#0F172A',
+            subscription_plan: isSuperAdmin ? 'enterprise' : 'free',
+            subscription_status: 'active',
+            max_items: isSuperAdmin ? 999999 : 10,
+            max_categories: isSuperAdmin ? 999999 : 5,
           })
           .select()
           .single();

@@ -16,6 +16,7 @@ interface BusinessWithMetrics extends Business {
   item_count?: number;
   category_count?: number;
   owner_email?: string;
+  is_super_admin_owner?: boolean;
 }
 
 export default function SuperAdminDashboardPage() {
@@ -59,17 +60,23 @@ export default function SuperAdminDashboardPage() {
     const { data: itemsData } = await supabase.from('catalog_items').select('id, business_id');
     const { data: catData } = await supabase.from('categories').select('id, business_id');
     const { data: profilesData } = await supabase.from('profiles').select('id, full_name');
+    const { data: authUser } = await supabase.auth.getUser();
 
     const enriched = (bizData || []).map((b) => {
       const itemsCount = (itemsData || []).filter((i) => i.business_id === b.id).length;
       const catCount = (catData || []).filter((c) => c.business_id === b.id).length;
       const profile = (profilesData || []).find((p) => p.id === b.owner_id);
+      
+      const isSuperAdminOwner = (b.name && b.name.toLowerCase().includes('master super admin')) || 
+        (profile?.full_name && profile.full_name.toLowerCase().includes('super admin')) ||
+        (authUser.user?.id === b.owner_id);
 
       return {
         ...b,
         item_count: itemsCount,
         category_count: catCount,
         owner_email: profile?.full_name || 'Owner',
+        is_super_admin_owner: isSuperAdminOwner,
       };
     });
 
@@ -78,6 +85,7 @@ export default function SuperAdminDashboardPage() {
   }
 
   const openApprovalModal = (biz: BusinessWithMetrics) => {
+    if (biz.is_super_admin_owner) return;
     setSelectedBiz(biz);
     setSelectedPlan(biz.subscription_plan || 'pro');
     
@@ -135,7 +143,8 @@ export default function SuperAdminDashboardPage() {
   };
 
   // Helper function to calculate days remaining
-  function getDaysRemaining(endDateStr?: string | null): { text: string; isExpired: boolean; days: number } {
+  function getDaysRemaining(endDateStr?: string | null, isSuperAdmin = false): { text: string; isExpired: boolean; days: number } {
+    if (isSuperAdmin) return { text: 'Unlimited', isExpired: false, days: 9999 };
     if (!endDateStr) return { text: 'Active Free', isExpired: false, days: 30 };
     const now = new Date();
     const end = new Date(endDateStr);
@@ -155,15 +164,16 @@ export default function SuperAdminDashboardPage() {
       (b.email && b.email.toLowerCase().includes(searchQuery.toLowerCase()));
 
     if (planFilter === 'all') return matchesSearch;
-    if (planFilter === 'expired') return matchesSearch && getDaysRemaining(b.subscription_end_date).isExpired;
+    if (planFilter === 'expired') return matchesSearch && getDaysRemaining(b.subscription_end_date, b.is_super_admin_owner).isExpired;
     return matchesSearch && b.subscription_plan === planFilter;
   });
 
-  // Calculate Revenue Analytics
+  // Calculate Customer Revenue Analytics (Excluding Super Admin Workspace)
+  const customerBusinesses = businesses.filter((b) => !b.is_super_admin_owner);
   const totalBusinesses = businesses.length;
-  const proAccounts = businesses.filter((b) => b.subscription_plan === 'pro' && !getDaysRemaining(b.subscription_end_date).isExpired).length;
-  const enterpriseAccounts = businesses.filter((b) => b.subscription_plan === 'enterprise' && !getDaysRemaining(b.subscription_end_date).isExpired).length;
-  const freeAccounts = businesses.filter((b) => b.subscription_plan === 'free' || !b.subscription_plan).length;
+  const proAccounts = customerBusinesses.filter((b) => b.subscription_plan === 'pro' && !getDaysRemaining(b.subscription_end_date).isExpired).length;
+  const enterpriseAccounts = customerBusinesses.filter((b) => b.subscription_plan === 'enterprise' && !getDaysRemaining(b.subscription_end_date).isExpired).length;
+  const freeAccounts = customerBusinesses.filter((b) => b.subscription_plan === 'free' || !b.subscription_plan).length;
   const monthlyRevenue = (proAccounts * 2000) + (enterpriseAccounts * 3500);
 
   return (
@@ -176,7 +186,7 @@ export default function SuperAdminDashboardPage() {
           </div>
           <h1 className="text-2xl font-extrabold text-white">Super Admin Directory</h1>
           <p className="text-xs text-slate-400">
-            Manage registered business workspaces, approve monthly subscriptions, and control plan limits.
+            Manage registered customer businesses, approve monthly subscriptions, and inspect live catalogs.
           </p>
         </div>
 
@@ -189,7 +199,7 @@ export default function SuperAdminDashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-sm flex items-center justify-between">
           <div>
-            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Monthly Revenue</div>
+            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Customer Revenue</div>
             <div className="text-2xl font-extrabold text-teal-400 mt-1">
               LKR {monthlyRevenue.toLocaleString()}
             </div>
@@ -202,8 +212,8 @@ export default function SuperAdminDashboardPage() {
 
         <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-sm flex items-center justify-between">
           <div>
-            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Businesses</div>
-            <div className="text-2xl font-extrabold text-white mt-1">{totalBusinesses}</div>
+            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Customer Businesses</div>
+            <div className="text-2xl font-extrabold text-white mt-1">{customerBusinesses.length}</div>
             <div className="text-[11px] text-slate-500 mt-1">{freeAccounts} Free Trial accounts</div>
           </div>
           <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl">
@@ -253,7 +263,7 @@ export default function SuperAdminDashboardPage() {
             onChange={(e) => setPlanFilter(e.target.value)}
             className="px-3 py-2 text-xs bg-slate-950 border border-slate-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium"
           >
-            <option value="all">All Plans ({businesses.length})</option>
+            <option value="all">All Businesses ({businesses.length})</option>
             <option value="free">Free Trial ({freeAccounts})</option>
             <option value="pro">Pro Growth ({proAccounts})</option>
             <option value="enterprise">Enterprise Unlimited ({enterpriseAccounts})</option>
@@ -288,35 +298,52 @@ export default function SuperAdminDashboardPage() {
               </thead>
               <tbody className="divide-y divide-slate-800 text-xs">
                 {filteredBusinesses.map((biz) => {
-                  const daysInfo = getDaysRemaining(biz.subscription_end_date);
+                  const daysInfo = getDaysRemaining(biz.subscription_end_date, biz.is_super_admin_owner);
                   const planKey = biz.subscription_plan || 'free';
                   const planMeta = SUBSCRIPTION_PLANS_META[planKey];
                   const maxAllowed = biz.max_items || planMeta.maxItems;
                   const maxItemsDisplay = maxAllowed > 900000 ? '∞' : maxAllowed;
 
                   return (
-                    <tr key={biz.id} className="hover:bg-slate-800/50 transition-colors">
+                    <tr key={biz.id} className={`hover:bg-slate-800/50 transition-colors ${
+                      biz.is_super_admin_owner ? 'bg-teal-950/20' : ''
+                    }`}>
                       {/* Business & Type */}
                       <td className="p-4">
-                        <div className="font-bold text-white text-sm">{biz.name}</div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-white text-sm">{biz.name}</span>
+                          {biz.is_super_admin_owner && (
+                            <span className="px-2 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30 text-[10px] font-extrabold uppercase">
+                              Super Admin Owner
+                            </span>
+                          )}
+                        </div>
                         <div className="text-[11px] text-slate-400 font-mono">/c/{biz.slug}</div>
                         <div className="text-[10px] text-teal-400 capitalize mt-0.5">{biz.business_type}</div>
                       </td>
 
                       {/* Current Plan */}
                       <td className="p-4">
-                        <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider inline-flex items-center gap-1 ${
-                          biz.subscription_plan === 'enterprise'
-                            ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
-                            : biz.subscription_plan === 'pro'
-                            ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30'
-                            : 'bg-slate-800 text-slate-400 border border-slate-700'
-                        }`}>
-                          {planMeta.name}
-                        </span>
-                        <div className="text-[11px] text-slate-400 mt-1">
-                          {planMeta.priceLKR > 0 ? `LKR ${planMeta.priceLKR.toLocaleString()}/mo` : 'Free'}
-                        </div>
+                        {biz.is_super_admin_owner ? (
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                            Enterprise (Super Admin)
+                          </span>
+                        ) : (
+                          <>
+                            <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider inline-flex items-center gap-1 ${
+                              biz.subscription_plan === 'enterprise'
+                                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                : biz.subscription_plan === 'pro'
+                                ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30'
+                                : 'bg-slate-800 text-slate-400 border border-slate-700'
+                            }`}>
+                              {planMeta.name}
+                            </span>
+                            <div className="text-[11px] text-slate-400 mt-1">
+                              {planMeta.priceLKR > 0 ? `LKR ${planMeta.priceLKR.toLocaleString()}/mo` : 'Free'}
+                            </div>
+                          </>
+                        )}
                       </td>
 
                       {/* Items / Limit */}
@@ -331,20 +358,28 @@ export default function SuperAdminDashboardPage() {
 
                       {/* Subscription Status & Days Remaining */}
                       <td className="p-4">
-                        <div className="flex items-center gap-1.5">
-                          <span className={`w-2 h-2 rounded-full ${
-                            daysInfo.isExpired ? 'bg-rose-500 animate-pulse' : 'bg-emerald-400'
-                          }`} />
-                          <span className={`font-semibold ${
-                            daysInfo.isExpired ? 'text-rose-400' : 'text-emerald-400'
-                          }`}>
-                            {daysInfo.text}
-                          </span>
-                        </div>
-                        {biz.subscription_end_date && (
-                          <div className="text-[10px] text-slate-500 mt-0.5">
-                            Until {new Date(biz.subscription_end_date).toLocaleDateString()}
+                        {biz.is_super_admin_owner ? (
+                          <div className="flex items-center gap-1.5 text-teal-400 font-bold">
+                            <ShieldCheck className="w-4 h-4 text-teal-400" /> Platform Owner (Unlimited)
                           </div>
+                        ) : (
+                          <>
+                            <div className="flex items-center gap-1.5">
+                              <span className={`w-2 h-2 rounded-full ${
+                                daysInfo.isExpired ? 'bg-rose-500 animate-pulse' : 'bg-emerald-400'
+                              }`} />
+                              <span className={`font-semibold ${
+                                daysInfo.isExpired ? 'text-rose-400' : 'text-emerald-400'
+                              }`}>
+                                {daysInfo.text}
+                              </span>
+                            </div>
+                            {biz.subscription_end_date && (
+                              <div className="text-[10px] text-slate-500 mt-0.5">
+                                Until {new Date(biz.subscription_end_date).toLocaleDateString()}
+                              </div>
+                            )}
+                          </>
                         )}
                       </td>
 
@@ -361,13 +396,15 @@ export default function SuperAdminDashboardPage() {
                             <ExternalLink className="w-3.5 h-3.5" />
                           </a>
 
-                          <Button
-                            onClick={() => openApprovalModal(biz)}
-                            size="sm"
-                            className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs gap-1 border-none shadow-sm"
-                          >
-                            <Crown className="w-3.5 h-3.5" /> Manage Subscription
-                          </Button>
+                          {!biz.is_super_admin_owner && (
+                            <Button
+                              onClick={() => openApprovalModal(biz)}
+                              size="sm"
+                              className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs gap-1 border-none shadow-sm"
+                            >
+                              <Crown className="w-3.5 h-3.5" /> Manage Subscription
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
