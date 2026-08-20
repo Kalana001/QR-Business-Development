@@ -1,14 +1,14 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { QrCode, ArrowRight, AlertCircle, ShieldCheck } from 'lucide-react';
+import { QrCode, ArrowRight, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { createClient } from '@/lib/supabase/client';
 
-export default function LoginPage() {
+function LoginFormContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const nextParam = searchParams.get('next');
@@ -28,7 +28,7 @@ export default function LoginPage() {
       const supabase = createClient();
       const trimmedEmail = email.trim();
 
-      const { data, error: authError } = await supabase.auth.signInWithPassword({
+      const { error: authError } = await supabase.auth.signInWithPassword({
         email: trimmedEmail,
         password,
       });
@@ -109,5 +109,19 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4 text-white">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500" />
+        </div>
+      }
+    >
+      <LoginFormContent />
+    </Suspense>
   );
 }
