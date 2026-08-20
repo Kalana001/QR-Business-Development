@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
-  QrCode, LayoutDashboard, Package, Layers, Settings, ExternalLink, LogOut, Store, Menu, X, Copy, Check, Smartphone
+  QrCode, LayoutDashboard, Package, Layers, Settings, ExternalLink, LogOut, Store, Menu, X 
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Business } from '@/lib/types';
@@ -20,7 +20,6 @@ export default function DashboardLayout({
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     async function loadBusinessData() {
@@ -83,16 +82,6 @@ export default function DashboardLayout({
     router.push('/login');
   };
 
-  const handleCopyLink = () => {
-    if (!business) return;
-    const fullUrl = typeof window !== 'undefined'
-      ? `${window.location.origin}/c/${business.slug}`
-      : `/c/${business.slug}`;
-    navigator.clipboard.writeText(fullUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   const navItems = [
     { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
     { href: '/dashboard/items', label: 'Catalog Items', icon: Package },
@@ -114,6 +103,12 @@ export default function DashboardLayout({
     );
   }
 
+  const fullCatalogUrl = business
+    ? (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+        ? `${window.location.origin}/c/${business.slug}`
+        : `https://qr-business-development.vercel.app/c/${business.slug}`)
+    : '';
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row">
       {/* Sidebar navigation */}
@@ -133,42 +128,20 @@ export default function DashboardLayout({
           </Link>
         </div>
 
-        {/* Eye-Catching Public Catalog Sidebar Card */}
+        {/* Public Catalog Quick Link Banner (Previous Clean Style with Full URL) */}
         {business && (
-          <div className="mx-4 my-4 p-4 rounded-2xl bg-gradient-to-br from-slate-950 via-slate-900 to-teal-950/60 border border-teal-500/30 shadow-lg relative overflow-hidden space-y-3">
-            {/* Subtle glow background circle */}
-            <div className="absolute -top-10 -right-10 w-24 h-24 bg-teal-500/10 rounded-full blur-xl pointer-events-none" />
-
-            <div className="flex items-center justify-between">
-              <div className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-extrabold uppercase tracking-wider border border-emerald-500/30">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                Live Catalog
-              </div>
-              <button
-                onClick={handleCopyLink}
-                className="p-1 text-slate-400 hover:text-white rounded-md transition-colors"
-                title="Copy Link"
-              >
-                {copied ? <Check className="w-3.5 h-3.5 text-teal-400" /> : <Copy className="w-3.5 h-3.5" />}
-              </button>
+          <div className="p-4 mx-4 my-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
+            <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
+              Live Public QR Catalog
             </div>
-
-            <div>
-              <div className="text-[10px] text-slate-400 font-medium uppercase tracking-wider">Public URL Slug</div>
-              <div className="text-xs font-mono font-bold text-teal-300 truncate mt-0.5">
-                /c/{business.slug}
-              </div>
-            </div>
-
             <a
               href={`/c/${business.slug}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center justify-center gap-2 w-full py-2 px-3 bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs rounded-xl shadow-md transition-all active:scale-98 group cursor-pointer"
+              className="inline-flex items-center justify-between w-full px-3 py-2 bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 border border-teal-500/30 rounded-lg text-xs font-medium transition-colors"
             >
-              <Smartphone className="w-3.5 h-3.5" />
-              <span>Preview Customer View</span>
-              <ExternalLink className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+              <span className="truncate">{fullCatalogUrl}</span>
+              <ExternalLink className="w-3.5 h-3.5 shrink-0 ml-1.5" />
             </a>
           </div>
         )}
