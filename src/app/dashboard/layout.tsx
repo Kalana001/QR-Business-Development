@@ -139,16 +139,18 @@ export default function DashboardLayout({
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row" suppressHydrationWarning>
       {/* Sidebar navigation */}
-      <aside className="hidden md:flex flex-col w-64 bg-slate-900 border-r border-slate-800 text-slate-300 min-h-screen shrink-0">
+      <aside className="hidden md:flex flex-col w-64 bg-slate-900 border-r border-slate-800 text-slate-300 min-h-screen shrink-0 overflow-x-hidden">
         {/* Brand Header */}
-        <div className="p-6 border-b border-slate-800 flex items-center justify-between">
-          <Link href="/dashboard" className="flex items-center gap-2.5 font-bold text-white text-base">
+        <div className="p-6 border-b border-slate-800 flex items-center justify-between overflow-hidden">
+          <Link href="/dashboard" className="flex items-center gap-2.5 font-bold text-white text-base min-w-0 w-full overflow-hidden">
             <div className="p-2 bg-teal-500 text-slate-950 rounded-lg shrink-0">
               <QrCode className="w-5 h-5" />
             </div>
-            <div className="truncate">
-              <div className="truncate">{business?.name || 'My Business'}</div>
-              <div className="text-[10px] text-teal-400 font-normal capitalize">
+            <div className="min-w-0 flex-1 overflow-hidden">
+              <div className="truncate text-sm font-bold text-white" title={business?.name || 'My Business'}>
+                {business?.name || 'My Business'}
+              </div>
+              <div className="text-[10px] text-teal-400 font-normal capitalize truncate">
                 {business?.business_type || 'Catalog'}
               </div>
             </div>
@@ -157,7 +159,7 @@ export default function DashboardLayout({
 
         {/* Public Catalog Quick Link Banner */}
         {business && (
-          <div className="p-4 mx-4 my-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2">
+          <div className="p-4 mx-4 my-4 bg-slate-950 border border-slate-800 rounded-xl space-y-2 overflow-hidden">
             <div className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">
               Live Public QR Catalog
             </div>
@@ -165,7 +167,7 @@ export default function DashboardLayout({
               href={`/c/${business.slug}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center justify-between w-full px-3 py-2 bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 border border-teal-500/30 rounded-lg text-xs font-medium transition-colors"
+              className="inline-flex items-center justify-between w-full px-3 py-2 bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 border border-teal-500/30 rounded-lg text-xs font-medium transition-colors overflow-hidden"
             >
               <span className="truncate">{fullCatalogUrl || `/c/${business.slug}`}</span>
               <ExternalLink className="w-3.5 h-3.5 shrink-0 ml-1.5" />
@@ -189,7 +191,7 @@ export default function DashboardLayout({
                 }`}
               >
                 <Icon className="w-4 h-4 shrink-0" />
-                <span>{item.label}</span>
+                <span className="truncate">{item.label}</span>
               </Link>
             );
           })}
@@ -201,8 +203,8 @@ export default function DashboardLayout({
             href="/admin"
             className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-teal-400 bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/30 rounded-xl transition-colors"
           >
-            <ShieldCheck className="w-4 h-4" />
-            <span>Super Admin Console</span>
+            <ShieldCheck className="w-4 h-4 shrink-0" />
+            <span className="truncate">Super Admin Console</span>
           </Link>
         </div>
 
@@ -212,24 +214,24 @@ export default function DashboardLayout({
             onClick={handleSignOut}
             className="flex items-center gap-2 w-full px-3 py-2 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
           >
-            <LogOut className="w-4 h-4" />
-            <span>Sign Out</span>
+            <LogOut className="w-4 h-4 shrink-0" />
+            <span className="truncate">Sign Out</span>
           </button>
         </div>
       </aside>
 
       {/* Mobile Header Navigation */}
       <div className="md:hidden bg-slate-900 text-white p-4 border-b border-slate-800 flex items-center justify-between sticky top-0 z-30">
-        <Link href="/dashboard" className="flex items-center gap-2 font-bold text-sm">
-          <div className="p-1.5 bg-teal-500 text-slate-950 rounded-md">
+        <Link href="/dashboard" className="flex items-center gap-2 font-bold text-sm min-w-0 overflow-hidden">
+          <div className="p-1.5 bg-teal-500 text-slate-950 rounded-md shrink-0">
             <QrCode className="w-4 h-4" />
           </div>
-          <span>{business?.name || 'QR Catalog'}</span>
+          <span className="truncate">{business?.name || 'QR Catalog'}</span>
         </Link>
 
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="p-2 text-slate-300 hover:text-white"
+          className="p-2 text-slate-300 hover:text-white shrink-0"
         >
           {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
