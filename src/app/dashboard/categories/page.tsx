@@ -2,12 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Layers, Plus, Edit2, Trash2, ArrowUp, ArrowDown, AlertCircle } from 'lucide-react';
+import { Layers, Plus, Edit2, Trash2, ArrowUp, ArrowDown, AlertCircle, Zap, Crown } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
+import { UpgradeModal } from '@/components/ui/UpgradeModal';
 import { createClient } from '@/lib/supabase/client';
-import { Business, Category } from '@/lib/types';
+import { Business, Category, SUBSCRIPTION_PLANS_META } from '@/lib/types';
 
 export default function DashboardCategoriesPage() {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function DashboardCategoriesPage() {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -58,6 +60,12 @@ export default function DashboardCategoriesPage() {
   }
 
   const openAddModal = () => {
+    const maxAllowed = business?.max_categories || 5;
+    if (!editingCategory && categories.length >= maxAllowed) {
+      setIsUpgradeModalOpen(true);
+      return;
+    }
+
     setEditingCategory(null);
     setName('');
     setDescription('');
@@ -76,6 +84,14 @@ export default function DashboardCategoriesPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!business || !name.trim()) return;
+
+    const maxAllowed = business.max_categories || 5;
+    if (!editingCategory && categories.length >= maxAllowed) {
+      setIsModalOpen(false);
+      setIsUpgradeModalOpen(true);
+      return;
+    }
+
     setSubmitting(true);
 
     try {
@@ -123,7 +139,6 @@ export default function DashboardCategoriesPage() {
     updated[index] = updated[targetIndex];
     updated[targetIndex] = temp;
 
-    // Recalculate order index
     const reordered = updated.map((item, idx) => ({
       ...item,
       display_order: idx + 1,
@@ -131,7 +146,6 @@ export default function DashboardCategoriesPage() {
 
     setCategories(reordered);
 
-    // Sync display order to db
     try {
       const supabase = createClient();
       for (const cat of reordered) {
@@ -139,6 +153,11 @@ export default function DashboardCategoriesPage() {
       }
     } catch {}
   };
+
+  const currentPlanKey = business?.subscription_plan || 'free';
+  const currentPlanMeta = SUBSCRIPTION_PLANS_META[currentPlanKey];
+  const maxAllowedCategories = business?.max_categories || 5;
+  const isLimitReached = categories.length >= maxAllowedCategories;
 
   return (
     <div className="space-y-6 animate-fade-in max-w-4xl">
@@ -153,6 +172,37 @@ export default function DashboardCategoriesPage() {
           <Plus className="w-4 h-4" /> Add Category
         </Button>
       </div>
+
+      {/* Plan Usage Meter Banner */}
+      {business && (
+        <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
+          isLimitReached
+            ? 'bg-rose-50 border-rose-200 text-rose-900'
+            : 'bg-white border-slate-200 text-slate-800'
+        }`}>
+          <div className="flex items-center gap-3">
+            <div className={`p-2.5 rounded-xl ${isLimitReached ? 'bg-rose-500 text-white' : 'bg-slate-900 text-teal-400'}`}>
+              <Crown className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Category Limit ({currentPlanMeta.name})
+              </div>
+              <div className="text-sm font-extrabold text-slate-900 mt-0.5">
+                {categories.length} / {maxAllowedCategories > 900000 ? 'Unlimited' : maxAllowedCategories} Categories used
+              </div>
+            </div>
+          </div>
+
+          <Button
+            onClick={() => setIsUpgradeModalOpen(true)}
+            size="sm"
+            className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs gap-1.5 border-none shadow-sm"
+          >
+            <Zap className="w-3.5 h-3.5" /> {isLimitReached ? 'Limit Reached - Upgrade Now' : 'Upgrade Plan'}
+          </Button>
+        </div>
+      )}
 
       {loading ? (
         <div className="flex items-center justify-center min-h-[300px]">
@@ -218,7 +268,15 @@ export default function DashboardCategoriesPage() {
         </div>
       )}
 
-      {/* Add / Edit Category Modal with Sticky Action Footer */}
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        currentPlan={business?.subscription_plan}
+        reason={`You have used ${categories.length} of your ${maxAllowedCategories} category limit on the ${currentPlanMeta.name} plan.`}
+      />
+
+      {/* Add / Edit Category Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}

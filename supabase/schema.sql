@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS public.profiles (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 2. Businesses Table (Multi-tenant Root)
+-- 2. Businesses Table (Multi-tenant Root with Subscriptions)
 CREATE TABLE IF NOT EXISTS public.businesses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   owner_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
@@ -28,9 +28,26 @@ CREATE TABLE IF NOT EXISTS public.businesses (
   banner_url TEXT,
   currency TEXT NOT NULL DEFAULT 'LKR',
   theme_color TEXT NOT NULL DEFAULT '#0F172A',
+  
+  -- Subscription & Limit System Fields
+  subscription_plan TEXT NOT NULL DEFAULT 'free' CHECK (subscription_plan IN ('free', 'pro', 'enterprise')),
+  subscription_status TEXT NOT NULL DEFAULT 'active' CHECK (subscription_status IN ('active', 'expired')),
+  subscription_start_date TIMESTAMPTZ DEFAULT NOW(),
+  subscription_end_date TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '1 month'),
+  max_items INTEGER NOT NULL DEFAULT 10,
+  max_categories INTEGER NOT NULL DEFAULT 5,
+
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Safely add subscription columns if missing on existing instances
+ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS subscription_plan TEXT NOT NULL DEFAULT 'free';
+ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS subscription_status TEXT NOT NULL DEFAULT 'active';
+ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS subscription_start_date TIMESTAMPTZ DEFAULT NOW();
+ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS subscription_end_date TIMESTAMPTZ DEFAULT (NOW() + INTERVAL '1 month');
+ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS max_items INTEGER NOT NULL DEFAULT 10;
+ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS max_categories INTEGER NOT NULL DEFAULT 5;
 
 CREATE INDEX IF NOT EXISTS idx_businesses_slug ON public.businesses(slug);
 CREATE INDEX IF NOT EXISTS idx_businesses_owner ON public.businesses(owner_id);
@@ -63,11 +80,10 @@ CREATE TABLE IF NOT EXISTS public.catalog_items (
   business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
   category_id UUID REFERENCES public.categories(id) ON DELETE SET NULL,
   name TEXT NOT NULL,
-  -- Restaurant / Salon / General & Bookshop specific fields
   author TEXT,           -- Bookshop
   isbn TEXT,             -- Bookshop
   duration INTEGER,      -- Salon / Barber (minutes)
-  badges TEXT[] DEFAULT '{}', -- Restaurant badges (e.g. ["Vegan", "Chef's Choice"])
+  badges TEXT[] DEFAULT '{}', -- Restaurant badges
   description TEXT,
   price NUMERIC(10,2) NOT NULL DEFAULT 0.00,
   quantity INTEGER,      -- Bookshop / General inventory
@@ -75,7 +91,6 @@ CREATE TABLE IF NOT EXISTS public.catalog_items (
   is_featured BOOLEAN NOT NULL DEFAULT false,
   image_url TEXT,
   
-  -- Future Integration Mapping Fields
   external_source TEXT,
   external_product_id TEXT,
   last_synced_at TIMESTAMPTZ,
@@ -109,103 +124,55 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- ----------------------------------------------------------------------------
 -- PROFILES POLICIES
--- ----------------------------------------------------------------------------
 DROP POLICY IF EXISTS "Public profiles are readable" ON public.profiles;
-CREATE POLICY "Public profiles are readable"
-  ON public.profiles FOR SELECT USING (true);
+CREATE POLICY "Public profiles are readable" ON public.profiles FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
-CREATE POLICY "Users can update own profile"
-  ON public.profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
 
 DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
-CREATE POLICY "Users can insert own profile"
-  ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
 
--- ----------------------------------------------------------------------------
 -- BUSINESSES POLICIES
--- ----------------------------------------------------------------------------
 DROP POLICY IF EXISTS "Public catalog business view" ON public.businesses;
-CREATE POLICY "Public catalog business view"
-  ON public.businesses FOR SELECT USING (true);
+CREATE POLICY "Public catalog business view" ON public.businesses FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Authenticated users can create business" ON public.businesses;
-CREATE POLICY "Authenticated users can create business"
-  ON public.businesses FOR INSERT WITH CHECK (auth.uid() = owner_id);
+CREATE POLICY "Authenticated users can create business" ON public.businesses FOR INSERT WITH CHECK (auth.uid() = owner_id);
 
 DROP POLICY IF EXISTS "Business members can update business" ON public.businesses;
-CREATE POLICY "Business members can update business"
-  ON public.businesses FOR UPDATE USING (public.is_business_member(id));
+CREATE POLICY "Business members can update business" ON public.businesses FOR UPDATE USING (public.is_business_member(id));
 
 DROP POLICY IF EXISTS "Business owner can delete business" ON public.businesses;
-CREATE POLICY "Business owner can delete business"
-  ON public.businesses FOR DELETE USING (auth.uid() = owner_id);
+CREATE POLICY "Business owner can delete business" ON public.businesses FOR DELETE USING (auth.uid() = owner_id);
 
--- ----------------------------------------------------------------------------
--- BUSINESS MEMBERS POLICIES
--- ----------------------------------------------------------------------------
-DROP POLICY IF EXISTS "Members can view membership" ON public.business_members;
-CREATE POLICY "Members can view membership"
-  ON public.business_members FOR SELECT USING (
-    user_id = auth.uid() OR public.is_business_member(business_id)
-  );
-
-DROP POLICY IF EXISTS "Business owner can manage members" ON public.business_members;
-CREATE POLICY "Business owner can manage members"
-  ON public.business_members FOR ALL USING (
-    EXISTS (SELECT 1 FROM public.businesses WHERE id = business_id AND owner_id = auth.uid())
-  );
-
--- ----------------------------------------------------------------------------
 -- CATEGORIES POLICIES
--- ----------------------------------------------------------------------------
 DROP POLICY IF EXISTS "Public customer category view" ON public.categories;
-CREATE POLICY "Public customer category view"
-  ON public.categories FOR SELECT USING (true);
+CREATE POLICY "Public customer category view" ON public.categories FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Business members manage categories" ON public.categories;
-CREATE POLICY "Business members manage categories"
-  ON public.categories FOR ALL USING (public.is_business_member(business_id));
+CREATE POLICY "Business members manage categories" ON public.categories FOR ALL USING (public.is_business_member(business_id));
 
--- ----------------------------------------------------------------------------
 -- CATALOG ITEMS POLICIES
--- ----------------------------------------------------------------------------
 DROP POLICY IF EXISTS "Public customer items view" ON public.catalog_items;
-CREATE POLICY "Public customer items view"
-  ON public.catalog_items FOR SELECT USING (true);
+CREATE POLICY "Public customer items view" ON public.catalog_items FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Business members manage items" ON public.catalog_items;
-CREATE POLICY "Business members manage items"
-  ON public.catalog_items FOR ALL USING (public.is_business_member(business_id));
+CREATE POLICY "Business members manage items" ON public.catalog_items FOR ALL USING (public.is_business_member(business_id));
 
--- ============================================================================
 -- STORAGE BUCKETS & POLICIES
--- ============================================================================
 INSERT INTO storage.buckets (id, name, public) 
 VALUES ('business-assets', 'business-assets', true)
 ON CONFLICT (id) DO NOTHING;
 
 DROP POLICY IF EXISTS "Public storage view" ON storage.objects;
-CREATE POLICY "Public storage view" 
-  ON storage.objects FOR SELECT USING (bucket_id = 'business-assets');
+CREATE POLICY "Public storage view" ON storage.objects FOR SELECT USING (bucket_id = 'business-assets');
 
 DROP POLICY IF EXISTS "Authenticated upload" ON storage.objects;
-CREATE POLICY "Authenticated upload" 
-  ON storage.objects FOR INSERT WITH CHECK (
-    bucket_id = 'business-assets' AND auth.role() = 'authenticated'
-  );
+CREATE POLICY "Authenticated upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'business-assets' AND auth.role() = 'authenticated');
 
-DROP POLICY IF EXISTS "Authenticated update/delete" ON storage.objects;
-CREATE POLICY "Authenticated update/delete" 
-  ON storage.objects FOR ALL USING (
-    bucket_id = 'business-assets' AND auth.role() = 'authenticated'
-  );
-
--- ============================================================================
--- NEW USER TRIGGER: Auto-create profile AND business workspace on auth signup
--- ============================================================================
+-- NEW USER TRIGGER: Auto-create profile AND separate business workspace on auth signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -215,7 +182,6 @@ DECLARE
   final_slug TEXT;
   counter INT := 0;
 BEGIN
-  -- 1. Create User Profile
   INSERT INTO public.profiles (id, full_name, avatar_url)
   VALUES (
     NEW.id,
@@ -224,30 +190,35 @@ BEGIN
   )
   ON CONFLICT (id) DO NOTHING;
 
-  -- 2. Extract Business Metadata if provided during signup
   b_name := COALESCE(NEW.raw_user_meta_data->>'business_name', NEW.raw_user_meta_data->>'full_name', 'My Business Catalog');
   b_type := COALESCE(NEW.raw_user_meta_data->>'business_type', 'restaurant');
   
-  -- Generate clean base slug
   base_slug := LOWER(REGEXP_REPLACE(b_name, '[^a-zA-Z0-9]+', '-', 'g'));
   IF base_slug = '' OR base_slug IS NULL THEN base_slug := 'biz'; END IF;
   final_slug := base_slug;
 
-  -- Ensure guaranteed uniqueness of slug
   WHILE EXISTS (SELECT 1 FROM public.businesses WHERE slug = final_slug) LOOP
     counter := counter + 1;
     final_slug := base_slug || '-' || counter || '-' || SUBSTRING(NEW.id::text FROM 1 FOR 4);
   END LOOP;
 
-  -- 3. Create Separate Business Workspace for New User
-  INSERT INTO public.businesses (owner_id, name, slug, business_type, currency, theme_color)
+  INSERT INTO public.businesses (
+    owner_id, name, slug, business_type, currency, theme_color,
+    subscription_plan, subscription_status, subscription_start_date, subscription_end_date, max_items, max_categories
+  )
   VALUES (
     NEW.id,
     b_name,
     final_slug,
     b_type,
     'LKR',
-    '#0F172A'
+    '#0F172A',
+    'free',
+    'active',
+    NOW(),
+    NOW() + INTERVAL '1 month',
+    10,
+    5
   )
   ON CONFLICT (slug) DO NOTHING;
 

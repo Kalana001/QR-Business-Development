@@ -1,4 +1,7 @@
 export type BusinessType = 'restaurant' | 'bookshop' | 'salon' | 'general';
+export type UserRole = 'owner' | 'staff';
+export type SubscriptionPlan = 'free' | 'pro' | 'enterprise';
+export type SubscriptionStatus = 'active' | 'expired';
 
 export interface Profile {
   id: string;
@@ -23,6 +26,15 @@ export interface Business {
   banner_url: string | null;
   currency: string;
   theme_color: string;
+  
+  // Subscription fields
+  subscription_plan?: SubscriptionPlan;
+  subscription_status?: SubscriptionStatus;
+  subscription_start_date?: string | null;
+  subscription_end_date?: string | null;
+  max_items?: number;
+  max_categories?: number;
+
   created_at: string;
   updated_at: string;
 }
@@ -31,7 +43,7 @@ export interface BusinessMember {
   id: string;
   business_id: string;
   user_id: string;
-  role: 'owner' | 'staff';
+  role: UserRole;
   created_at: string;
 }
 
@@ -49,88 +61,118 @@ export interface CatalogItem {
   business_id: string;
   category_id: string | null;
   name: string;
+  
+  // Type-specific optional metadata
   author?: string | null;       // Bookshop
   isbn?: string | null;         // Bookshop
   duration?: number | null;     // Salon (minutes)
   badges?: string[] | null;     // Restaurant (e.g. ["Vegan", "Spicy"])
+  
   description: string | null;
   price: number;
-  quantity?: number | null;     // Bookshop / General
+  quantity?: number | null;     // Bookshop / General inventory
   is_available: boolean;
   is_featured: boolean;
   image_url: string | null;
+  
   external_source?: string | null;
   external_product_id?: string | null;
   last_synced_at?: string | null;
+
   created_at: string;
   updated_at: string;
 }
 
-export interface BusinessTypeMeta {
-  type: BusinessType;
-  label: string;
+export interface SubscriptionPlanMeta {
+  id: SubscriptionPlan;
+  name: string;
+  priceLKR: number;
+  maxItems: number;
+  maxCategories: number;
+  badge: string;
   description: string;
-  itemTerm: string;
-  fields: {
-    author: boolean;
-    isbn: boolean;
-    duration: boolean;
-    badges: boolean;
-    quantity: boolean;
-  };
+  features: string[];
 }
 
-export const BUSINESS_TYPES_META: Record<BusinessType, BusinessTypeMeta> = {
+export const SUBSCRIPTION_PLANS_META: Record<SubscriptionPlan, SubscriptionPlanMeta> = {
+  free: {
+    id: 'free',
+    name: 'Starter Free',
+    priceLKR: 0,
+    maxItems: 10,
+    maxCategories: 5,
+    badge: 'Free Trial',
+    description: 'Perfect for small businesses creating their first digital QR catalog.',
+    features: [
+      'Up to 10 Catalog Items',
+      'Up to 5 Categories',
+      'Instant Mobile QR Code View',
+      'Standard Support',
+    ],
+  },
+  pro: {
+    id: 'pro',
+    name: 'Pro Growth',
+    priceLKR: 2000,
+    maxItems: 150,
+    maxCategories: 20,
+    badge: 'Popular',
+    description: 'Ideal for cafés, bookshops, and salons with expanding catalog needs.',
+    features: [
+      'Up to 150 Catalog Items',
+      'Up to 20 Categories',
+      'Custom Branding & Accent Colors',
+      'Printable 5"x7" Table Tent Flyers',
+      'Priority Admin Activation',
+    ],
+  },
+  enterprise: {
+    id: 'enterprise',
+    name: 'Enterprise Unlimited',
+    priceLKR: 3500,
+    maxItems: 999999,
+    maxCategories: 999999,
+    badge: 'Best Value',
+    description: 'Built for large restaurants, retail stores, and multi-category shops.',
+    features: [
+      'Unlimited Catalog Items',
+      'Unlimited Categories',
+      'Custom Branding & Logo Uploads',
+      'Dedicated Admin Priority Support',
+      'Full Multi-Tenant Access',
+    ],
+  },
+};
+
+export const BUSINESS_TYPES_META: Record<BusinessType, {
+  label: string;
+  itemTerm: string;
+  fields: {
+    author?: boolean;
+    isbn?: boolean;
+    duration?: boolean;
+    badges?: boolean;
+    quantity?: boolean;
+  };
+}> = {
   restaurant: {
-    type: 'restaurant',
-    label: 'Restaurant / Café',
-    description: 'Food & drinks menu with badges, pricing, and availability. No quantity displayed.',
+    label: 'Restaurant & Café',
     itemTerm: 'Dish / Drink',
-    fields: {
-      author: false,
-      isbn: false,
-      duration: false,
-      badges: true,
-      quantity: false,
-    },
+    fields: { badges: true },
   },
   bookshop: {
-    type: 'bookshop',
     label: 'Bookshop',
-    description: 'Books catalog with Author, ISBN, stock quantity, and pricing.',
-    itemTerm: 'Book',
-    fields: {
-      author: true,
-      isbn: true,
-      duration: false,
-      badges: false,
-      quantity: true,
-    },
+    itemTerm: 'Book Title',
+    fields: { author: true, isbn: true, quantity: true },
   },
   salon: {
-    type: 'salon',
-    label: 'Salon / Barber',
-    description: 'Services catalog with duration in minutes and service descriptions.',
+    label: 'Salon & Barber',
     itemTerm: 'Service',
-    fields: {
-      author: false,
-      isbn: false,
-      duration: true,
-      badges: false,
-      quantity: false,
-    },
+    fields: { duration: true },
   },
   general: {
-    type: 'general',
-    label: 'General / Other',
-    description: 'General purpose product catalog with pricing and stock availability.',
+    label: 'General Business',
     itemTerm: 'Product',
-    fields: {
-      author: false,
-      isbn: false,
-      duration: false,
-      badges: false,
-      quantity: true,
-    },
+    fields: { quantity: true },
   },
 };

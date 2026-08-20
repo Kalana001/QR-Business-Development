@@ -3,14 +3,15 @@
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-  Plus, Search, Edit2, Trash2, CheckCircle2, XCircle, Star, Image as ImageIcon, Filter, Upload, AlertCircle
+  Plus, Search, Edit2, Trash2, CheckCircle2, XCircle, Star, Image as ImageIcon, Filter, Upload, AlertCircle, Zap, Crown
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
+import { UpgradeModal } from '@/components/ui/UpgradeModal';
 import { CategoryPlaceholder } from '@/components/placeholders/CategoryPlaceholder';
 import { createClient } from '@/lib/supabase/client';
-import { Business, CatalogItem, Category, BUSINESS_TYPES_META } from '@/lib/types';
+import { Business, CatalogItem, Category, BUSINESS_TYPES_META, SUBSCRIPTION_PLANS_META } from '@/lib/types';
 import { formatCurrency, formatDuration } from '@/lib/utils';
 
 export default function DashboardItemsPage() {
@@ -24,6 +25,7 @@ export default function DashboardItemsPage() {
 
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<CatalogItem | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -78,6 +80,12 @@ export default function DashboardItemsPage() {
   }
 
   const openAddModal = () => {
+    const maxAllowed = business?.max_items || 10;
+    if (!editingItem && items.length >= maxAllowed) {
+      setIsUpgradeModalOpen(true);
+      return;
+    }
+
     setEditingItem(null);
     setName('');
     setCategoryId(categories[0]?.id || '');
@@ -116,6 +124,14 @@ export default function DashboardItemsPage() {
   const handleSaveItem = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!business) return;
+
+    const maxAllowed = business.max_items || 10;
+    if (!editingItem && items.length >= maxAllowed) {
+      setIsModalOpen(false);
+      setIsUpgradeModalOpen(true);
+      return;
+    }
+
     setSubmitting(true);
     setFormError(null);
 
@@ -211,6 +227,10 @@ export default function DashboardItemsPage() {
   });
 
   const bMeta = business ? BUSINESS_TYPES_META[business.business_type] : BUSINESS_TYPES_META.general;
+  const currentPlanKey = business?.subscription_plan || 'free';
+  const currentPlanMeta = SUBSCRIPTION_PLANS_META[currentPlanKey];
+  const maxAllowedItems = business?.max_items || 10;
+  const isLimitReached = items.length >= maxAllowedItems;
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -226,6 +246,37 @@ export default function DashboardItemsPage() {
           <Plus className="w-4 h-4" /> Add New {bMeta.itemTerm}
         </Button>
       </div>
+
+      {/* Plan Usage Meter Banner */}
+      {business && (
+        <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
+          isLimitReached
+            ? 'bg-rose-50 border-rose-200 text-rose-900'
+            : 'bg-white border-slate-200 text-slate-800'
+        }`}>
+          <div className="flex items-center gap-3">
+            <div className={`p-2.5 rounded-xl ${isLimitReached ? 'bg-rose-500 text-white' : 'bg-slate-900 text-teal-400'}`}>
+              <Crown className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="text-xs font-bold uppercase tracking-wider text-slate-500">
+                Plan Usage ({currentPlanMeta.name})
+              </div>
+              <div className="text-sm font-extrabold text-slate-900 mt-0.5">
+                {items.length} / {maxAllowedItems > 900000 ? 'Unlimited' : maxAllowedItems} {bMeta.itemTerm}s used
+              </div>
+            </div>
+          </div>
+
+          <Button
+            onClick={() => setIsUpgradeModalOpen(true)}
+            size="sm"
+            className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs gap-1.5 border-none shadow-sm"
+          >
+            <Zap className="w-3.5 h-3.5" /> {isLimitReached ? 'Limit Reached - Upgrade Now' : 'Upgrade Plan'}
+          </Button>
+        </div>
+      )}
 
       {/* Filter and Search Toolbar */}
       <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs flex flex-col md:flex-row gap-3 items-center justify-between">
@@ -347,14 +398,12 @@ export default function DashboardItemsPage() {
 
                   {/* Business Type Field Metadata */}
                   <div className="flex flex-wrap gap-2 pt-1">
-                    {/* Salon Duration */}
                     {bMeta.fields.duration && item.duration && (
                       <span className="text-[11px] font-semibold text-purple-700 bg-purple-50 px-2 py-0.5 rounded-md">
                         ⏱️ {formatDuration(item.duration)}
                       </span>
                     )}
 
-                    {/* Bookshop Quantity */}
                     {bMeta.fields.quantity && item.quantity !== null && item.quantity !== undefined && (
                       <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-md ${
                         item.quantity === 0
@@ -365,14 +414,12 @@ export default function DashboardItemsPage() {
                       </span>
                     )}
 
-                    {/* Bookshop ISBN */}
                     {item.isbn && (
                       <span className="text-[11px] font-mono text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md">
                         ISBN: {item.isbn}
                       </span>
                     )}
 
-                    {/* Restaurant Badges */}
                     {item.badges && item.badges.length > 0 && (
                       <div className="flex flex-wrap gap-1">
                         {item.badges.map((b) => (
@@ -413,7 +460,15 @@ export default function DashboardItemsPage() {
         </div>
       )}
 
-      {/* Add / Edit Modal with Sticky Action Footer */}
+      {/* Upgrade Modal */}
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+        currentPlan={business?.subscription_plan}
+        reason={`You have used ${items.length} of your ${maxAllowedItems} item limit on the ${currentPlanMeta.name} plan.`}
+      />
+
+      {/* Add / Edit Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
