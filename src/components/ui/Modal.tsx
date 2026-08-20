@@ -43,33 +43,33 @@ export const Modal: React.FC<ModalProps> = ({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/70 backdrop-blur-xs animate-fade-in"
+      className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/75 backdrop-blur-xs flex min-h-full items-center justify-center p-4 sm:p-6 animate-fade-in"
       onClick={onClose}
     >
       <div
-        className={`relative w-full ${maxWidthClasses[maxWidth]} bg-white rounded-t-3xl sm:rounded-2xl shadow-2xl border border-slate-200 flex flex-col max-h-[92vh] sm:max-h-[90vh] overflow-hidden my-0 sm:my-6`}
+        className={`relative w-full ${maxWidthClasses[maxWidth]} bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col max-h-[85vh] overflow-hidden my-auto text-left`}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Sticky Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80 backdrop-blur-xs shrink-0">
+        {/* Pinned Top Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white rounded-t-2xl shrink-0 z-10">
           <h3 className="text-base font-bold text-slate-900">{title}</h3>
           <button
             onClick={onClose}
-            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-200/60 transition-colors cursor-pointer"
+            className="p-1.5 text-slate-400 hover:text-slate-700 rounded-lg hover:bg-slate-100 transition-colors cursor-pointer"
             aria-label="Close modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Scrollable Body Content */}
+        {/* Scrollable Form Body */}
         <div className="p-6 overflow-y-auto flex-1 space-y-4">
           {children}
         </div>
 
-        {/* Optional Sticky Footer */}
+        {/* Pinned Bottom Footer */}
         {footer && (
-          <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/90 shrink-0 flex justify-end gap-3">
+          <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl shrink-0 flex items-center justify-end gap-3 z-10">
             {footer}
           </div>
         )}
