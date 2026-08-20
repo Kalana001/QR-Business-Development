@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
   Plus, Search, Edit2, Trash2, CheckCircle2, XCircle, Star, Image as ImageIcon, Filter, Upload, AlertCircle
 } from 'lucide-react';
@@ -9,10 +10,11 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { CategoryPlaceholder } from '@/components/placeholders/CategoryPlaceholder';
 import { createClient } from '@/lib/supabase/client';
-import { Business, CatalogItem, Category, BUSINESS_TYPES_META, BusinessType } from '@/lib/types';
+import { Business, CatalogItem, Category, BUSINESS_TYPES_META } from '@/lib/types';
 import { formatCurrency, formatDuration } from '@/lib/utils';
 
 export default function DashboardItemsPage() {
+  const router = useRouter();
   const [business, setBusiness] = useState<Business | null>(null);
   const [items, setItems] = useState<CatalogItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -53,39 +55,24 @@ export default function DashboardItemsPage() {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      // Demo dataset
-      const demoBiz: Business = {
-        id: '11111111-1111-1111-1111-111111111111',
-        owner_id: 'demo',
-        name: 'Bella Vista Bistro',
-        slug: 'bella-vista-bistro',
-        business_type: 'restaurant',
-        description: 'Authentic Italian',
-        phone: null, email: null, address: null, website: null, logo_url: null, banner_url: null,
-        currency: 'USD', theme_color: '#0F172A', created_at: '', updated_at: '',
-      };
-      setBusiness(demoBiz);
-
-      setCategories([
-        { id: 'cat-1', business_id: demoBiz.id, name: 'Appetizers & Starters', description: null, display_order: 1, created_at: '' },
-        { id: 'cat-2', business_id: demoBiz.id, name: 'Handmade Pasta', description: null, display_order: 2, created_at: '' },
-      ]);
-
-      setItems([
-        { id: '1', business_id: demoBiz.id, category_id: 'cat-1', name: 'Bruschetta Originale', description: 'Grilled sourdough with vine tomatoes, garlic, olive oil and fresh basil.', price: 12.5, is_available: true, is_featured: true, image_url: null, badges: ['Vegetarian', 'Popular'], created_at: '', updated_at: '' },
-        { id: '2', business_id: demoBiz.id, category_id: 'cat-2', name: 'Truffle Tagliolini', description: 'Handmade egg pasta with summer black truffle sauce.', price: 24.0, is_available: true, is_featured: true, image_url: null, badges: ["Chef's Special"], created_at: '', updated_at: '' },
-      ]);
-      setLoading(false);
+      router.push('/login');
       return;
     }
 
-    const { data: biz } = await supabase.from('businesses').select('*').eq('owner_id', user.id).single();
+    const { data: biz } = await supabase
+      .from('businesses')
+      .select('*')
+      .eq('owner_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     if (biz) {
       setBusiness(biz as Business);
       const { data: catData } = await supabase.from('categories').select('*').eq('business_id', biz.id).order('display_order');
       const { data: itemData } = await supabase.from('catalog_items').select('*').eq('business_id', biz.id).order('created_at', { ascending: false });
-      if (catData) setCategories(catData as Category[]);
-      if (itemData) setItems(itemData as CatalogItem[]);
+      setCategories((catData as Category[]) || []);
+      setItems((itemData as CatalogItem[]) || []);
     }
     setLoading(false);
   }
@@ -177,18 +164,7 @@ export default function DashboardItemsPage() {
       setIsModalOpen(false);
       await loadData();
     } catch (err: any) {
-      // If offline/demo fallback
-      if (!editingItem) {
-        const newItem: CatalogItem = {
-          id: `item-${Date.now()}`,
-          ...itemDataPayload,
-          created_at: new Date().toISOString(),
-        };
-        setItems([newItem, ...items]);
-      } else {
-        setItems(items.map((i) => (i.id === editingItem.id ? { ...i, ...itemDataPayload } : i)));
-      }
-      setIsModalOpen(false);
+      setFormError(err.message || 'Error saving item.');
     } finally {
       setSubmitting(false);
     }
@@ -199,10 +175,10 @@ export default function DashboardItemsPage() {
     try {
       const supabase = createClient();
       await supabase.from('catalog_items').delete().eq('id', id);
-    } catch {
-      // Fallback
+      setItems(items.filter((i) => i.id !== id));
+    } catch (err: any) {
+      console.error('Delete item error:', err);
     }
-    setItems(items.filter((i) => i.id !== id));
   };
 
   const toggleAvailability = async (item: CatalogItem) => {
@@ -292,7 +268,7 @@ export default function DashboardItemsPage() {
           </div>
           <h3 className="text-base font-bold text-slate-800">No {bMeta.itemTerm.toLowerCase()}s found</h3>
           <p className="text-xs text-slate-500">
-            Try adjusting your search filter or add a new {bMeta.itemTerm.toLowerCase()} to get started.
+            Your catalog is empty or no items match your search. Add your first {bMeta.itemTerm.toLowerCase()} to get started!
           </p>
           <Button onClick={openAddModal} size="sm" className="mt-2">
             Add {bMeta.itemTerm}
@@ -307,7 +283,7 @@ export default function DashboardItemsPage() {
                 key={item.id}
                 className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs hover:shadow-md transition-shadow flex flex-col justify-between"
               >
-                {/* Media Header (Image or Visual Placeholder) */}
+                {/* Media Header */}
                 <div className="relative h-44 w-full bg-slate-100 overflow-hidden">
                   {item.image_url ? (
                     <img
@@ -437,7 +413,7 @@ export default function DashboardItemsPage() {
         </div>
       )}
 
-      {/* Add / Edit Modal adapted to Business Type */}
+      {/* Add / Edit Modal */}
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
@@ -550,7 +526,6 @@ export default function DashboardItemsPage() {
               required
             />
 
-            {/* Quantity for Bookshop or General */}
             {bMeta.fields.quantity && (
               <Input
                 label="Stock Quantity"

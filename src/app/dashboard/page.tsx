@@ -2,14 +2,16 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { 
-  Package, Layers, QrCode, ExternalLink, Plus, Sparkles, CheckCircle2, Store, Utensils, BookOpen, Scissors 
+  Package, Layers, QrCode, ExternalLink, Plus, CheckCircle2, Store, Utensils, BookOpen, Scissors 
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
 import { Business, CatalogItem, Category, BUSINESS_TYPES_META } from '@/lib/types';
 
 export default function DashboardOverviewPage() {
+  const router = useRouter();
   const [business, setBusiness] = useState<Business | null>(null);
   const [items, setItems] = useState<CatalogItem[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
@@ -21,56 +23,41 @@ export default function DashboardOverviewPage() {
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
-        // Fallback demo data
-        const demoBiz: Business = {
-          id: '11111111-1111-1111-1111-111111111111',
-          owner_id: 'demo',
-          name: 'Bella Vista Bistro',
-          slug: 'bella-vista-bistro',
-          business_type: 'restaurant',
-          description: 'Authentic Italian dining with fresh homemade pasta and artisanal pizzas.',
-          phone: '+1 (555) 234-5678',
-          email: 'contact@bellavistabistro.com',
-          address: '123 Main Street',
-          website: 'https://bellavistabistro.com',
-          logo_url: null,
-          banner_url: null,
-          currency: 'USD',
-          theme_color: '#0F172A',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        };
-        setBusiness(demoBiz);
-
-        setItems([
-          { id: '1', business_id: demoBiz.id, category_id: '1', name: 'Bruschetta Originale', description: 'Grilled sourdough topped with tomatoes.', price: 12.5, is_available: true, is_featured: true, image_url: null, created_at: '', updated_at: '', badges: ['Vegetarian'] },
-          { id: '2', business_id: demoBiz.id, category_id: '1', name: 'Truffle Tagliolini', description: 'Handmade egg pasta with summer black truffle.', price: 24.0, is_available: true, is_featured: true, image_url: null, created_at: '', updated_at: '', badges: ["Chef's Special"] },
-          { id: '3', business_id: demoBiz.id, category_id: '2', name: 'Classic Tiramisu', description: 'Savoiardi soaked in espresso with whipped mascarpone.', price: 9.5, is_available: true, is_featured: false, image_url: null, created_at: '', updated_at: '' },
-        ]);
-
-        setCategories([
-          { id: '1', business_id: demoBiz.id, name: 'Starters & Appetizers', description: null, display_order: 1, created_at: '' },
-          { id: '2', business_id: demoBiz.id, name: 'Desserts', description: null, display_order: 2, created_at: '' },
-        ]);
-
-        setLoading(false);
+        router.push('/login');
         return;
       }
 
       // Fetch active user business
-      const { data: biz } = await supabase.from('businesses').select('*').eq('owner_id', user.id).single();
+      const { data: biz } = await supabase
+        .from('businesses')
+        .select('*')
+        .eq('owner_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
       if (biz) {
         setBusiness(biz as Business);
-        const { data: itemData } = await supabase.from('catalog_items').select('*').eq('business_id', biz.id);
-        const { data: catData } = await supabase.from('categories').select('*').eq('business_id', biz.id).order('display_order');
-        if (itemData) setItems(itemData as CatalogItem[]);
-        if (catData) setCategories(catData as Category[]);
+        const { data: itemData } = await supabase
+          .from('catalog_items')
+          .select('*')
+          .eq('business_id', biz.id)
+          .order('created_at', { ascending: false });
+          
+        const { data: catData } = await supabase
+          .from('categories')
+          .select('*')
+          .eq('business_id', biz.id)
+          .order('display_order');
+
+        setItems((itemData as CatalogItem[]) || []);
+        setCategories((catData as Category[]) || []);
       }
       setLoading(false);
     }
 
     loadOverview();
-  }, []);
+  }, [router]);
 
   if (loading) {
     return (
@@ -101,18 +88,20 @@ export default function DashboardOverviewPage() {
               {businessMeta.label} Catalog
             </span>
           </div>
-          <h1 className="text-2xl font-extrabold text-slate-900">{business?.name}</h1>
+          <h1 className="text-2xl font-extrabold text-slate-900">{business?.name || 'My Business'}</h1>
           <p className="text-xs text-slate-500 max-w-xl">
-            {business?.description || 'Your digital business catalog is live and ready for customer QR scans.'}
+            {business?.description || 'Your digital catalog workspace. Add categories and items to display to customers scanning your QR code.'}
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <Link href={`/c/${business?.slug}`} target="_blank">
-            <Button variant="outline" className="gap-2 text-xs font-semibold">
-              <ExternalLink className="w-3.5 h-3.5" /> View Live Catalog
-            </Button>
-          </Link>
+          {business && (
+            <Link href={`/c/${business.slug}`} target="_blank">
+              <Button variant="outline" className="gap-2 text-xs font-semibold">
+                <ExternalLink className="w-3.5 h-3.5" /> View Live Catalog
+              </Button>
+            </Link>
+          )}
           <Link href="/dashboard/items">
             <Button className="gap-2 text-xs font-semibold">
               <Plus className="w-3.5 h-3.5" /> Add {businessMeta.itemTerm}
@@ -169,21 +158,22 @@ export default function DashboardOverviewPage() {
         </div>
       </div>
 
-      {/* Quick Setup Checklist & Recent Catalog Items */}
+      {/* Catalog Preview */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Recent Items Preview */}
         <div className="lg:col-span-2 bg-white rounded-2xl border border-slate-200 p-6 space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="text-base font-bold text-slate-900">Catalog Preview</h2>
-            <Link href="/dashboard/items" className="text-xs text-teal-600 hover:underline font-semibold">
-              Manage All ({items.length})
-            </Link>
+            {items.length > 0 && (
+              <Link href="/dashboard/items" className="text-xs text-teal-600 hover:underline font-semibold">
+                Manage All ({items.length})
+              </Link>
+            )}
           </div>
 
           {items.length === 0 ? (
             <div className="p-8 text-center border-2 border-dashed border-slate-200 rounded-xl space-y-3">
               <Package className="w-8 h-8 text-slate-400 mx-auto" />
-              <div className="text-sm font-semibold text-slate-700">No items added yet</div>
+              <div className="text-sm font-semibold text-slate-700">Your catalog is currently empty</div>
               <p className="text-xs text-slate-500">
                 Start adding {businessMeta.itemTerm.toLowerCase()}s to display in your mobile QR catalog.
               </p>

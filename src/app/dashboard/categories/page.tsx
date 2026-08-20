@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Layers, Plus, Edit2, Trash2, ArrowUp, ArrowDown, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -9,6 +10,7 @@ import { createClient } from '@/lib/supabase/client';
 import { Business, Category } from '@/lib/types';
 
 export default function DashboardCategoriesPage() {
+  const router = useRouter();
   const [business, setBusiness] = useState<Business | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -31,29 +33,26 @@ export default function DashboardCategoriesPage() {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      // Demo dataset
-      const demoBiz: Business = {
-        id: '11111111-1111-1111-1111-111111111111',
-        owner_id: 'demo', name: 'Bella Vista Bistro', slug: 'bella-vista-bistro', business_type: 'restaurant',
-        description: null, phone: null, email: null, address: null, website: null, logo_url: null, banner_url: null,
-        currency: 'USD', theme_color: '#0F172A', created_at: '', updated_at: '',
-      };
-      setBusiness(demoBiz);
-
-      setCategories([
-        { id: 'cat-1', business_id: demoBiz.id, name: 'Starters & Appetizers', description: 'Fresh Italian antipasti', display_order: 1, created_at: '' },
-        { id: 'cat-2', business_id: demoBiz.id, name: 'Pasta & Main Dishes', description: 'Handcrafted egg pasta', display_order: 2, created_at: '' },
-        { id: 'cat-3', business_id: demoBiz.id, name: 'Desserts & Coffee', description: 'Dolci & espresso', display_order: 3, created_at: '' },
-      ]);
-      setLoading(false);
+      router.push('/login');
       return;
     }
 
-    const { data: biz } = await supabase.from('businesses').select('*').eq('owner_id', user.id).single();
+    const { data: biz } = await supabase
+      .from('businesses')
+      .select('*')
+      .eq('owner_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     if (biz) {
       setBusiness(biz as Business);
-      const { data: catData } = await supabase.from('categories').select('*').eq('business_id', biz.id).order('display_order');
-      if (catData) setCategories(catData as Category[]);
+      const { data: catData } = await supabase
+        .from('categories')
+        .select('*')
+        .eq('business_id', biz.id)
+        .order('display_order');
+      setCategories((catData as Category[]) || []);
     }
     setLoading(false);
   }
@@ -99,22 +98,8 @@ export default function DashboardCategoriesPage() {
       }
       setIsModalOpen(false);
       await loadCategories();
-    } catch {
-      // Offline fallback
-      if (editingCategory) {
-        setCategories(categories.map((c) => (c.id === editingCategory.id ? { ...c, name, description } : c)));
-      } else {
-        const newCat: Category = {
-          id: `cat-${Date.now()}`,
-          business_id: business.id,
-          name,
-          description,
-          display_order: categories.length + 1,
-          created_at: new Date().toISOString(),
-        };
-        setCategories([...categories, newCat]);
-      }
-      setIsModalOpen(false);
+    } catch (err: any) {
+      setFormError(err.message || 'Error saving category.');
     } finally {
       setSubmitting(false);
     }
@@ -125,8 +110,8 @@ export default function DashboardCategoriesPage() {
     try {
       const supabase = createClient();
       await supabase.from('categories').delete().eq('id', id);
+      setCategories(categories.filter((c) => c.id !== id));
     } catch {}
-    setCategories(categories.filter((c) => c.id !== id));
   };
 
   const moveOrder = async (index: number, direction: 'up' | 'down') => {
@@ -240,6 +225,13 @@ export default function DashboardCategoriesPage() {
         title={editingCategory ? 'Edit Category' : 'Create New Category'}
       >
         <form onSubmit={handleSave} className="space-y-4">
+          {formError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-600 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{formError}</span>
+            </div>
+          )}
+
           <Input
             label="Category Name"
             placeholder="e.g. Starters, Main Course, Fiction"

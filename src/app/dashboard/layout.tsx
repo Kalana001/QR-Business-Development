@@ -4,10 +4,11 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
-  QrCode, LayoutDashboard, Package, Layers, Settings, ExternalLink, LogOut, Store, Menu, X, Sparkles 
+  QrCode, LayoutDashboard, Package, Layers, Settings, ExternalLink, LogOut, Store, Menu, X 
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Business } from '@/lib/types';
+import { slugify } from '@/lib/utils';
 
 export default function DashboardLayout({
   children,
@@ -26,66 +27,49 @@ export default function DashboardLayout({
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
-        // Fallback demo business if Supabase auth is not logged in locally
-        setBusiness({
-          id: '11111111-1111-1111-1111-111111111111',
-          owner_id: 'demo-user',
-          name: 'Bella Vista Bistro',
-          slug: 'bella-vista-bistro',
-          business_type: 'restaurant',
-          description: 'Authentic Italian dining with fresh homemade pasta and artisanal pizzas.',
-          phone: '+1 (555) 234-5678',
-          email: 'contact@bellavistabistro.com',
-          address: '123 Main Street, Suite A',
-          website: 'https://bellavistabistro.com',
-          logo_url: null,
-          banner_url: null,
-          currency: 'USD',
-          theme_color: '#0F172A',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
-        setLoading(false);
+        // Unauthenticated user -> redirect to login
+        router.push('/login');
         return;
       }
 
-      // Fetch user's active business
-      const { data: bizData } = await supabase
+      // Fetch user's business workspace
+      const { data: bizData, error: bizError } = await supabase
         .from('businesses')
         .select('*')
         .eq('owner_id', user.id)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (bizData) {
         setBusiness(bizData as Business);
       } else {
-        // Default fallback if table empty
-        setBusiness({
-          id: '11111111-1111-1111-1111-111111111111',
-          owner_id: user.id,
-          name: 'My Business Catalog',
-          slug: 'my-business-catalog',
-          business_type: 'general',
-          description: null,
-          phone: null,
-          email: user.email || null,
-          address: null,
-          website: null,
-          logo_url: null,
-          banner_url: null,
-          currency: 'USD',
-          theme_color: '#0F172A',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-        });
+        // If user is authenticated but has no business record yet, create one
+        const defaultName = user.user_metadata?.full_name ? `${user.user_metadata.full_name}'s Business` : 'My Business Catalog';
+        const generatedSlug = slugify(defaultName) + '-' + Date.now().toString().slice(-4);
+        
+        const { data: newBiz, error: createErr } = await supabase
+          .from('businesses')
+          .insert({
+            owner_id: user.id,
+            name: defaultName,
+            slug: generatedSlug,
+            business_type: 'restaurant',
+            currency: 'USD',
+            theme_color: '#0F172A',
+          })
+          .select()
+          .single();
+
+        if (newBiz) {
+          setBusiness(newBiz as Business);
+        }
       }
       setLoading(false);
     }
 
     loadBusinessData();
-  }, []);
+  }, [router]);
 
   const handleSignOut = async () => {
     const supabase = createClient();
@@ -101,6 +85,19 @@ export default function DashboardLayout({
     { href: '/dashboard/business', label: 'Business Settings', icon: Settings },
   ];
 
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4 text-white">
+        <div className="text-center space-y-3">
+          <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto" />
+          <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
+            Loading Workspace...
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row">
       {/* Sidebar navigation */}
@@ -112,9 +109,9 @@ export default function DashboardLayout({
               <QrCode className="w-5 h-5" />
             </div>
             <div className="truncate">
-              <div className="truncate">{business?.name || 'QR Catalog Studio'}</div>
+              <div className="truncate">{business?.name || 'My Business'}</div>
               <div className="text-[10px] text-teal-400 font-normal capitalize">
-                {business?.business_type || 'Multi-tenant Dashboard'}
+                {business?.business_type || 'Catalog'}
               </div>
             </div>
           </Link>
@@ -132,7 +129,7 @@ export default function DashboardLayout({
               rel="noopener noreferrer"
               className="inline-flex items-center justify-between w-full px-3 py-1.5 bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 border border-teal-500/30 rounded-lg text-xs font-medium transition-colors"
             >
-              <span>/c/{business.slug}</span>
+              <span className="truncate">/c/{business.slug}</span>
               <ExternalLink className="w-3.5 h-3.5 shrink-0 ml-1" />
             </a>
           </div>
@@ -164,7 +161,7 @@ export default function DashboardLayout({
         <div className="p-4 border-t border-slate-800 space-y-2">
           <button
             onClick={handleSignOut}
-            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg transition-colors"
+            className="flex items-center gap-2 w-full px-3 py-2 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
             <span>Sign Out</span>

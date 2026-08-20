@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Settings, Store, Save, CheckCircle2, AlertCircle, Utensils, BookOpen, Scissors } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -9,6 +10,7 @@ import { Business, BusinessType, BUSINESS_TYPES_META } from '@/lib/types';
 import { slugify } from '@/lib/utils';
 
 export default function DashboardBusinessSettingsPage() {
+  const router = useRouter();
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -38,32 +40,18 @@ export default function DashboardBusinessSettingsPage() {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (!user) {
-      // Demo dataset
-      const demoBiz: Business = {
-        id: '11111111-1111-1111-1111-111111111111',
-        owner_id: 'demo',
-        name: 'Bella Vista Bistro',
-        slug: 'bella-vista-bistro',
-        business_type: 'restaurant',
-        description: 'Authentic Italian dining with fresh homemade pasta and artisanal pizzas.',
-        phone: '+1 (555) 234-5678',
-        email: 'contact@bellavistabistro.com',
-        address: '123 Main Street, Suite A, Downtown',
-        website: 'https://bellavistabistro.com',
-        logo_url: null,
-        banner_url: null,
-        currency: 'USD',
-        theme_color: '#E11D48',
-        created_at: '',
-        updated_at: '',
-      };
-      setBusiness(demoBiz);
-      populateForm(demoBiz);
-      setLoading(false);
+      router.push('/login');
       return;
     }
 
-    const { data: biz } = await supabase.from('businesses').select('*').eq('owner_id', user.id).single();
+    const { data: biz } = await supabase
+      .from('businesses')
+      .select('*')
+      .eq('owner_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
     if (biz) {
       setBusiness(biz as Business);
       populateForm(biz as Business);
@@ -115,10 +103,9 @@ export default function DashboardBusinessSettingsPage() {
       if (error) throw error;
       setSuccessMsg('Business details successfully updated!');
       setSlug(formattedSlug);
-    } catch (err: any) {
-      // Local state update fallback
       setBusiness({ ...business, ...updatedPayload });
-      setSuccessMsg('Settings updated locally!');
+    } catch (err: any) {
+      setErrorMsg(err.message || 'Failed to update settings.');
     } finally {
       setSubmitting(false);
     }
