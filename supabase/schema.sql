@@ -48,6 +48,7 @@ CREATE TABLE IF NOT EXISTS public.businesses (
   banner_url TEXT,
   currency TEXT NOT NULL DEFAULT 'LKR',
   theme_color TEXT NOT NULL DEFAULT '#0F172A',
+  is_public BOOLEAN NOT NULL DEFAULT true, -- Publication Control (FIX #4)
   
   -- Subscription & Limit System Fields (Protected from non-admin updates)
   subscription_plan TEXT NOT NULL DEFAULT 'free' CHECK (subscription_plan IN ('free', 'pro', 'enterprise')),
@@ -60,6 +61,8 @@ CREATE TABLE IF NOT EXISTS public.businesses (
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT true;
 
 -- Safely convert existing fake 999999 limits to NULL for Business Plus (Enterprise)
 ALTER TABLE public.businesses ALTER COLUMN max_items DROP NOT NULL;
@@ -120,17 +123,17 @@ CREATE INDEX IF NOT EXISTS idx_items_business ON public.catalog_items(business_i
 CREATE INDEX IF NOT EXISTS idx_items_category ON public.catalog_items(category_id);
 
 -- ============================================================================
--- AUTHORIZATION HELPER FUNCTIONS (ALL HARDENED WITH search_path)
+-- AUTHORIZATION HELPER FUNCTIONS (STABLE VOLATILITY FIX #6)
 -- ============================================================================
 
--- Check if business subscription is currently expired
+-- Check if business subscription is currently expired (STABLE because it evaluates NOW())
 CREATE OR REPLACE FUNCTION public.is_business_subscription_expired(
   p_status TEXT,
   p_end_date TIMESTAMPTZ
 )
 RETURNS BOOLEAN
 LANGUAGE plpgsql
-IMMUTABLE
+STABLE
 SET search_path = public, pg_temp
 AS $$
 BEGIN
@@ -199,10 +202,10 @@ END;
 $$;
 
 -- ============================================================================
--- PUBLIC DATA ISOLATION (Customer Catalog View with Expiration Awareness)
+-- SECURE PUBLIC ACCESS VIEWS (SANITIZED & RANK-LIMITED FIXES #1, #2, #3, #4)
 -- ============================================================================
 
--- Create secure view exposing ONLY customer-safe fields + expiration status
+-- 1. PUBLIC BUSINESSES VIEW (Exposes ONLY public customer branding/contact info - FIX #3 & #4)
 CREATE OR REPLACE VIEW public.public_businesses AS
 SELECT 
   id,
@@ -218,21 +221,71 @@ SELECT
   banner_url,
   currency,
   theme_color,
-  subscription_plan,
-  public.is_business_subscription_expired(subscription_status, subscription_end_date) AS is_expired,
-  CASE 
-    WHEN public.is_business_subscription_expired(subscription_status, subscription_end_date) THEN 10 
-    ELSE max_items 
-  END AS effective_max_items,
-  CASE 
-    WHEN public.is_business_subscription_expired(subscription_status, subscription_end_date) THEN 5 
-    ELSE max_categories 
-  END AS effective_max_categories,
+  is_public,
   created_at,
   updated_at
-FROM public.businesses;
+FROM public.businesses
+WHERE is_public = true;
 
 GRANT SELECT ON public.public_businesses TO anon, authenticated;
+
+-- 2. PUBLIC CATEGORIES VIEW (Window Function Rank Enforced - FIX #2)
+CREATE OR REPLACE VIEW public.public_categories AS
+WITH ranked_categories AS (
+  SELECT 
+    c.*,
+    b.subscription_status,
+    b.subscription_end_date,
+    b.max_categories,
+    public.is_business_subscription_expired(b.subscription_status, b.subscription_end_date) AS is_expired,
+    CASE 
+      WHEN public.is_business_subscription_expired(b.subscription_status, b.subscription_end_date) THEN 5 
+      ELSE b.max_categories 
+    END AS effective_max_categories,
+    ROW_NUMBER() OVER (
+      PARTITION BY c.business_id 
+      ORDER BY c.display_order ASC, c.created_at ASC, c.id ASC
+    ) AS cat_rank
+  FROM public.categories c
+  JOIN public.businesses b ON b.id = c.business_id
+  WHERE b.is_public = true
+)
+SELECT 
+  id, business_id, name, description, display_order, created_at
+FROM ranked_categories
+WHERE effective_max_categories IS NULL OR cat_rank <= effective_max_categories;
+
+GRANT SELECT ON public.public_categories TO anon, authenticated;
+
+-- 3. PUBLIC CATALOG ITEMS VIEW (Window Function Rank Enforced - FIX #1)
+CREATE OR REPLACE VIEW public.public_catalog_items AS
+WITH ranked_items AS (
+  SELECT 
+    ci.*,
+    b.subscription_status,
+    b.subscription_end_date,
+    b.max_items,
+    public.is_business_subscription_expired(b.subscription_status, b.subscription_end_date) AS is_expired,
+    CASE 
+      WHEN public.is_business_subscription_expired(b.subscription_status, b.subscription_end_date) THEN 10 
+      ELSE b.max_items 
+    END AS effective_max_items,
+    ROW_NUMBER() OVER (
+      PARTITION BY ci.business_id 
+      ORDER BY ci.created_at DESC, ci.id ASC
+    ) AS item_rank
+  FROM public.catalog_items ci
+  JOIN public.businesses b ON b.id = ci.business_id
+  WHERE ci.is_available = true AND b.is_public = true
+)
+SELECT 
+  id, business_id, category_id, name, author, isbn, duration, badges,
+  description, price, quantity, is_available, is_featured, image_url,
+  external_source, external_product_id, last_synced_at, created_at, updated_at
+FROM ranked_items
+WHERE effective_max_items IS NULL OR item_rank <= effective_max_items;
+
+GRANT SELECT ON public.public_catalog_items TO anon, authenticated;
 
 -- ============================================================================
 -- ROW LEVEL SECURITY (RLS) POLICIES
@@ -283,7 +336,40 @@ DROP POLICY IF EXISTS "Business owner can delete business" ON public.businesses;
 CREATE POLICY "Business owner can delete business" ON public.businesses 
 FOR DELETE USING (public.is_business_owner(id) OR public.is_super_admin());
 
--- 4. CATEGORIES POLICIES (Strict Tenant Isolation)
+-- 4. BUSINESS MEMBERS POLICIES (Explicit Tenant Isolation - FIX #5)
+DROP POLICY IF EXISTS "Members can view business team" ON public.business_members;
+CREATE POLICY "Members can view business team" ON public.business_members 
+FOR SELECT USING (
+  auth.uid() = user_id OR 
+  public.is_business_owner(business_id) OR 
+  public.is_super_admin()
+);
+
+DROP POLICY IF EXISTS "Owners can add business members" ON public.business_members;
+CREATE POLICY "Owners can add business members" ON public.business_members 
+FOR INSERT WITH CHECK (
+  public.is_business_owner(business_id) OR 
+  public.is_super_admin()
+);
+
+DROP POLICY IF EXISTS "Owners can update business members" ON public.business_members;
+CREATE POLICY "Owners can update business members" ON public.business_members 
+FOR UPDATE USING (
+  public.is_business_owner(business_id) OR 
+  public.is_super_admin()
+) WITH CHECK (
+  public.is_business_owner(business_id) OR 
+  public.is_super_admin()
+);
+
+DROP POLICY IF EXISTS "Owners can delete business members" ON public.business_members;
+CREATE POLICY "Owners can delete business members" ON public.business_members 
+FOR DELETE USING (
+  public.is_business_owner(business_id) OR 
+  public.is_super_admin()
+);
+
+-- 5. CATEGORIES POLICIES (Strict Tenant Isolation)
 DROP POLICY IF EXISTS "Public customer category view" ON public.categories;
 CREATE POLICY "Public customer category view" ON public.categories 
 FOR SELECT USING (
@@ -303,7 +389,7 @@ DROP POLICY IF EXISTS "Members can delete categories" ON public.categories;
 CREATE POLICY "Members can delete categories" ON public.categories 
 FOR DELETE USING (public.can_manage_catalog(business_id));
 
--- 5. CATALOG ITEMS POLICIES (Strict Tenant Isolation)
+-- 6. CATALOG ITEMS POLICIES (Strict Tenant Isolation)
 DROP POLICY IF EXISTS "Public customer items view" ON public.catalog_items;
 CREATE POLICY "Public customer items view" ON public.catalog_items 
 FOR SELECT USING (
@@ -364,7 +450,7 @@ CREATE TRIGGER tr_protect_business_fields
   FOR EACH ROW EXECUTE FUNCTION public.protect_business_sensitive_fields();
 
 -- ============================================================================
--- SECURE SUPER-ADMIN SUBSCRIPTION APPROVAL RPC
+-- SECURE SUPER-ADMIN SUBSCRIPTION APPROVAL RPC (STRICT VALIDATION FIX #7)
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.admin_update_subscription(
@@ -383,11 +469,24 @@ DECLARE
   v_max_categories INT;
   v_result public.businesses;
 BEGIN
-  -- Enforce Super Admin Check
+  -- 1. Enforce Super Admin Check
   IF NOT public.is_super_admin() THEN
     RAISE EXCEPTION 'Access Denied: Super Admin privileges required.' USING ERRCODE = '42501';
   END IF;
 
+  -- 2. Validate Subscription Plan (Reject invalid plans - FIX #7)
+  IF p_plan NOT IN ('free', 'pro', 'enterprise') THEN
+    RAISE EXCEPTION 'Invalid subscription plan: %. Plan must be free, pro, or enterprise.', p_plan USING ERRCODE = '22023';
+  END IF;
+
+  -- 3. Validate Date Range for Paid Plans (FIX #7)
+  IF p_plan IN ('pro', 'enterprise') THEN
+    IF p_end_date IS NULL OR p_end_date <= p_start_date THEN
+      RAISE EXCEPTION 'Invalid date range: end_date must be later than start_date.' USING ERRCODE = '22023';
+    END IF;
+  END IF;
+
+  -- 4. Calculate Internal Limits
   IF p_plan = 'pro' THEN
     v_max_items := 150;
     v_max_categories := 20;
@@ -416,7 +515,7 @@ END;
 $$;
 
 -- ============================================================================
--- STORAGE BUCKETS & PATH-BASED TENANT ISOLATION POLICIES
+-- STORAGE BUCKETS & PATH-BASED TENANT ISOLATION POLICIES (REGEX FIX #8)
 -- ============================================================================
 
 INSERT INTO storage.buckets (id, name, public) 
@@ -431,6 +530,7 @@ CREATE POLICY "Tenant isolated upload" ON storage.objects FOR INSERT
 WITH CHECK (
   bucket_id = 'business-assets' AND 
   auth.role() = 'authenticated' AND
+  (storage.foldername(name))[1] ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' AND
   public.can_manage_catalog(((storage.foldername(name))[1])::uuid)
 );
 
@@ -438,6 +538,7 @@ DROP POLICY IF EXISTS "Tenant isolated update" ON storage.objects;
 CREATE POLICY "Tenant isolated update" ON storage.objects FOR UPDATE 
 USING (
   bucket_id = 'business-assets' AND 
+  (storage.foldername(name))[1] ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' AND
   public.can_manage_catalog(((storage.foldername(name))[1])::uuid)
 );
 
@@ -445,6 +546,7 @@ DROP POLICY IF EXISTS "Tenant isolated delete" ON storage.objects;
 CREATE POLICY "Tenant isolated delete" ON storage.objects FOR DELETE 
 USING (
   bucket_id = 'business-assets' AND 
+  (storage.foldername(name))[1] ~ '^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$' AND
   public.can_manage_catalog(((storage.foldername(name))[1])::uuid)
 );
 
@@ -489,7 +591,7 @@ BEGIN
 
   -- 3. Create Separate Business Workspace for New User (Free plan has NULL expiration)
   INSERT INTO public.businesses (
-    owner_id, name, slug, business_type, currency, theme_color,
+    owner_id, name, slug, business_type, currency, theme_color, is_public,
     subscription_plan, subscription_status, subscription_start_date, subscription_end_date, max_items, max_categories
   )
   VALUES (
@@ -499,6 +601,7 @@ BEGIN
     b_type,
     'LKR',
     '#0F172A',
+    true, -- Published by default
     'free',
     'active',
     NOW(),

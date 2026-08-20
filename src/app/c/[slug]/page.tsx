@@ -9,12 +9,6 @@ import { createClient } from '@/lib/supabase/client';
 import { Business, CatalogItem, Category, BUSINESS_TYPES_META } from '@/lib/types';
 import { formatCurrency, formatDuration } from '@/lib/utils';
 
-interface PublicBusinessWithLimits extends Business {
-  is_expired?: boolean;
-  effective_max_items?: number;
-  effective_max_categories?: number;
-}
-
 export default function PublicCustomerCatalogPage({
   params,
 }: {
@@ -23,10 +17,9 @@ export default function PublicCustomerCatalogPage({
   const resolvedParams = use(params);
   const slug = resolvedParams.slug;
 
-  const [business, setBusiness] = useState<PublicBusinessWithLimits | null>(null);
+  const [business, setBusiness] = useState<Business | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
   const [publishedItems, setPublishedItems] = useState<CatalogItem[]>([]);
-  const [totalDbItemsCount, setTotalDbItemsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -43,7 +36,7 @@ export default function PublicCustomerCatalogPage({
       setLoading(true);
       const supabase = createClient();
 
-      // 1. Fetch business from SECURE PUBLIC VIEW (public_businesses) with expiration limits
+      // 1. Fetch business from SANITIZED PUBLIC VIEW (public_businesses)
       const { data: bizData, error: bizError } = await supabase
         .from('public_businesses')
         .select('*')
@@ -53,13 +46,12 @@ export default function PublicCustomerCatalogPage({
       if (bizError || !bizData) {
         // Hardcoded demo catalog fallbacks if DB table is empty or loading locally
         if (slug === 'bella-vista-bistro') {
-          const demoBiz: PublicBusinessWithLimits = {
+          const demoBiz: Business = {
             id: '11111111-1111-1111-1111-111111111111',
             owner_id: 'demo', name: 'Bella Vista Bistro', slug: 'bella-vista-bistro', business_type: 'restaurant',
             description: 'Authentic Italian dining with fresh homemade pasta and artisanal pizzas.',
             phone: '+1 (555) 234-5678', email: 'contact@bellavistabistro.com', address: '123 Main Street, Downtown',
             website: 'https://bellavistabistro.com', logo_url: null, banner_url: null, currency: 'USD', theme_color: '#E11D48',
-            effective_max_items: 10, effective_max_categories: 5, is_expired: false,
             created_at: '', updated_at: '',
           };
           setBusiness(demoBiz);
@@ -72,7 +64,6 @@ export default function PublicCustomerCatalogPage({
             { id: 'i2', business_id: demoBiz.id, category_id: 'c2', name: 'Truffle Tagliolini', description: 'Handmade egg pasta with summer black truffle sauce and aged Parmigiano Reggiano.', price: 24.0, is_available: true, is_featured: true, image_url: null, badges: ["Chef's Special"], created_at: '', updated_at: '' },
             { id: 'i3', business_id: demoBiz.id, category_id: 'c2', name: 'Margherita Artisanal Pizza', description: 'San Marzano tomatoes, fresh mozzarella di bufala, and basil.', price: 18.0, is_available: true, is_featured: false, image_url: null, badges: ['Vegetarian'], created_at: '', updated_at: '' },
           ]);
-          setTotalDbItemsCount(3);
           setLoading(false);
           return;
         }
@@ -82,34 +73,22 @@ export default function PublicCustomerCatalogPage({
         return;
       }
 
-      setBusiness(bizData as PublicBusinessWithLimits);
+      setBusiness(bizData as Business);
 
-      const maxLimit = bizData.effective_max_items || 10;
-      const maxCatLimit = bizData.effective_max_categories || 5;
-
-      // 2. Fetch Categories up to effective category limit
+      // 2. Fetch Categories from DB-RANK-ENFORCED VIEW (public_categories)
       const { data: catData } = await supabase
-        .from('categories')
+        .from('public_categories')
         .select('*')
-        .eq('business_id', bizData.id)
-        .order('display_order')
-        .limit(maxCatLimit);
+        .eq('business_id', bizData.id);
 
-      // 3. Fetch ALL available items for this business ordered by creation
+      // 3. Fetch Items from DB-RANK-ENFORCED VIEW (public_catalog_items)
       const { data: itemData } = await supabase
-        .from('catalog_items')
+        .from('public_catalog_items')
         .select('*')
-        .eq('business_id', bizData.id)
-        .eq('is_available', true)
-        .order('created_at', { ascending: false });
+        .eq('business_id', bizData.id);
 
-      const allItems = (itemData as CatalogItem[]) || [];
-      setTotalDbItemsCount(allItems.length);
-
-      // Strictly restrict publicly published items to effectiveMaxItems limit at backend/query level
-      const slicePublished = allItems.slice(0, maxLimit);
-      setPublishedItems(slicePublished);
       if (catData) setCategories(catData as Category[]);
+      if (itemData) setPublishedItems(itemData as CatalogItem[]);
 
       setLoading(false);
     }
@@ -147,10 +126,8 @@ export default function PublicCustomerCatalogPage({
   }
 
   const bMeta = BUSINESS_TYPES_META[business.business_type] || BUSINESS_TYPES_META.general;
-  const effectiveMaxLimit = business.effective_max_items || 10;
-  const hasHiddenExcessItems = totalDbItemsCount > publishedItems.length;
 
-  // Filter ONLY over currently published/eligible items
+  // Filter ONLY over currently DB-published items
   const filteredItems = publishedItems.filter((item) => {
     const matchesSearch =
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -393,19 +370,6 @@ export default function PublicCustomerCatalogPage({
                   </div>
                 );
               })}
-            </div>
-          )}
-
-          {/* PROFESSIONAL CATALOG CURRENTLY LIMITED NOTICE */}
-          {hasHiddenExcessItems && (
-            <div className="p-5 rounded-2xl bg-amber-50 border border-amber-200 text-center space-y-2 mt-6">
-              <div className="w-10 h-10 bg-amber-100 text-amber-800 rounded-full flex items-center justify-center mx-auto">
-                <Lock className="w-5 h-5" />
-              </div>
-              <h4 className="text-sm font-bold text-amber-950">More items are available</h4>
-              <p className="text-xs text-amber-800 leading-relaxed max-w-xs mx-auto">
-                This business&apos;s catalog is currently limited. Renewed service is required to view the complete catalog.
-              </p>
             </div>
           )}
         </main>
