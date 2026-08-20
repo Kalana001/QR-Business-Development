@@ -27,13 +27,13 @@ export interface Business {
   currency: string;
   theme_color: string;
   
-  // Subscription fields
+  // Subscription fields (NULL max_items or max_categories = Unlimited)
   subscription_plan?: SubscriptionPlan;
   subscription_status?: SubscriptionStatus;
   subscription_start_date?: string | null;
   subscription_end_date?: string | null;
-  max_items?: number;
-  max_categories?: number;
+  max_items?: number | null;
+  max_categories?: number | null;
 
   created_at: string;
   updated_at: string;
@@ -87,8 +87,8 @@ export interface SubscriptionPlanMeta {
   id: SubscriptionPlan;
   name: string;
   priceLKR: number;
-  maxItems: number;
-  maxCategories: number;
+  maxItems: number | null;
+  maxCategories: number | null;
   badge: string;
   description: string;
   features: string[];
@@ -101,7 +101,7 @@ export const SUBSCRIPTION_PLANS_META: Record<SubscriptionPlan, SubscriptionPlanM
     priceLKR: 0,
     maxItems: 10,
     maxCategories: 5,
-    badge: 'Free Trial',
+    badge: 'Free Forever',
     description: 'Perfect for small businesses creating their first digital QR catalog.',
     features: [
       'Up to 10 Catalog Items',
@@ -128,10 +128,10 @@ export const SUBSCRIPTION_PLANS_META: Record<SubscriptionPlan, SubscriptionPlanM
   },
   enterprise: {
     id: 'enterprise',
-    name: 'Enterprise Unlimited',
+    name: 'Business Plus',
     priceLKR: 3500,
-    maxItems: 999999,
-    maxCategories: 999999,
+    maxItems: null, // NULL = Unlimited
+    maxCategories: null, // NULL = Unlimited
     badge: 'Best Value',
     description: 'Built for large restaurants, retail stores, and multi-category shops.',
     features: [

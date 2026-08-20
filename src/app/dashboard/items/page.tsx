@@ -79,17 +79,21 @@ export default function DashboardItemsPage() {
     setLoading(false);
   }
 
-  // Calculate Expiration & Effective Limits
+  // Calculate Expiration & Effective Limits (NULL max_items = Unlimited)
   const isSuperAdmin = business?.name?.toLowerCase().includes('master super admin');
-  const isExpired = !isSuperAdmin && business?.subscription_status !== 'active' || 
-    (!isSuperAdmin && business?.subscription_end_date ? new Date(business.subscription_end_date) < new Date() : false);
+  const isExpired = !isSuperAdmin && (business?.subscription_status !== 'active' || 
+    (business?.subscription_end_date ? new Date(business.subscription_end_date) < new Date() : false));
   
   const currentPlanKey = business?.subscription_plan || 'free';
   const currentPlanMeta = SUBSCRIPTION_PLANS_META[currentPlanKey];
-  const maxAllowedItems = isSuperAdmin ? 999999 : (isExpired ? 10 : (business?.max_items || 10));
+  
+  // NULL means Unlimited
+  const rawMaxItems = business?.max_items;
+  const isUnlimited = isSuperAdmin || (!isExpired && (rawMaxItems === null || rawMaxItems === undefined || currentPlanKey === 'enterprise'));
+  const maxAllowedItems = isUnlimited ? Infinity : (isExpired ? 10 : (rawMaxItems ?? 10));
 
   const openAddModal = () => {
-    if (!editingItem && items.length >= maxAllowedItems) {
+    if (!editingItem && !isUnlimited && items.length >= maxAllowedItems) {
       setIsUpgradeModalOpen(true);
       return;
     }
@@ -133,7 +137,7 @@ export default function DashboardItemsPage() {
     e.preventDefault();
     if (!business) return;
 
-    if (!editingItem && items.length >= maxAllowedItems) {
+    if (!editingItem && !isUnlimited && items.length >= maxAllowedItems) {
       setIsModalOpen(false);
       setIsUpgradeModalOpen(true);
       return;
@@ -238,8 +242,7 @@ export default function DashboardItemsPage() {
   });
 
   const bMeta = business ? BUSINESS_TYPES_META[business.business_type] : BUSINESS_TYPES_META.general;
-  const publishedCount = Math.min(items.length, maxAllowedItems);
-  const lockedCount = Math.max(0, items.length - maxAllowedItems);
+  const publishedCount = isUnlimited ? items.length : Math.min(items.length, maxAllowedItems);
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -289,12 +292,12 @@ export default function DashboardItemsPage() {
       {/* Plan Usage Meter Banner */}
       {business && !isExpired && (
         <div className={`p-4 rounded-2xl border flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 ${
-          items.length >= maxAllowedItems
+          !isUnlimited && items.length >= maxAllowedItems
             ? 'bg-rose-50 border-rose-200 text-rose-900'
             : 'bg-white border-slate-200 text-slate-800'
         }`}>
           <div className="flex items-center gap-3">
-            <div className={`p-2.5 rounded-xl ${items.length >= maxAllowedItems ? 'bg-rose-500 text-white' : 'bg-slate-900 text-teal-400'}`}>
+            <div className={`p-2.5 rounded-xl ${!isUnlimited && items.length >= maxAllowedItems ? 'bg-rose-500 text-white' : 'bg-slate-900 text-teal-400'}`}>
               <Crown className="w-5 h-5" />
             </div>
             <div>
@@ -302,18 +305,20 @@ export default function DashboardItemsPage() {
                 Plan Usage ({currentPlanMeta.name})
               </div>
               <div className="text-sm font-extrabold text-slate-900 mt-0.5">
-                {items.length} / {maxAllowedItems > 900000 ? 'Unlimited' : maxAllowedItems} {bMeta.itemTerm}s used
+                {items.length} / {isUnlimited ? 'Unlimited' : maxAllowedItems} {bMeta.itemTerm}s used
               </div>
             </div>
           </div>
 
-          <Button
-            onClick={() => setIsUpgradeModalOpen(true)}
-            size="sm"
-            className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs gap-1.5 border-none shadow-sm"
-          >
-            <Zap className="w-3.5 h-3.5" /> Upgrade Plan
-          </Button>
+          {!isUnlimited && (
+            <Button
+              onClick={() => setIsUpgradeModalOpen(true)}
+              size="sm"
+              className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs gap-1.5 border-none shadow-sm"
+            >
+              <Zap className="w-3.5 h-3.5" /> Upgrade Plan
+            </Button>
+          )}
         </div>
       )}
 
@@ -368,7 +373,7 @@ export default function DashboardItemsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredItems.map((item, index) => {
             const cat = categories.find((c) => c.id === item.category_id);
-            const isLocked = index >= maxAllowedItems;
+            const isLocked = !isUnlimited && index >= maxAllowedItems;
 
             return (
               <div
@@ -529,7 +534,7 @@ export default function DashboardItemsPage() {
         reason={
           isExpired
             ? `Your ${currentPlanMeta.name} subscription has expired. Renew your plan to unlock all ${items.length} items!`
-            : `You have used ${items.length} of your ${maxAllowedItems} item limit on the ${currentPlanMeta.name} plan.`
+            : `You have used ${items.length} of your ${isUnlimited ? 'unlimited' : maxAllowedItems} item limit on the ${currentPlanMeta.name} plan.`
         }
       />
 

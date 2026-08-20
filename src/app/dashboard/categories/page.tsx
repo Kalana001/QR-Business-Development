@@ -59,9 +59,17 @@ export default function DashboardCategoriesPage() {
     setLoading(false);
   }
 
+  const currentPlanKey = business?.subscription_plan || 'free';
+  const currentPlanMeta = SUBSCRIPTION_PLANS_META[currentPlanKey];
+  
+  // NULL means Unlimited (Business Plus)
+  const rawMaxCategories = business?.max_categories;
+  const isUnlimited = currentPlanKey === 'enterprise' || rawMaxCategories === null || rawMaxCategories === undefined;
+  const maxAllowedCategories = isUnlimited ? Infinity : (rawMaxCategories ?? 5);
+  const isLimitReached = !isUnlimited && categories.length >= maxAllowedCategories;
+
   const openAddModal = () => {
-    const maxAllowed = business?.max_categories || 5;
-    if (!editingCategory && categories.length >= maxAllowed) {
+    if (!editingCategory && isLimitReached) {
       setIsUpgradeModalOpen(true);
       return;
     }
@@ -85,8 +93,7 @@ export default function DashboardCategoriesPage() {
     e.preventDefault();
     if (!business || !name.trim()) return;
 
-    const maxAllowed = business.max_categories || 5;
-    if (!editingCategory && categories.length >= maxAllowed) {
+    if (!editingCategory && isLimitReached) {
       setIsModalOpen(false);
       setIsUpgradeModalOpen(true);
       return;
@@ -154,11 +161,6 @@ export default function DashboardCategoriesPage() {
     } catch {}
   };
 
-  const currentPlanKey = business?.subscription_plan || 'free';
-  const currentPlanMeta = SUBSCRIPTION_PLANS_META[currentPlanKey];
-  const maxAllowedCategories = business?.max_categories || 5;
-  const isLimitReached = categories.length >= maxAllowedCategories;
-
   return (
     <div className="space-y-6 animate-fade-in max-w-4xl">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -189,18 +191,20 @@ export default function DashboardCategoriesPage() {
                 Category Limit ({currentPlanMeta.name})
               </div>
               <div className="text-sm font-extrabold text-slate-900 mt-0.5">
-                {categories.length} / {maxAllowedCategories > 900000 ? 'Unlimited' : maxAllowedCategories} Categories used
+                {categories.length} / {isUnlimited ? 'Unlimited' : maxAllowedCategories} Categories used
               </div>
             </div>
           </div>
 
-          <Button
-            onClick={() => setIsUpgradeModalOpen(true)}
-            size="sm"
-            className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs gap-1.5 border-none shadow-sm"
-          >
-            <Zap className="w-3.5 h-3.5" /> {isLimitReached ? 'Limit Reached - Upgrade Now' : 'Upgrade Plan'}
-          </Button>
+          {!isUnlimited && (
+            <Button
+              onClick={() => setIsUpgradeModalOpen(true)}
+              size="sm"
+              className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs gap-1.5 border-none shadow-sm"
+            >
+              <Zap className="w-3.5 h-3.5" /> {isLimitReached ? 'Limit Reached - Upgrade Now' : 'Upgrade Plan'}
+            </Button>
+          )}
         </div>
       )}
 
@@ -273,7 +277,7 @@ export default function DashboardCategoriesPage() {
         isOpen={isUpgradeModalOpen}
         onClose={() => setIsUpgradeModalOpen(false)}
         currentPlan={business?.subscription_plan}
-        reason={`You have used ${categories.length} of your ${maxAllowedCategories} category limit on the ${currentPlanMeta.name} plan.`}
+        reason={`You have used ${categories.length} of your ${isUnlimited ? 'unlimited' : maxAllowedCategories} category limit on the ${currentPlanMeta.name} plan.`}
       />
 
       {/* Add / Edit Category Modal */}

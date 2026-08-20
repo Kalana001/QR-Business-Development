@@ -20,13 +20,17 @@ CREATE TABLE IF NOT EXISTS public.platform_admins (
 
 -- Helper Function: Check if caller is a Super Admin
 CREATE OR REPLACE FUNCTION public.is_super_admin()
-RETURNS BOOLEAN AS $$
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 BEGIN
   RETURN EXISTS (
     SELECT 1 FROM public.platform_admins WHERE user_id = auth.uid()
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- 3. Businesses Table (Multi-tenant Root with Subscriptions)
 CREATE TABLE IF NOT EXISTS public.businesses (
@@ -50,20 +54,17 @@ CREATE TABLE IF NOT EXISTS public.businesses (
   subscription_status TEXT NOT NULL DEFAULT 'active' CHECK (subscription_status IN ('active', 'expired')),
   subscription_start_date TIMESTAMPTZ DEFAULT NOW(),
   subscription_end_date TIMESTAMPTZ, -- NULL for perpetual Free plan
-  max_items INTEGER NOT NULL DEFAULT 10,
-  max_categories INTEGER NOT NULL DEFAULT 5,
+  max_items INTEGER DEFAULT 10,       -- NULL means Unlimited (Business Plus)
+  max_categories INTEGER DEFAULT 5,   -- NULL means Unlimited (Business Plus)
 
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Safely add subscription columns if missing on existing instances
-ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS subscription_plan TEXT NOT NULL DEFAULT 'free';
-ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS subscription_status TEXT NOT NULL DEFAULT 'active';
-ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS subscription_start_date TIMESTAMPTZ DEFAULT NOW();
-ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS subscription_end_date TIMESTAMPTZ;
-ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS max_items INTEGER NOT NULL DEFAULT 10;
-ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS max_categories INTEGER NOT NULL DEFAULT 5;
+-- Safely convert existing fake 999999 limits to NULL for Business Plus (Enterprise)
+ALTER TABLE public.businesses ALTER COLUMN max_items DROP NOT NULL;
+ALTER TABLE public.businesses ALTER COLUMN max_categories DROP NOT NULL;
+UPDATE public.businesses SET max_items = NULL, max_categories = NULL WHERE max_items >= 900000 OR subscription_plan = 'enterprise';
 
 CREATE INDEX IF NOT EXISTS idx_businesses_slug ON public.businesses(slug);
 CREATE INDEX IF NOT EXISTS idx_businesses_owner ON public.businesses(owner_id);
@@ -119,7 +120,7 @@ CREATE INDEX IF NOT EXISTS idx_items_business ON public.catalog_items(business_i
 CREATE INDEX IF NOT EXISTS idx_items_category ON public.catalog_items(category_id);
 
 -- ============================================================================
--- AUTHORIZATION HELPER FUNCTIONS & EXPIRATION COMPUTATIONS
+-- AUTHORIZATION HELPER FUNCTIONS (ALL HARDENED WITH search_path)
 -- ============================================================================
 
 -- Check if business subscription is currently expired
@@ -127,7 +128,11 @@ CREATE OR REPLACE FUNCTION public.is_business_subscription_expired(
   p_status TEXT,
   p_end_date TIMESTAMPTZ
 )
-RETURNS BOOLEAN AS $$
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+IMMUTABLE
+SET search_path = public, pg_temp
+AS $$
 BEGIN
   IF p_status = 'expired' THEN
     RETURN TRUE;
@@ -137,35 +142,61 @@ BEGIN
   END IF;
   RETURN FALSE;
 END;
-$$ LANGUAGE plpgsql IMMUTABLE;
+$$;
 
 -- Check if caller is business owner
 CREATE OR REPLACE FUNCTION public.is_business_owner(b_id UUID)
-RETURNS BOOLEAN AS $$
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 BEGIN
   RETURN EXISTS (
     SELECT 1 FROM public.businesses WHERE id = b_id AND owner_id = auth.uid()
+  ) OR EXISTS (
+    SELECT 1 FROM public.business_members WHERE business_id = b_id AND user_id = auth.uid() AND role = 'owner'
   );
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
+
+-- Check if caller is business staff member
+CREATE OR REPLACE FUNCTION public.is_business_staff(b_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  RETURN EXISTS (
+    SELECT 1 FROM public.business_members WHERE business_id = b_id AND user_id = auth.uid() AND role = 'staff'
+  );
+END;
+$$;
 
 -- Check if caller is business owner or staff member
 CREATE OR REPLACE FUNCTION public.is_business_member(b_id UUID)
-RETURNS BOOLEAN AS $$
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 BEGIN
-  RETURN public.is_business_owner(b_id) OR EXISTS (
-    SELECT 1 FROM public.business_members WHERE business_id = b_id AND user_id = auth.uid()
-  );
+  RETURN public.is_business_owner(b_id) OR public.is_business_staff(b_id);
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
--- Check if caller can manage business catalog (owner or staff)
+-- Check if caller can manage business catalog (owner, staff, or super admin)
 CREATE OR REPLACE FUNCTION public.can_manage_catalog(b_id UUID)
-RETURNS BOOLEAN AS $$
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 BEGIN
   RETURN public.is_business_member(b_id) OR public.is_super_admin();
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- ============================================================================
 -- PUBLIC DATA ISOLATION (Customer Catalog View with Expiration Awareness)
@@ -216,18 +247,22 @@ ALTER TABLE public.platform_admins ENABLE ROW LEVEL SECURITY;
 
 -- 1. PLATFORM ADMINS POLICIES
 DROP POLICY IF EXISTS "Admins can view admin list" ON public.platform_admins;
-CREATE POLICY "Admins can view admin list" ON public.platform_admins FOR SELECT USING (auth.uid() = user_id OR public.is_super_admin());
+CREATE POLICY "Admins can view admin list" ON public.platform_admins 
+FOR SELECT USING (auth.uid() = user_id OR public.is_super_admin());
 
 -- 2. PROFILES POLICIES (No public SELECT allowed)
 DROP POLICY IF EXISTS "Public profiles are readable" ON public.profiles;
 DROP POLICY IF EXISTS "Members or admins can view profiles" ON public.profiles;
-CREATE POLICY "Members or admins can view profiles" ON public.profiles FOR SELECT USING (auth.uid() = id OR public.is_super_admin());
+CREATE POLICY "Members or admins can view profiles" ON public.profiles 
+FOR SELECT USING (auth.uid() = id OR public.is_super_admin());
 
 DROP POLICY IF EXISTS "Users can update own profile" ON public.profiles;
-CREATE POLICY "Users can update own profile" ON public.profiles FOR UPDATE USING (auth.uid() = id);
+CREATE POLICY "Users can update own profile" ON public.profiles 
+FOR UPDATE USING (auth.uid() = id);
 
 DROP POLICY IF EXISTS "Users can insert own profile" ON public.profiles;
-CREATE POLICY "Users can insert own profile" ON public.profiles FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users can insert own profile" ON public.profiles 
+FOR INSERT WITH CHECK (auth.uid() = id);
 
 -- 3. BUSINESSES POLICIES (Restricted direct table access)
 DROP POLICY IF EXISTS "Public catalog business view" ON public.businesses;
@@ -248,11 +283,13 @@ DROP POLICY IF EXISTS "Business owner can delete business" ON public.businesses;
 CREATE POLICY "Business owner can delete business" ON public.businesses 
 FOR DELETE USING (public.is_business_owner(id) OR public.is_super_admin());
 
--- 4. CATEGORIES POLICIES
+-- 4. CATEGORIES POLICIES (Strict Tenant Isolation)
 DROP POLICY IF EXISTS "Public customer category view" ON public.categories;
-CREATE POLICY "Public customer category view" ON public.categories FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Business members manage categories" ON public.categories;
+CREATE POLICY "Public customer category view" ON public.categories 
+FOR SELECT USING (
+  EXISTS (SELECT 1 FROM public.public_businesses WHERE id = categories.business_id) OR
+  public.can_manage_catalog(business_id)
+);
 
 DROP POLICY IF EXISTS "Members can insert categories" ON public.categories;
 CREATE POLICY "Members can insert categories" ON public.categories 
@@ -266,11 +303,16 @@ DROP POLICY IF EXISTS "Members can delete categories" ON public.categories;
 CREATE POLICY "Members can delete categories" ON public.categories 
 FOR DELETE USING (public.can_manage_catalog(business_id));
 
--- 5. CATALOG ITEMS POLICIES
+-- 5. CATALOG ITEMS POLICIES (Strict Tenant Isolation)
 DROP POLICY IF EXISTS "Public customer items view" ON public.catalog_items;
-CREATE POLICY "Public customer items view" ON public.catalog_items FOR SELECT USING (true);
-
-DROP POLICY IF EXISTS "Business members manage items" ON public.catalog_items;
+CREATE POLICY "Public customer items view" ON public.catalog_items 
+FOR SELECT USING (
+  (
+    is_available = true AND 
+    EXISTS (SELECT 1 FROM public.public_businesses WHERE id = catalog_items.business_id)
+  ) OR 
+  public.can_manage_catalog(business_id)
+);
 
 DROP POLICY IF EXISTS "Members can insert items" ON public.catalog_items;
 CREATE POLICY "Members can insert items" ON public.catalog_items 
@@ -289,7 +331,11 @@ FOR DELETE USING (public.can_manage_catalog(business_id));
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.protect_business_sensitive_fields()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 BEGIN
   -- Super Admins are permitted to modify billing fields
   IF public.is_super_admin() THEN
@@ -310,7 +356,7 @@ BEGIN
 
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 DROP TRIGGER IF EXISTS tr_protect_business_fields ON public.businesses;
 CREATE TRIGGER tr_protect_business_fields
@@ -327,10 +373,14 @@ CREATE OR REPLACE FUNCTION public.admin_update_subscription(
   p_start_date TIMESTAMPTZ,
   p_end_date TIMESTAMPTZ
 )
-RETURNS public.businesses AS $$
+RETURNS public.businesses
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 DECLARE
-  v_max_items INT := 10;
-  v_max_categories INT := 5;
+  v_max_items INT;
+  v_max_categories INT;
   v_result public.businesses;
 BEGIN
   -- Enforce Super Admin Check
@@ -342,8 +392,8 @@ BEGIN
     v_max_items := 150;
     v_max_categories := 20;
   ELSIF p_plan = 'enterprise' THEN
-    v_max_items := 999999;
-    v_max_categories := 999999;
+    v_max_items := NULL; -- NULL means Unlimited (Business Plus)
+    v_max_categories := NULL; -- NULL means Unlimited (Business Plus)
   ELSE
     v_max_items := 10;
     v_max_categories := 5;
@@ -363,7 +413,7 @@ BEGIN
 
   RETURN v_result;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 -- ============================================================================
 -- STORAGE BUCKETS & PATH-BASED TENANT ISOLATION POLICIES
@@ -376,7 +426,6 @@ ON CONFLICT (id) DO NOTHING;
 DROP POLICY IF EXISTS "Public storage view" ON storage.objects;
 CREATE POLICY "Public storage view" ON storage.objects FOR SELECT USING (bucket_id = 'business-assets');
 
-DROP POLICY IF EXISTS "Authenticated upload" ON storage.objects;
 DROP POLICY IF EXISTS "Tenant isolated upload" ON storage.objects;
 CREATE POLICY "Tenant isolated upload" ON storage.objects FOR INSERT 
 WITH CHECK (
@@ -404,7 +453,11 @@ USING (
 -- ============================================================================
 
 CREATE OR REPLACE FUNCTION public.handle_new_user()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
 DECLARE
   b_name TEXT;
   b_type TEXT;
@@ -457,7 +510,7 @@ BEGIN
 
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+$$;
 
 DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
 CREATE TRIGGER on_auth_user_created

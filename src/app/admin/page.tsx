@@ -206,7 +206,7 @@ export default function SuperAdminDashboardPage() {
           <div>
             <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Customer Businesses</div>
             <div className="text-2xl font-extrabold text-white mt-1">{customerBusinesses.length}</div>
-            <div className="text-[11px] text-slate-500 mt-1">{freeAccounts} Free Trial accounts</div>
+            <div className="text-[11px] text-slate-500 mt-1">{freeAccounts} Free Forever accounts</div>
           </div>
           <div className="p-3 bg-indigo-500/10 text-indigo-400 rounded-xl">
             <Building2 className="w-6 h-6" />
@@ -215,7 +215,7 @@ export default function SuperAdminDashboardPage() {
 
         <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-sm flex items-center justify-between">
           <div>
-            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Pro Accounts</div>
+            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Pro Growth Accounts</div>
             <div className="text-2xl font-extrabold text-teal-400 mt-1">{proAccounts}</div>
             <div className="text-[11px] text-slate-500 mt-1">LKR 2,000 / month</div>
           </div>
@@ -226,7 +226,7 @@ export default function SuperAdminDashboardPage() {
 
         <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-sm flex items-center justify-between">
           <div>
-            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Enterprise Accounts</div>
+            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Business Plus Accounts</div>
             <div className="text-2xl font-extrabold text-purple-400 mt-1">{enterpriseAccounts}</div>
             <div className="text-[11px] text-slate-500 mt-1">LKR 3,500 / month</div>
           </div>
@@ -256,9 +256,9 @@ export default function SuperAdminDashboardPage() {
             className="px-3 py-2 text-xs bg-slate-950 border border-slate-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium"
           >
             <option value="all">All Businesses ({businesses.length})</option>
-            <option value="free">Free Trial ({freeAccounts})</option>
+            <option value="free">Starter Free ({freeAccounts})</option>
             <option value="pro">Pro Growth ({proAccounts})</option>
-            <option value="enterprise">Enterprise Unlimited ({enterpriseAccounts})</option>
+            <option value="enterprise">Business Plus Unlimited ({enterpriseAccounts})</option>
             <option value="expired">Expired Subscriptions</option>
           </select>
         </div>
@@ -293,8 +293,8 @@ export default function SuperAdminDashboardPage() {
                   const daysInfo = getDaysRemaining(biz.subscription_end_date, biz.is_super_admin_owner);
                   const planKey = biz.subscription_plan || 'free';
                   const planMeta = SUBSCRIPTION_PLANS_META[planKey];
-                  const maxAllowed = biz.max_items || planMeta.maxItems;
-                  const maxItemsDisplay = maxAllowed > 900000 ? '∞' : maxAllowed;
+                  const rawMax = biz.max_items;
+                  const maxItemsDisplay = (rawMax === null || rawMax === undefined || planKey === 'enterprise') ? '∞' : rawMax;
 
                   return (
                     <tr key={biz.id} className={`hover:bg-slate-800/50 transition-colors ${
@@ -318,7 +318,7 @@ export default function SuperAdminDashboardPage() {
                       <td className="p-4">
                         {biz.is_super_admin_owner ? (
                           <span className="px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider bg-purple-500/20 text-purple-300 border border-purple-500/30">
-                            Enterprise (Super Admin)
+                            Business Plus (Super Admin)
                           </span>
                         ) : (
                           <>
@@ -332,7 +332,7 @@ export default function SuperAdminDashboardPage() {
                               {planMeta.name}
                             </span>
                             <div className="text-[11px] text-slate-400 mt-1">
-                              {planMeta.priceLKR > 0 ? `LKR ${planMeta.priceLKR.toLocaleString()}/mo` : 'Free'}
+                              {planMeta.priceLKR > 0 ? `LKR ${planMeta.priceLKR.toLocaleString()}/mo` : 'Free Forever'}
                             </div>
                           </>
                         )}
@@ -464,11 +464,11 @@ export default function SuperAdminDashboardPage() {
                     <div>
                       <div className="text-xs font-extrabold">{plan.name}</div>
                       <div className="text-xs text-teal-700 font-extrabold mt-1">
-                        {plan.priceLKR > 0 ? `LKR ${plan.priceLKR.toLocaleString()}/mo` : 'Free'}
+                        {plan.priceLKR > 0 ? `LKR ${plan.priceLKR.toLocaleString()}/mo` : 'Free Forever'}
                       </div>
                     </div>
                     <div className="text-[10px] text-slate-500 mt-2">
-                      {plan.maxItems > 900000 ? 'Unlimited' : plan.maxItems} Items limit
+                      {plan.maxItems === null ? 'Unlimited' : `${plan.maxItems} Items limit`}
                     </div>
                   </button>
                 );
