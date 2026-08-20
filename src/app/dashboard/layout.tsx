@@ -20,6 +20,7 @@ export default function DashboardLayout({
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [fullCatalogUrl, setFullCatalogUrl] = useState('');
 
   useEffect(() => {
     async function loadBusinessData() {
@@ -43,6 +44,9 @@ export default function DashboardLayout({
 
       if (bizData) {
         setBusiness(bizData as Business);
+        if (typeof window !== 'undefined') {
+          setFullCatalogUrl(`${window.location.origin}/c/${bizData.slug}`);
+        }
       } else {
         // Read exact business name and type typed during sign-up from user_metadata
         const metaName = user.user_metadata?.business_name;
@@ -69,6 +73,9 @@ export default function DashboardLayout({
 
         if (newBiz) {
           setBusiness(newBiz as Business);
+          if (typeof window !== 'undefined') {
+            setFullCatalogUrl(`${window.location.origin}/c/${newBiz.slug}`);
+          }
         }
       }
       setLoading(false);
@@ -104,14 +111,8 @@ export default function DashboardLayout({
     );
   }
 
-  const fullCatalogUrl = business
-    ? (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-        ? `${window.location.origin}/c/${business.slug}`
-        : `https://qr-business-development.vercel.app/c/${business.slug}`)
-    : '';
-
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row">
+    <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row" suppressHydrationWarning>
       {/* Sidebar navigation */}
       <aside className="hidden md:flex flex-col w-64 bg-slate-900 border-r border-slate-800 text-slate-300 min-h-screen shrink-0">
         {/* Brand Header */}
@@ -141,7 +142,7 @@ export default function DashboardLayout({
               rel="noopener noreferrer"
               className="inline-flex items-center justify-between w-full px-3 py-2 bg-teal-500/10 hover:bg-teal-500/20 text-teal-300 border border-teal-500/30 rounded-lg text-xs font-medium transition-colors"
             >
-              <span className="truncate">{fullCatalogUrl}</span>
+              <span className="truncate">{fullCatalogUrl || `/c/${business.slug}`}</span>
               <ExternalLink className="w-3.5 h-3.5 shrink-0 ml-1.5" />
             </a>
           </div>
