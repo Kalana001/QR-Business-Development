@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Settings, Store, Save, CheckCircle2, AlertCircle, Utensils, BookOpen, Scissors } from 'lucide-react';
+import { Settings, Store, Save, CheckCircle2, AlertCircle, Utensils, BookOpen, Scissors, Link as LinkIcon, RefreshCw } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { createClient } from '@/lib/supabase/client';
@@ -20,13 +20,14 @@ export default function DashboardBusinessSettingsPage() {
   // Form Fields
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
+  const [isSlugCustomized, setIsSlugCustomized] = useState(false);
   const [businessType, setBusinessType] = useState<BusinessType>('restaurant');
   const [description, setDescription] = useState('');
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
   const [website, setWebsite] = useState('');
-  const [currency, setCurrency] = useState('USD');
+  const [currency, setCurrency] = useState('LKR');
   const [themeColor, setThemeColor] = useState('#0F172A');
   const [logoUrl, setLogoUrl] = useState('');
 
@@ -62,16 +63,37 @@ export default function DashboardBusinessSettingsPage() {
   function populateForm(b: Business) {
     setName(b.name);
     setSlug(b.slug);
+    setIsSlugCustomized(false);
     setBusinessType(b.business_type);
     setDescription(b.description || '');
     setPhone(b.phone || '');
     setEmail(b.email || '');
     setAddress(b.address || '');
     setWebsite(b.website || '');
-    setCurrency(b.currency || 'USD');
+    setCurrency(b.currency || 'LKR');
     setThemeColor(b.theme_color || '#0F172A');
     setLogoUrl(b.logo_url || '');
   }
+
+  // Handle Business Name Change with auto-slug sync
+  const handleNameChange = (newName: string) => {
+    setName(newName);
+    if (!isSlugCustomized) {
+      setSlug(slugify(newName));
+    }
+  };
+
+  // Handle manual slug edit
+  const handleSlugChange = (newSlug: string) => {
+    setIsSlugCustomized(true);
+    setSlug(slugify(newSlug));
+  };
+
+  // Reset slug to match current business name
+  const resetSlugToName = () => {
+    setIsSlugCustomized(false);
+    setSlug(slugify(name));
+  };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -101,7 +123,7 @@ export default function DashboardBusinessSettingsPage() {
       const supabase = createClient();
       const { error } = await supabase.from('businesses').update(updatedPayload).eq('id', business.id);
       if (error) throw error;
-      setSuccessMsg('Business details successfully updated!');
+      setSuccessMsg('Business details & public URL successfully updated!');
       setSlug(formattedSlug);
       setBusiness({ ...business, ...updatedPayload });
     } catch (err: any) {
@@ -124,7 +146,7 @@ export default function DashboardBusinessSettingsPage() {
       <div>
         <h1 className="text-2xl font-extrabold text-slate-900">Business Settings</h1>
         <p className="text-xs text-slate-500">
-          Configure branding, business type, contact info, and public catalog URL settings.
+          Configure branding, business type, contact info, currency, and public catalog URL settings.
         </p>
       </div>
 
@@ -151,17 +173,36 @@ export default function DashboardBusinessSettingsPage() {
           <Input
             label="Business Name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => handleNameChange(e.target.value)}
+            helperText="Changing business name auto-syncs public catalog URL slug below."
             required
           />
 
-          <Input
-            label="Public Catalog URL Slug"
-            value={slug}
-            onChange={(e) => setSlug(e.target.value)}
-            helperText={`Your customer link: /c/${slugify(slug || name)}`}
-            required
-          />
+          <div className="space-y-1">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                Public Catalog URL Slug
+              </label>
+              {isSlugCustomized && (
+                <button
+                  type="button"
+                  onClick={resetSlugToName}
+                  className="text-[11px] text-teal-600 hover:underline flex items-center gap-1 font-medium cursor-pointer"
+                >
+                  <RefreshCw className="w-3 h-3" /> Sync with Name
+                </button>
+              )}
+            </div>
+            <Input
+              value={slug}
+              onChange={(e) => handleSlugChange(e.target.value)}
+              required
+            />
+            <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+              <LinkIcon className="w-3.5 h-3.5 text-teal-600 shrink-0" />
+              Live customer URL: <strong className="text-slate-800">/c/{slugify(slug || name)}</strong>
+            </p>
+          </div>
         </div>
 
         {/* Business Type Selector */}
@@ -218,7 +259,7 @@ export default function DashboardBusinessSettingsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
             label="Phone Number (Call/WhatsApp)"
-            placeholder="+1 (555) 000-0000"
+            placeholder="+94 77 123 4567"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
           />
@@ -233,7 +274,7 @@ export default function DashboardBusinessSettingsPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Input
             label="Physical Address"
-            placeholder="123 Main Street, Suite 4"
+            placeholder="123 Main Street, Colombo 03"
             value={address}
             onChange={(e) => setAddress(e.target.value)}
           />
@@ -259,13 +300,14 @@ export default function DashboardBusinessSettingsPage() {
               onChange={(e) => setCurrency(e.target.value)}
               className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg text-slate-900 font-medium"
             >
-              <option value="USD">USD ($)</option>
-              <option value="EUR">EUR (€)</option>
-              <option value="GBP">GBP (£)</option>
-              <option value="CAD">CAD ($)</option>
-              <option value="AUD">AUD ($)</option>
-              <option value="INR">INR (₹)</option>
-              <option value="JPY">JPY (¥)</option>
+              <option value="LKR">LKR (Rs - Sri Lankan Rupee)</option>
+              <option value="USD">USD ($ - US Dollar)</option>
+              <option value="EUR">EUR (€ - Euro)</option>
+              <option value="GBP">GBP (£ - British Pound)</option>
+              <option value="INR">INR (₹ - Indian Rupee)</option>
+              <option value="CAD">CAD ($ - Canadian Dollar)</option>
+              <option value="AUD">AUD ($ - Australian Dollar)</option>
+              <option value="JPY">JPY (¥ - Japanese Yen)</option>
             </select>
           </div>
 

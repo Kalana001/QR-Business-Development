@@ -6,14 +6,18 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatCurrency(amount: number, currency = 'USD'): string {
+  const upperCurr = (currency || 'USD').toUpperCase();
   try {
+    if (upperCurr === 'LKR') {
+      return `Rs ${amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: currency.toUpperCase(),
+      currency: upperCurr,
       minimumFractionDigits: 2,
     }).format(amount);
   } catch {
-    return `$${amount.toFixed(2)}`;
+    return `${upperCurr} ${amount.toFixed(2)}`;
   }
 }
 
