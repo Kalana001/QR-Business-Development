@@ -51,7 +51,7 @@ export default function LandingPage() {
                 Create Business Catalog <ArrowRight className="w-5 h-5" />
               </Button>
             </Link>
-            <Link href="/dashboard" className="w-full sm:w-auto">
+            <Link href="/login" className="w-full sm:w-auto">
               <Button size="lg" variant="outline" className="w-full sm:w-auto border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800">
                 Go to Business Dashboard
               </Button>
