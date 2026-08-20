@@ -22,7 +22,8 @@ export default function AdminLayout({
       const { data: { user } } = await supabase.auth.getUser();
 
       if (!user) {
-        router.push('/login');
+        // Redirect unauthenticated user to login with next=/admin
+        router.push('/login?next=/admin');
         return;
       }
 
