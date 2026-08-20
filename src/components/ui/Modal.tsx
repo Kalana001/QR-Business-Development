@@ -42,16 +42,20 @@ export const Modal: React.FC<ModalProps> = ({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 overflow-y-auto bg-slate-950/75 backdrop-blur-xs flex min-h-full items-center justify-center p-4 sm:p-6 animate-fade-in"
-      onClick={onClose}
-    >
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 animate-fade-in">
+      {/* Full-screen dark backdrop overlay with no bottom white gap */}
+      <div 
+        className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs transition-opacity" 
+        onClick={onClose} 
+      />
+
+      {/* Centered Modal Card Container */}
       <div
-        className={`relative w-full ${maxWidthClasses[maxWidth]} bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col max-h-[85vh] overflow-hidden my-auto text-left`}
+        className={`relative z-10 w-full ${maxWidthClasses[maxWidth]} bg-white rounded-2xl shadow-2xl border border-slate-200 flex flex-col max-h-[85vh] overflow-hidden text-left`}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Pinned Top Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white rounded-t-2xl shrink-0 z-10">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-white rounded-t-2xl shrink-0">
           <h3 className="text-base font-bold text-slate-900">{title}</h3>
           <button
             onClick={onClose}
@@ -69,7 +73,7 @@ export const Modal: React.FC<ModalProps> = ({
 
         {/* Pinned Bottom Footer */}
         {footer && (
-          <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl shrink-0 flex items-center justify-end gap-3 z-10">
+          <div className="px-6 py-4 border-t border-slate-100 bg-slate-50 rounded-b-2xl shrink-0 flex items-center justify-end gap-3">
             {footer}
           </div>
         )}
