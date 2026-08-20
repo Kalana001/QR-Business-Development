@@ -33,7 +33,7 @@ export default function DashboardLayout({
       }
 
       // Fetch user's business workspace
-      const { data: bizData, error: bizError } = await supabase
+      const { data: bizData } = await supabase
         .from('businesses')
         .select('*')
         .eq('owner_id', user.id)
@@ -44,18 +44,23 @@ export default function DashboardLayout({
       if (bizData) {
         setBusiness(bizData as Business);
       } else {
-        // If user is authenticated but has no business record yet, create one
-        const defaultName = user.user_metadata?.full_name ? `${user.user_metadata.full_name}'s Business` : 'My Business Catalog';
-        const generatedSlug = slugify(defaultName) + '-' + Date.now().toString().slice(-4);
+        // Read exact business name and type typed during sign-up from user_metadata
+        const metaName = user.user_metadata?.business_name;
+        const defaultName = metaName && metaName.trim()
+          ? metaName.trim()
+          : (user.user_metadata?.full_name ? `${user.user_metadata.full_name}'s Business` : 'My Business Catalog');
         
-        const { data: newBiz, error: createErr } = await supabase
+        const metaType = user.user_metadata?.business_type || 'restaurant';
+        const metaSlug = user.user_metadata?.business_slug || (slugify(defaultName) + '-' + Date.now().toString().slice(-4));
+        
+        const { data: newBiz } = await supabase
           .from('businesses')
           .insert({
             owner_id: user.id,
             name: defaultName,
-            slug: generatedSlug,
-            business_type: 'restaurant',
-            currency: 'USD',
+            slug: metaSlug,
+            business_type: metaType,
+            currency: 'LKR',
             theme_color: '#0F172A',
           })
           .select()

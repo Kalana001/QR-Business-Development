@@ -28,8 +28,9 @@ export default function SignupPage() {
     try {
       const supabase = createClient();
       const redirectUrl = `${window.location.origin}/auth/callback`;
-      
-      // 1. Sign up auth user
+      const generatedSlug = slugify(businessName) || `biz-${Date.now()}`;
+
+      // 1. Sign up auth user storing business details in user_metadata
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -37,6 +38,9 @@ export default function SignupPage() {
           emailRedirectTo: redirectUrl,
           data: {
             full_name: fullName,
+            business_name: businessName,
+            business_type: businessType,
+            business_slug: generatedSlug,
           },
         },
       });
@@ -47,19 +51,17 @@ export default function SignupPage() {
       if (!user) throw new Error('Signup failed. Please try again.');
 
       // 2. Create initial business workspace
-      const generatedSlug = slugify(businessName) || `biz-${Date.now()}`;
-      
       const { error: bizError } = await supabase.from('businesses').insert({
         owner_id: user.id,
         name: businessName,
         slug: generatedSlug,
         business_type: businessType,
-        currency: 'USD',
+        currency: 'LKR',
         theme_color: '#0F172A',
       });
 
       if (bizError) {
-        console.error('Error creating business:', bizError);
+        console.log('Business insert notification (handled via metadata fallback):', bizError.message);
       }
 
       router.push('/dashboard');
