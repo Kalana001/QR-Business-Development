@@ -36,9 +36,9 @@ export default function PublicCustomerCatalogPage({
       setLoading(true);
       const supabase = createClient();
 
-      // 1. Fetch business by unique slug
+      // 1. Fetch business from SECURE PUBLIC VIEW (public_businesses) hiding owner_id & billing fields
       const { data: bizData, error: bizError } = await supabase
-        .from('businesses')
+        .from('public_businesses')
         .select('*')
         .eq('slug', slug)
         .single();
@@ -62,7 +62,7 @@ export default function PublicCustomerCatalogPage({
           setItems([
             { id: 'i1', business_id: demoBiz.id, category_id: 'c1', name: 'Bruschetta Originale', description: 'Grilled sourdough topped with vine tomatoes, garlic, extra virgin olive oil and fresh basil.', price: 12.5, is_available: true, is_featured: true, image_url: null, badges: ['Vegetarian', 'Popular'], created_at: '', updated_at: '' },
             { id: 'i2', business_id: demoBiz.id, category_id: 'c2', name: 'Truffle Tagliolini', description: 'Handmade egg pasta with summer black truffle sauce and aged Parmigiano Reggiano.', price: 24.0, is_available: true, is_featured: true, image_url: null, badges: ["Chef's Special"], created_at: '', updated_at: '' },
-            { id: 'i3', business_id: demoBiz.id, category_id: 'c2', name: 'Margherita Artisanal Pizza', description: 'San Marzano tomatoes, fresh mozzarella di bufala, and basil.', price: 18.0, is_available: true, is_featured: false, image_url: null, badges: ['Vegetarian'], created_at: '', updated_at: '' },
+            { id: 'i3', business_id: demoBiz.id, category_id: 'c2', name: 'Margherita Artisanal Pizza', description: 'San Marzano tomatoes, fresh mozzarella di bufala, and basil.', price: 18.0, is_available: true, is_featured: false, image_url: null, created_at: '', updated_at: '' },
           ]);
           setLoading(false);
           return;

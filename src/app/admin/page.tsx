@@ -10,7 +10,6 @@ import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { createClient } from '@/lib/supabase/client';
 import { Business, SubscriptionPlan, SubscriptionStatus, SUBSCRIPTION_PLANS_META } from '@/lib/types';
-import { formatCurrency } from '@/lib/utils';
 
 interface BusinessWithMetrics extends Business {
   item_count?: number;
@@ -112,28 +111,22 @@ export default function SuperAdminDashboardPage() {
       const endDate = new Date(startDate);
       endDate.setMonth(endDate.getMonth() + 1);
 
-      const updatePayload = {
-        subscription_plan: selectedPlan,
-        subscription_status: 'active' as SubscriptionStatus,
-        subscription_start_date: startDate.toISOString(),
-        subscription_end_date: endDate.toISOString(),
-        max_items: planMeta.maxItems,
-        max_categories: planMeta.maxCategories,
-        updated_at: new Date().toISOString(),
-      };
-
       const supabase = createClient();
-      const { error } = await supabase
-        .from('businesses')
-        .update(updatePayload)
-        .eq('id', selectedBiz.id);
+      
+      // Securely invoke server-side RPC for subscription update
+      const { data: rpcResult, error } = await supabase.rpc('admin_update_subscription', {
+        p_business_id: selectedBiz.id,
+        p_plan: selectedPlan,
+        p_start_date: startDate.toISOString(),
+        p_end_date: endDate.toISOString(),
+      });
 
       if (error) throw error;
 
       setSuccessMsg(`Successfully activated ${planMeta.name} for 1 month! Valid until ${endDate.toLocaleDateString()}`);
       
-      // Update local state
-      setBusinesses(businesses.map((b) => b.id === selectedBiz.id ? { ...b, ...updatePayload } : b));
+      // Reload directory
+      await loadMasterDirectory();
       setTimeout(() => setIsModalOpen(false), 1500);
     } catch (err: any) {
       setErrorMsg(err.message || 'Error updating subscription.');
@@ -145,7 +138,7 @@ export default function SuperAdminDashboardPage() {
   // Helper function to calculate days remaining
   function getDaysRemaining(endDateStr?: string | null, isSuperAdmin = false): { text: string; isExpired: boolean; days: number } {
     if (isSuperAdmin) return { text: 'Unlimited', isExpired: false, days: 9999 };
-    if (!endDateStr) return { text: 'Active Free', isExpired: false, days: 30 };
+    if (!endDateStr) return { text: 'Active Free (Perpetual)', isExpired: false, days: 9999 };
     const now = new Date();
     const end = new Date(endDateStr);
     const diffTime = end.getTime() - now.getTime();
@@ -170,7 +163,6 @@ export default function SuperAdminDashboardPage() {
 
   // Calculate Customer Revenue Analytics (Excluding Super Admin Workspace)
   const customerBusinesses = businesses.filter((b) => !b.is_super_admin_owner);
-  const totalBusinesses = businesses.length;
   const proAccounts = customerBusinesses.filter((b) => b.subscription_plan === 'pro' && !getDaysRemaining(b.subscription_end_date).isExpired).length;
   const enterpriseAccounts = customerBusinesses.filter((b) => b.subscription_plan === 'enterprise' && !getDaysRemaining(b.subscription_end_date).isExpired).length;
   const freeAccounts = customerBusinesses.filter((b) => b.subscription_plan === 'free' || !b.subscription_plan).length;

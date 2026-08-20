@@ -20,7 +20,6 @@ export default function DashboardBusinessSettingsPage() {
   // Form Fields
   const [name, setName] = useState('');
   const [slug, setSlug] = useState('');
-  const [isSlugCustomized, setIsSlugCustomized] = useState(false);
   const [businessType, setBusinessType] = useState<BusinessType>('restaurant');
   const [description, setDescription] = useState('');
   const [phone, setPhone] = useState('');
@@ -63,7 +62,6 @@ export default function DashboardBusinessSettingsPage() {
   function populateForm(b: Business) {
     setName(b.name);
     setSlug(b.slug);
-    setIsSlugCustomized(false);
     setBusinessType(b.business_type);
     setDescription(b.description || '');
     setPhone(b.phone || '');
@@ -75,24 +73,14 @@ export default function DashboardBusinessSettingsPage() {
     setLogoUrl(b.logo_url || '');
   }
 
-  // Handle Business Name Change with auto-slug sync
+  // Handle Business Name Change (Keeps slug STABLE to preserve printed QR codes)
   const handleNameChange = (newName: string) => {
     setName(newName);
-    if (!isSlugCustomized) {
-      setSlug(slugify(newName));
-    }
   };
 
-  // Handle manual slug edit
+  // Handle explicit slug edit
   const handleSlugChange = (newSlug: string) => {
-    setIsSlugCustomized(true);
     setSlug(slugify(newSlug));
-  };
-
-  // Reset slug to match current business name
-  const resetSlugToName = () => {
-    setIsSlugCustomized(false);
-    setSlug(slugify(name));
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -102,7 +90,7 @@ export default function DashboardBusinessSettingsPage() {
     setSuccessMsg(null);
     setErrorMsg(null);
 
-    const formattedSlug = slugify(slug) || slugify(name);
+    const formattedSlug = slugify(slug) || business.slug;
 
     const updatedPayload = {
       name,
@@ -123,7 +111,7 @@ export default function DashboardBusinessSettingsPage() {
       const supabase = createClient();
       const { error } = await supabase.from('businesses').update(updatedPayload).eq('id', business.id);
       if (error) throw error;
-      setSuccessMsg('Business details & public URL successfully updated!');
+      setSuccessMsg('Business details successfully updated!');
       setSlug(formattedSlug);
       setBusiness({ ...business, ...updatedPayload });
     } catch (err: any) {
@@ -174,28 +162,18 @@ export default function DashboardBusinessSettingsPage() {
             label="Business Name"
             value={name}
             onChange={(e) => handleNameChange(e.target.value)}
-            helperText="Changing business name auto-syncs public catalog URL slug below."
+            helperText="Public QR code URL remains stable when changing business name."
             required
           />
 
           <div className="space-y-1">
-            <div className="flex items-center justify-between">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-                Public Catalog URL Slug
-              </label>
-              {isSlugCustomized && (
-                <button
-                  type="button"
-                  onClick={resetSlugToName}
-                  className="text-[11px] text-teal-600 hover:underline flex items-center gap-1 font-medium cursor-pointer"
-                >
-                  <RefreshCw className="w-3 h-3" /> Sync with Name
-                </button>
-              )}
-            </div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+              Public Catalog URL Slug
+            </label>
             <Input
               value={slug}
               onChange={(e) => handleSlugChange(e.target.value)}
+              helperText="Warning: Changing URL slug will require re-printing physical QR codes."
               required
             />
             <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">

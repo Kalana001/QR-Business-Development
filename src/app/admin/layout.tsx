@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { ShieldCheck, LayoutDashboard, Building2, LogOut, ExternalLink, QrCode, ArrowLeft } from 'lucide-react';
+import { ShieldCheck, Building2, LogOut, ArrowLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 
 export default function AdminLayout({
@@ -27,6 +27,15 @@ export default function AdminLayout({
         return;
       }
 
+      // Check database authorization using is_super_admin RPC
+      const { data: isAdmin, error: rpcError } = await supabase.rpc('is_super_admin');
+
+      if (rpcError || !isAdmin) {
+        console.error('Super Admin check failed:', rpcError?.message);
+        router.push('/dashboard');
+        return;
+      }
+
       setUserEmail(user.email || null);
       setLoading(false);
     }
@@ -46,7 +55,7 @@ export default function AdminLayout({
         <div className="text-center space-y-3">
           <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
-            Authenticating Super Admin...
+            Verifying Admin Authorization...
           </p>
         </div>
       </div>
