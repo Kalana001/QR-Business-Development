@@ -119,8 +119,25 @@ CREATE INDEX IF NOT EXISTS idx_items_business ON public.catalog_items(business_i
 CREATE INDEX IF NOT EXISTS idx_items_category ON public.catalog_items(category_id);
 
 -- ============================================================================
--- AUTHORIZATION HELPER FUNCTIONS
+-- AUTHORIZATION HELPER FUNCTIONS & EXPIRATION COMPUTATIONS
 -- ============================================================================
+
+-- Check if business subscription is currently expired
+CREATE OR REPLACE FUNCTION public.is_business_subscription_expired(
+  p_status TEXT,
+  p_end_date TIMESTAMPTZ
+)
+RETURNS BOOLEAN AS $$
+BEGIN
+  IF p_status = 'expired' THEN
+    RETURN TRUE;
+  END IF;
+  IF p_end_date IS NOT NULL AND p_end_date < NOW() THEN
+    RETURN TRUE;
+  END IF;
+  RETURN FALSE;
+END;
+$$ LANGUAGE plpgsql IMMUTABLE;
 
 -- Check if caller is business owner
 CREATE OR REPLACE FUNCTION public.is_business_owner(b_id UUID)
@@ -151,10 +168,10 @@ END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- ============================================================================
--- PUBLIC DATA ISOLATION (Customer Catalog View)
+-- PUBLIC DATA ISOLATION (Customer Catalog View with Expiration Awareness)
 -- ============================================================================
 
--- Create secure view exposing ONLY customer-safe fields
+-- Create secure view exposing ONLY customer-safe fields + expiration status
 CREATE OR REPLACE VIEW public.public_businesses AS
 SELECT 
   id,
@@ -170,6 +187,16 @@ SELECT
   banner_url,
   currency,
   theme_color,
+  subscription_plan,
+  public.is_business_subscription_expired(subscription_status, subscription_end_date) AS is_expired,
+  CASE 
+    WHEN public.is_business_subscription_expired(subscription_status, subscription_end_date) THEN 10 
+    ELSE max_items 
+  END AS effective_max_items,
+  CASE 
+    WHEN public.is_business_subscription_expired(subscription_status, subscription_end_date) THEN 5 
+    ELSE max_categories 
+  END AS effective_max_categories,
   created_at,
   updated_at
 FROM public.businesses;

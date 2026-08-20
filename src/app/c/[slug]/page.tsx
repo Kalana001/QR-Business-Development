@@ -2,12 +2,18 @@
 
 import React, { useEffect, useState, use } from 'react';
 import { 
-  Search, Phone, Mail, MapPin, Globe, Star, Clock, CheckCircle2, XCircle, X, ChevronRight, MessageCircle, Store, Utensils, BookOpen, Scissors, AlertCircle 
+  Search, Phone, Mail, MapPin, Globe, Star, Clock, CheckCircle2, XCircle, X, ChevronRight, MessageCircle, Store, Utensils, BookOpen, Scissors, AlertCircle, Lock 
 } from 'lucide-react';
 import { CategoryPlaceholder } from '@/components/placeholders/CategoryPlaceholder';
 import { createClient } from '@/lib/supabase/client';
 import { Business, CatalogItem, Category, BUSINESS_TYPES_META } from '@/lib/types';
 import { formatCurrency, formatDuration } from '@/lib/utils';
+
+interface PublicBusinessWithLimits extends Business {
+  is_expired?: boolean;
+  effective_max_items?: number;
+  effective_max_categories?: number;
+}
 
 export default function PublicCustomerCatalogPage({
   params,
@@ -17,9 +23,10 @@ export default function PublicCustomerCatalogPage({
   const resolvedParams = use(params);
   const slug = resolvedParams.slug;
 
-  const [business, setBusiness] = useState<Business | null>(null);
+  const [business, setBusiness] = useState<PublicBusinessWithLimits | null>(null);
   const [categories, setCategories] = useState<Category[]>([]);
-  const [items, setItems] = useState<CatalogItem[]>([]);
+  const [publishedItems, setPublishedItems] = useState<CatalogItem[]>([]);
+  const [totalDbItemsCount, setTotalDbItemsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -36,7 +43,7 @@ export default function PublicCustomerCatalogPage({
       setLoading(true);
       const supabase = createClient();
 
-      // 1. Fetch business from SECURE PUBLIC VIEW (public_businesses) hiding owner_id & billing fields
+      // 1. Fetch business from SECURE PUBLIC VIEW (public_businesses) with expiration limits
       const { data: bizData, error: bizError } = await supabase
         .from('public_businesses')
         .select('*')
@@ -46,12 +53,13 @@ export default function PublicCustomerCatalogPage({
       if (bizError || !bizData) {
         // Hardcoded demo catalog fallbacks if DB table is empty or loading locally
         if (slug === 'bella-vista-bistro') {
-          const demoBiz: Business = {
+          const demoBiz: PublicBusinessWithLimits = {
             id: '11111111-1111-1111-1111-111111111111',
             owner_id: 'demo', name: 'Bella Vista Bistro', slug: 'bella-vista-bistro', business_type: 'restaurant',
             description: 'Authentic Italian dining with fresh homemade pasta and artisanal pizzas.',
             phone: '+1 (555) 234-5678', email: 'contact@bellavistabistro.com', address: '123 Main Street, Downtown',
             website: 'https://bellavistabistro.com', logo_url: null, banner_url: null, currency: 'USD', theme_color: '#E11D48',
+            effective_max_items: 10, effective_max_categories: 5, is_expired: false,
             created_at: '', updated_at: '',
           };
           setBusiness(demoBiz);
@@ -59,52 +67,12 @@ export default function PublicCustomerCatalogPage({
             { id: 'c1', business_id: demoBiz.id, name: 'Starters & Appetizers', description: 'Fresh Italian antipasti', display_order: 1, created_at: '' },
             { id: 'c2', business_id: demoBiz.id, name: 'Pasta & Mains', description: 'Handcrafted egg pasta', display_order: 2, created_at: '' },
           ]);
-          setItems([
+          setPublishedItems([
             { id: 'i1', business_id: demoBiz.id, category_id: 'c1', name: 'Bruschetta Originale', description: 'Grilled sourdough topped with vine tomatoes, garlic, extra virgin olive oil and fresh basil.', price: 12.5, is_available: true, is_featured: true, image_url: null, badges: ['Vegetarian', 'Popular'], created_at: '', updated_at: '' },
             { id: 'i2', business_id: demoBiz.id, category_id: 'c2', name: 'Truffle Tagliolini', description: 'Handmade egg pasta with summer black truffle sauce and aged Parmigiano Reggiano.', price: 24.0, is_available: true, is_featured: true, image_url: null, badges: ["Chef's Special"], created_at: '', updated_at: '' },
-            { id: 'i3', business_id: demoBiz.id, category_id: 'c2', name: 'Margherita Artisanal Pizza', description: 'San Marzano tomatoes, fresh mozzarella di bufala, and basil.', price: 18.0, is_available: true, is_featured: false, image_url: null, created_at: '', updated_at: '' },
+            { id: 'i3', business_id: demoBiz.id, category_id: 'c2', name: 'Margherita Artisanal Pizza', description: 'San Marzano tomatoes, fresh mozzarella di bufala, and basil.', price: 18.0, is_available: true, is_featured: false, image_url: null, badges: ['Vegetarian'], created_at: '', updated_at: '' },
           ]);
-          setLoading(false);
-          return;
-        } else if (slug === 'page-turner-books') {
-          const demoBiz: Business = {
-            id: '22222222-2222-2222-2222-222222222222',
-            owner_id: 'demo', name: 'Page Turner Books', slug: 'page-turner-books', business_type: 'bookshop',
-            description: 'Independent bookshop specializing in rare finds, fiction, and art books.',
-            phone: '+1 (555) 987-6543', email: 'hello@pageturnerbooks.com', address: '456 Literary Way, Arts District',
-            website: null, logo_url: null, banner_url: null, currency: 'USD', theme_color: '#0D9488',
-            created_at: '', updated_at: '',
-          };
-          setBusiness(demoBiz);
-          setCategories([
-            { id: 'bc1', business_id: demoBiz.id, name: 'Fiction & Classics', description: null, display_order: 1, created_at: '' },
-            { id: 'bc2', business_id: demoBiz.id, name: 'Non-Fiction & Science', description: null, display_order: 2, created_at: '' },
-          ]);
-          setItems([
-            { id: 'bi1', business_id: demoBiz.id, category_id: 'bc1', name: 'The Great Gatsby', author: 'F. Scott Fitzgerald', isbn: '9780743273565', description: 'A story of ambition and obsession in the Roaring Twenties.', price: 15.99, quantity: 14, is_available: true, is_featured: true, image_url: null, created_at: '', updated_at: '' },
-            { id: 'bi2', business_id: demoBiz.id, category_id: 'bc1', name: '1984', author: 'George Orwell', isbn: '9780451524935', description: 'A dystopian masterpiece on surveillance state and totalitarian rule.', price: 14.5, quantity: 0, is_available: true, is_featured: false, image_url: null, created_at: '', updated_at: '' },
-            { id: 'bi3', business_id: demoBiz.id, category_id: 'bc2', name: 'Sapiens: A Brief History of Humankind', author: 'Yuval Noah Harari', isbn: '9780062316097', description: 'Groundbreaking narrative of humanity’s creation and evolution.', price: 18.0, quantity: 8, is_available: true, is_featured: true, image_url: null, created_at: '', updated_at: '' },
-          ]);
-          setLoading(false);
-          return;
-        } else if (slug === 'velvet-and-blade') {
-          const demoBiz: Business = {
-            id: '33333333-3333-3333-3333-333333333333',
-            owner_id: 'demo', name: 'Velvet & Blade Studio', slug: 'velvet-and-blade', business_type: 'salon',
-            description: 'Luxury hair styling, beard grooming, and spa treatment studio.',
-            phone: '+1 (555) 444-3322', email: 'appointments@velvetandblade.com', address: '789 Style Boulevard',
-            website: null, logo_url: null, banner_url: null, currency: 'USD', theme_color: '#8B5CF6',
-            created_at: '', updated_at: '',
-          };
-          setBusiness(demoBiz);
-          setCategories([
-            { id: 'sc1', business_id: demoBiz.id, name: 'Hair Styling & Cuts', description: null, display_order: 1, created_at: '' },
-            { id: 'sc2', business_id: demoBiz.id, name: 'Beard & Grooming', description: null, display_order: 2, created_at: '' },
-          ]);
-          setItems([
-            { id: 'si1', business_id: demoBiz.id, category_id: 'sc1', name: 'Executive Haircut & Wash', duration: 45, description: 'Custom haircut including scalp massage, hot towel treatment, and styling product.', price: 55.0, is_available: true, is_featured: true, image_url: null, created_at: '', updated_at: '' },
-            { id: 'si2', business_id: demoBiz.id, category_id: 'sc2', name: 'Royal Hot Towel Shave', duration: 30, description: 'Traditional straight razor shave with warm lather and cooling aftershave balm.', price: 40.0, is_available: true, is_featured: true, image_url: null, created_at: '', updated_at: '' },
-          ]);
+          setTotalDbItemsCount(3);
           setLoading(false);
           return;
         }
@@ -114,15 +82,20 @@ export default function PublicCustomerCatalogPage({
         return;
       }
 
-      setBusiness(bizData as Business);
+      setBusiness(bizData as PublicBusinessWithLimits);
 
-      // Fetch Categories & Items
+      const maxLimit = bizData.effective_max_items || 10;
+      const maxCatLimit = bizData.effective_max_categories || 5;
+
+      // 2. Fetch Categories up to effective category limit
       const { data: catData } = await supabase
         .from('categories')
         .select('*')
         .eq('business_id', bizData.id)
-        .order('display_order');
+        .order('display_order')
+        .limit(maxCatLimit);
 
+      // 3. Fetch ALL available items for this business ordered by creation
       const { data: itemData } = await supabase
         .from('catalog_items')
         .select('*')
@@ -130,8 +103,13 @@ export default function PublicCustomerCatalogPage({
         .eq('is_available', true)
         .order('created_at', { ascending: false });
 
+      const allItems = (itemData as CatalogItem[]) || [];
+      setTotalDbItemsCount(allItems.length);
+
+      // Strictly restrict publicly published items to effectiveMaxItems limit at backend/query level
+      const slicePublished = allItems.slice(0, maxLimit);
+      setPublishedItems(slicePublished);
       if (catData) setCategories(catData as Category[]);
-      if (itemData) setItems(itemData as CatalogItem[]);
 
       setLoading(false);
     }
@@ -169,9 +147,11 @@ export default function PublicCustomerCatalogPage({
   }
 
   const bMeta = BUSINESS_TYPES_META[business.business_type] || BUSINESS_TYPES_META.general;
+  const effectiveMaxLimit = business.effective_max_items || 10;
+  const hasHiddenExcessItems = totalDbItemsCount > publishedItems.length;
 
-  // Filter items
-  const filteredItems = items.filter((item) => {
+  // Filter ONLY over currently published/eligible items
+  const filteredItems = publishedItems.filter((item) => {
     const matchesSearch =
       item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
@@ -180,11 +160,11 @@ export default function PublicCustomerCatalogPage({
     return matchesSearch && matchesCat;
   });
 
-  const featuredItems = items.filter((i) => i.is_featured);
+  const featuredItems = publishedItems.filter((i) => i.is_featured);
 
   return (
     <div className="min-h-screen bg-slate-100 text-slate-900 flex justify-center selection:bg-slate-900 selection:text-white">
-      {/* Mobile viewport container (Max 480px / 640px center aligned on desktop) */}
+      {/* Mobile viewport container */}
       <div className="w-full max-w-md bg-white min-h-screen border-x border-slate-200 shadow-2xl flex flex-col justify-between relative">
         
         {/* Header / Brand Banner */}
@@ -192,12 +172,11 @@ export default function PublicCustomerCatalogPage({
           className="relative px-5 pt-8 pb-6 text-white overflow-hidden shadow-md"
           style={{ backgroundColor: business.theme_color || '#0F172A' }}
         >
-          {/* Subtle background geometric texture */}
+          {/* Subtle background texture */}
           <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:12px_12px]" />
 
           <div className="relative z-10 space-y-3">
             <div className="flex items-center justify-between">
-              {/* Business Name & Type Tag */}
               <div className="space-y-1">
                 <span className="text-[10px] uppercase font-bold tracking-widest bg-white/20 px-2.5 py-0.5 rounded-full text-white/90">
                   {bMeta.label}
@@ -205,7 +184,6 @@ export default function PublicCustomerCatalogPage({
                 <h1 className="text-2xl font-extrabold tracking-tight leading-tight">{business.name}</h1>
               </div>
 
-              {/* Contact Button */}
               <button
                 onClick={() => setContactModalOpen(true)}
                 className="p-3 bg-white/15 hover:bg-white/25 backdrop-blur-md rounded-2xl text-white transition-transform active:scale-95 border border-white/20 shrink-0"
@@ -269,10 +247,10 @@ export default function PublicCustomerCatalogPage({
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
               }`}
             >
-              All ({items.length})
+              All ({publishedItems.length})
             </button>
             {categories.map((cat) => {
-              const catCount = items.filter((i) => i.category_id === cat.id).length;
+              const catCount = publishedItems.filter((i) => i.category_id === cat.id).length;
               return (
                 <button
                   key={cat.id}
@@ -396,7 +374,7 @@ export default function PublicCustomerCatalogPage({
                       </div>
                     </div>
 
-                    {/* Image or Visual Placeholder Card */}
+                    {/* Image Card */}
                     <div className="relative w-24 h-24 rounded-xl bg-slate-100 overflow-hidden shrink-0 border border-slate-200">
                       {item.image_url ? (
                         <img
@@ -415,6 +393,19 @@ export default function PublicCustomerCatalogPage({
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* PROFESSIONAL CATALOG CURRENTLY LIMITED NOTICE */}
+          {hasHiddenExcessItems && (
+            <div className="p-5 rounded-2xl bg-amber-50 border border-amber-200 text-center space-y-2 mt-6">
+              <div className="w-10 h-10 bg-amber-100 text-amber-800 rounded-full flex items-center justify-center mx-auto">
+                <Lock className="w-5 h-5" />
+              </div>
+              <h4 className="text-sm font-bold text-amber-950">More items are available</h4>
+              <p className="text-xs text-amber-800 leading-relaxed max-w-xs mx-auto">
+                This business&apos;s catalog is currently limited. Renewed service is required to view the complete catalog.
+              </p>
             </div>
           )}
         </main>
