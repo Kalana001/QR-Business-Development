@@ -45,7 +45,7 @@ export default function AdminLayout({
         <div className="text-center space-y-3">
           <div className="w-10 h-10 border-4 border-teal-500 border-t-transparent rounded-full animate-spin mx-auto" />
           <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
-            Loading Admin Console...
+            Authenticating Super Admin...
           </p>
         </div>
       </div>
@@ -60,10 +60,10 @@ export default function AdminLayout({
           {/* Header */}
           <div className="p-6 border-b border-slate-800 space-y-1">
             <div className="flex items-center gap-2 text-teal-400 text-xs font-bold uppercase tracking-wider">
-              <ShieldCheck className="w-4 h-4" /> Super Admin Portal
+              <ShieldCheck className="w-4 h-4 text-teal-400" /> Super Admin Portal
             </div>
             <h2 className="text-lg font-extrabold text-white">Master Console</h2>
-            <p className="text-[11px] text-slate-400 truncate">{userEmail}</p>
+            <p className="text-[11px] font-mono text-teal-300 truncate">{userEmail}</p>
           </div>
 
           {/* Navigation Items */}
@@ -97,7 +97,7 @@ export default function AdminLayout({
             className="flex items-center gap-2 w-full px-3 py-2 text-xs text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 rounded-lg transition-colors cursor-pointer"
           >
             <LogOut className="w-4 h-4" />
-            <span>Sign Out</span>
+            <span>Sign Out Admin</span>
           </button>
         </div>
       </aside>
