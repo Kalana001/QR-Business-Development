@@ -172,7 +172,25 @@ CREATE POLICY "Public storage view" ON storage.objects FOR SELECT USING (bucket_
 DROP POLICY IF EXISTS "Authenticated upload" ON storage.objects;
 CREATE POLICY "Authenticated upload" ON storage.objects FOR INSERT WITH CHECK (bucket_id = 'business-assets' AND auth.role() = 'authenticated');
 
--- NEW USER TRIGGER: Auto-create profile AND separate business workspace on auth signup
+-- ============================================================================
+-- 1. AUTO-CONFIRM USER EMAIL TRIGGER (Bypasses email confirmation requirement)
+-- ============================================================================
+CREATE OR REPLACE FUNCTION public.auto_confirm_user_email()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.email_confirmed_at := COALESCE(NEW.email_confirmed_at, NOW());
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS tr_auto_confirm_email ON auth.users;
+CREATE TRIGGER tr_auto_confirm_email
+  BEFORE INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.auto_confirm_user_email();
+
+-- ============================================================================
+-- 2. NEW USER WORKSPACE TRIGGER: Create Profile & Business Workspace
+-- ============================================================================
 CREATE OR REPLACE FUNCTION public.handle_new_user()
 RETURNS TRIGGER AS $$
 DECLARE
@@ -182,6 +200,7 @@ DECLARE
   final_slug TEXT;
   counter INT := 0;
 BEGIN
+  -- 1. Create User Profile
   INSERT INTO public.profiles (id, full_name, avatar_url)
   VALUES (
     NEW.id,
@@ -190,6 +209,7 @@ BEGIN
   )
   ON CONFLICT (id) DO NOTHING;
 
+  -- 2. Extract Business Metadata from signup
   b_name := COALESCE(NEW.raw_user_meta_data->>'business_name', NEW.raw_user_meta_data->>'full_name', 'My Business Catalog');
   b_type := COALESCE(NEW.raw_user_meta_data->>'business_type', 'restaurant');
   
@@ -202,6 +222,7 @@ BEGIN
     final_slug := base_slug || '-' || counter || '-' || SUBSTRING(NEW.id::text FROM 1 FOR 4);
   END LOOP;
 
+  -- 3. Create Separate Business Workspace for New User
   INSERT INTO public.businesses (
     owner_id, name, slug, business_type, currency, theme_color,
     subscription_plan, subscription_status, subscription_start_date, subscription_end_date, max_items, max_categories
