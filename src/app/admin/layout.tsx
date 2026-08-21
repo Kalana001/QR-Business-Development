@@ -32,7 +32,7 @@ export default function AdminLayout({
       const { data: isAdmin, error: rpcError } = await supabase.rpc('is_super_admin');
 
       if (rpcError || !isAdmin) {
-        console.error('Super Admin check failed:', rpcError?.message);
+        console.error('Super Admin check failed for user:', user.id, user.email, 'RPC Error:', rpcError?.message, 'isAdmin:', isAdmin);
         router.push('/dashboard');
         return;
       }
