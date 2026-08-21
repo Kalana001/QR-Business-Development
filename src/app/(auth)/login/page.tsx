@@ -37,11 +37,10 @@ function LoginFormContent() {
 
       // Database-backed redirect: Super Admin -> /admin, Business Owners -> /dashboard or nextParam
       const { data: isAdmin } = await supabase.rpc('is_super_admin');
-      const isSuperAdminEmail = trimmedEmail.toLowerCase() === 'adminkal@gmail.com';
 
       if (nextParam) {
         router.push(nextParam);
-      } else if (isAdmin || isSuperAdminEmail) {
+      } else if (isAdmin) {
         router.push('/admin');
       } else {
         router.push('/dashboard');

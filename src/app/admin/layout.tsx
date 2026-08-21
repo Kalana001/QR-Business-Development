@@ -28,13 +28,11 @@ export default function AdminLayout({
         return;
       }
 
-      // Check database authorization using is_super_admin RPC or Super Admin Email
+      // Pure database authorization using is_super_admin RPC
       const { data: isAdmin, error: rpcError } = await supabase.rpc('is_super_admin');
-      const isSuperAdminEmail = user.email?.toLowerCase() === 'adminkal@gmail.com';
-      const isAuthorized = Boolean(isAdmin) || isSuperAdminEmail;
 
-      if (!isAuthorized) {
-        console.error('Super Admin check failed for user:', user.id, user.email, 'RPC Error:', rpcError?.message, 'isAdmin:', isAdmin);
+      if (rpcError || !isAdmin) {
+        console.error('Super Admin check failed for user:', user.id, 'RPC Error:', rpcError?.message, 'isAdmin:', isAdmin);
         router.push('/dashboard');
         return;
       }
