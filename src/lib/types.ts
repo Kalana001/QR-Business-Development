@@ -61,6 +61,7 @@ export interface CatalogItem {
   business_id: string;
   category_id: string | null;
   name: string;
+  display_order?: number;       // Catalog Item ordering position
   
   // Type-specific optional metadata
   author?: string | null;       // Bookshop

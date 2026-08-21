@@ -100,6 +100,7 @@ CREATE TABLE IF NOT EXISTS public.catalog_items (
   business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
   category_id UUID REFERENCES public.categories(id) ON DELETE SET NULL,
   name TEXT NOT NULL,
+  display_order INTEGER NOT NULL DEFAULT 0, -- Item Display Order (Requirement #2)
   author TEXT,           -- Bookshop
   isbn TEXT,             -- Bookshop
   duration INTEGER CHECK (duration IS NULL OR duration >= 0), -- Salon / Barber (minutes)
@@ -119,8 +120,11 @@ CREATE TABLE IF NOT EXISTS public.catalog_items (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+ALTER TABLE public.catalog_items ADD COLUMN IF NOT EXISTS display_order INTEGER NOT NULL DEFAULT 0;
+
 CREATE INDEX IF NOT EXISTS idx_items_business ON public.catalog_items(business_id);
 CREATE INDEX IF NOT EXISTS idx_items_category ON public.catalog_items(category_id);
+CREATE INDEX IF NOT EXISTS idx_items_display_order ON public.catalog_items(business_id, display_order);
 
 -- ============================================================================
 -- AUTHORIZATION HELPER FUNCTIONS (STABLE VOLATILITY FIX #6)
@@ -257,7 +261,7 @@ WHERE effective_max_categories IS NULL OR cat_rank <= effective_max_categories;
 
 GRANT SELECT ON public.public_categories TO anon, authenticated;
 
--- 3. PUBLIC CATALOG ITEMS VIEW (Window Function Rank Enforced - FIX #1)
+-- 3. PUBLIC CATALOG ITEMS VIEW (Window Function Rank Enforced with Display Order Requirement #2)
 CREATE OR REPLACE VIEW public.public_catalog_items AS
 WITH ranked_items AS (
   SELECT 
@@ -272,14 +276,14 @@ WITH ranked_items AS (
     END AS effective_max_items,
     ROW_NUMBER() OVER (
       PARTITION BY ci.business_id 
-      ORDER BY ci.created_at DESC, ci.id ASC
+      ORDER BY ci.display_order ASC, ci.created_at ASC, ci.id ASC
     ) AS item_rank
   FROM public.catalog_items ci
   JOIN public.businesses b ON b.id = ci.business_id
   WHERE ci.is_available = true AND b.is_public = true
 )
 SELECT 
-  id, business_id, category_id, name, author, isbn, duration, badges,
+  id, business_id, category_id, name, display_order, author, isbn, duration, badges,
   description, price, quantity, is_available, is_featured, image_url,
   external_source, external_product_id, last_synced_at, created_at, updated_at
 FROM ranked_items
@@ -369,13 +373,11 @@ FOR DELETE USING (
   public.is_super_admin()
 );
 
--- 5. CATEGORIES POLICIES (Strict Tenant Isolation)
+-- 5. CATEGORIES POLICIES (No Direct Public SELECT Access - Requirement #1)
 DROP POLICY IF EXISTS "Public customer category view" ON public.categories;
-CREATE POLICY "Public customer category view" ON public.categories 
-FOR SELECT USING (
-  EXISTS (SELECT 1 FROM public.public_businesses WHERE id = categories.business_id) OR
-  public.can_manage_catalog(business_id)
-);
+DROP POLICY IF EXISTS "Members or admins can select categories" ON public.categories;
+CREATE POLICY "Members or admins can select categories" ON public.categories 
+FOR SELECT USING (public.can_manage_catalog(business_id));
 
 DROP POLICY IF EXISTS "Members can insert categories" ON public.categories;
 CREATE POLICY "Members can insert categories" ON public.categories 
@@ -389,16 +391,11 @@ DROP POLICY IF EXISTS "Members can delete categories" ON public.categories;
 CREATE POLICY "Members can delete categories" ON public.categories 
 FOR DELETE USING (public.can_manage_catalog(business_id));
 
--- 6. CATALOG ITEMS POLICIES (Strict Tenant Isolation)
+-- 6. CATALOG ITEMS POLICIES (No Direct Public SELECT Access - Requirement #1)
 DROP POLICY IF EXISTS "Public customer items view" ON public.catalog_items;
-CREATE POLICY "Public customer items view" ON public.catalog_items 
-FOR SELECT USING (
-  (
-    is_available = true AND 
-    EXISTS (SELECT 1 FROM public.public_businesses WHERE id = catalog_items.business_id)
-  ) OR 
-  public.can_manage_catalog(business_id)
-);
+DROP POLICY IF EXISTS "Members or admins can select items" ON public.catalog_items;
+CREATE POLICY "Members or admins can select items" ON public.catalog_items 
+FOR SELECT USING (public.can_manage_catalog(business_id));
 
 DROP POLICY IF EXISTS "Members can insert items" ON public.catalog_items;
 CREATE POLICY "Members can insert items" ON public.catalog_items 
