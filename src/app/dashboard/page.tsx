@@ -75,11 +75,8 @@ export default function DashboardOverviewPage() {
   if (business?.business_type === 'bookshop') TypeIcon = BookOpen;
   if (business?.business_type === 'salon') TypeIcon = Scissors;
 
-  const fullCatalogUrl = business
-    ? (typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-        ? `${window.location.origin}/c/${business.slug}`
-        : `https://qr-business-development.vercel.app/c/${business.slug}`)
-    : '';
+  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://qr-business-development.vercel.app');
+  const fullCatalogUrl = business ? `${baseUrl}/c/${business.slug}` : '';
 
   return (
     <div className="space-y-8 animate-fade-in">

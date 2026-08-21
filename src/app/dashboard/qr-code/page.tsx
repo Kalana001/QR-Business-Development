@@ -48,10 +48,8 @@ export default function DashboardQrCodePage() {
   useEffect(() => {
     if (!business) return;
 
-    // Absolute URL for QR Code target
-    const targetUrl = typeof window !== 'undefined'
-      ? `${window.location.origin}/c/${business.slug}`
-      : `https://qrcatalog.app/c/${business.slug}`;
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://qr-business-development.vercel.app');
+    const targetUrl = `${baseUrl}/c/${business.slug}`;
 
     // Render to Canvas / DataURL
     QRCode.toDataURL(targetUrl, {
