@@ -35,11 +35,15 @@ function LoginFormContent() {
 
       if (authError) throw authError;
 
-      // Smart redirect: Super Admin -> /admin, Business Owners -> /dashboard or nextParam
-      if (trimmedEmail.toLowerCase() === 'adminkal@gmail.com' || nextParam === '/admin') {
+      // Database-backed redirect: Super Admin -> /admin, Business Owners -> /dashboard or nextParam
+      const { data: isAdmin } = await supabase.rpc('is_super_admin');
+
+      if (nextParam) {
+        router.push(nextParam);
+      } else if (isAdmin) {
         router.push('/admin');
       } else {
-        router.push(nextParam || '/dashboard');
+        router.push('/dashboard');
       }
       router.refresh();
     } catch (err: any) {

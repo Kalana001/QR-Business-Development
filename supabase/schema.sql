@@ -28,15 +28,13 @@ AS $$
 BEGIN
   RETURN EXISTS (
     SELECT 1 FROM public.platform_admins WHERE user_id = auth.uid()
-  ) OR (
-    LOWER(COALESCE(auth.jwt()->>'email', '')) = 'adminkal@gmail.com'
   );
 END;
 $$;
 
 -- Seed Super Admin Platform Account
 INSERT INTO public.platform_admins (user_id)
-SELECT id FROM auth.users WHERE LOWER(email) = 'adminkal@gmail.com'
+SELECT id FROM public.profiles WHERE id = '63a57078-68b1-4ee0-b459-67a0e8346fc9'
 ON CONFLICT (user_id) DO NOTHING;
 
 -- 3. Businesses Table (Multi-tenant Root with Subscriptions)
