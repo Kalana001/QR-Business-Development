@@ -76,16 +76,19 @@ export default function PublicCustomerCatalogPage({
       setBusiness(bizData as Business);
 
       // 2. Fetch Categories from DB-RANK-ENFORCED VIEW (public_categories)
-      const { data: catData } = await supabase
+      const { data: catData, error: catError } = await supabase
         .from('public_categories')
         .select('*')
         .eq('business_id', bizData.id);
 
       // 3. Fetch Items from DB-RANK-ENFORCED VIEW (public_catalog_items)
-      const { data: itemData } = await supabase
+      const { data: itemData, error: itemError } = await supabase
         .from('public_catalog_items')
         .select('*')
         .eq('business_id', bizData.id);
+
+      if (catError) console.error('[PublicCatalog] Category view query error:', catError.message);
+      if (itemError) console.error('[PublicCatalog] Catalog item view query error:', itemError.message);
 
       if (catData) setCategories(catData as Category[]);
       if (itemData) setPublishedItems(itemData as CatalogItem[]);
