@@ -382,37 +382,37 @@ FOR DELETE USING (
 DROP POLICY IF EXISTS "Public customer category view" ON public.categories;
 DROP POLICY IF EXISTS "Members or admins can select categories" ON public.categories;
 CREATE POLICY "Members or admins can select categories" ON public.categories 
-FOR SELECT USING (public.can_manage_catalog(business_id));
+FOR SELECT USING (public.can_manage_catalog(categories.business_id));
 
 DROP POLICY IF EXISTS "Members can insert categories" ON public.categories;
 CREATE POLICY "Members can insert categories" ON public.categories 
-FOR INSERT WITH CHECK (public.can_manage_catalog(business_id));
+FOR INSERT WITH CHECK (public.can_manage_catalog(categories.business_id));
 
 DROP POLICY IF EXISTS "Members can update categories" ON public.categories;
 CREATE POLICY "Members can update categories" ON public.categories 
-FOR UPDATE USING (public.can_manage_catalog(business_id)) WITH CHECK (public.can_manage_catalog(business_id));
+FOR UPDATE USING (public.can_manage_catalog(categories.business_id)) WITH CHECK (public.can_manage_catalog(categories.business_id));
 
 DROP POLICY IF EXISTS "Members can delete categories" ON public.categories;
 CREATE POLICY "Members can delete categories" ON public.categories 
-FOR DELETE USING (public.can_manage_catalog(business_id));
+FOR DELETE USING (public.can_manage_catalog(categories.business_id));
 
 -- 6. CATALOG ITEMS POLICIES (No Direct Public SELECT Access - Requirement #1)
 DROP POLICY IF EXISTS "Public customer items view" ON public.catalog_items;
 DROP POLICY IF EXISTS "Members or admins can select items" ON public.catalog_items;
 CREATE POLICY "Members or admins can select items" ON public.catalog_items 
-FOR SELECT USING (public.can_manage_catalog(business_id));
+FOR SELECT USING (public.can_manage_catalog(catalog_items.business_id));
 
 DROP POLICY IF EXISTS "Members can insert items" ON public.catalog_items;
 CREATE POLICY "Members can insert items" ON public.catalog_items 
-FOR INSERT WITH CHECK (public.can_manage_catalog(business_id));
+FOR INSERT WITH CHECK (public.can_manage_catalog(catalog_items.business_id));
 
 DROP POLICY IF EXISTS "Members can update items" ON public.catalog_items;
 CREATE POLICY "Members can update items" ON public.catalog_items 
-FOR UPDATE USING (public.can_manage_catalog(business_id)) WITH CHECK (public.can_manage_catalog(business_id));
+FOR UPDATE USING (public.can_manage_catalog(catalog_items.business_id)) WITH CHECK (public.can_manage_catalog(catalog_items.business_id));
 
 DROP POLICY IF EXISTS "Members can delete items" ON public.catalog_items;
 CREATE POLICY "Members can delete items" ON public.catalog_items 
-FOR DELETE USING (public.can_manage_catalog(business_id));
+FOR DELETE USING (public.can_manage_catalog(catalog_items.business_id));
 
 -- ============================================================================
 -- BUSINESS UPDATE SECURITY: PROTECT SENSITIVE BILLING & OWNERSHIP FIELDS
