@@ -124,14 +124,14 @@ export default function DashboardQrCodePage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={downloadSvg} className="gap-2 text-xs font-semibold">
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 w-full sm:w-auto">
+          <Button variant="outline" onClick={downloadSvg} className="flex-1 sm:flex-none gap-2 text-xs font-semibold">
             <Download className="w-3.5 h-3.5" /> Download SVG
           </Button>
-          <Button variant="outline" onClick={downloadPng} className="gap-2 text-xs font-semibold">
+          <Button variant="outline" onClick={downloadPng} className="flex-1 sm:flex-none gap-2 text-xs font-semibold">
             <Download className="w-3.5 h-3.5" /> Download PNG
           </Button>
-          <Button onClick={handlePrint} className="gap-2 text-xs font-semibold bg-slate-900">
+          <Button onClick={handlePrint} className="w-full sm:w-auto gap-2 text-xs font-semibold bg-slate-900">
             <Printer className="w-3.5 h-3.5" /> Print Tabletop Flyer
           </Button>
         </div>
@@ -221,14 +221,14 @@ export default function DashboardQrCodePage() {
           {/* Tabletop Flyer Document */}
           <div
             id="printable-flyer"
-            className="w-full max-w-md bg-white border-2 border-slate-200 rounded-3xl p-8 shadow-xl flex flex-col items-center text-center space-y-6 print:border-none print:shadow-none print:max-w-none print:w-full print:p-12"
+            className="w-full max-w-md bg-white border-2 border-slate-200 rounded-3xl p-5 sm:p-8 shadow-xl flex flex-col items-center text-center space-y-5 sm:space-y-6 print:border-none print:shadow-none print:max-w-none print:w-full print:p-12"
           >
             {/* Header / Business Brand */}
             <div className="space-y-2">
               <div className="inline-flex items-center justify-center p-3 bg-slate-900 text-white rounded-2xl mb-1 shadow-sm">
                 <QrIcon className="w-8 h-8 text-teal-400" />
               </div>
-              <h2 className="text-2xl font-extrabold text-slate-900 tracking-tight">
+              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
                 {business?.name}
               </h2>
               <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
@@ -237,12 +237,12 @@ export default function DashboardQrCodePage() {
             </div>
 
             {/* High-Res QR Code Display */}
-            <div className="p-4 bg-white border border-slate-200 rounded-2xl shadow-inner my-2">
+            <div className="p-3 sm:p-4 bg-white border border-slate-200 rounded-2xl shadow-inner my-1 sm:my-2">
               {qrDataUrl && (
                 <img
                   src={qrDataUrl}
                   alt="Business Catalog QR Code"
-                  className="w-56 h-56 object-contain"
+                  className="w-44 h-44 sm:w-56 sm:h-56 max-w-full object-contain"
                 />
               )}
             </div>

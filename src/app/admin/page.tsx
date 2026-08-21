@@ -253,7 +253,7 @@ export default function SuperAdminDashboardPage() {
           <select
             value={planFilter}
             onChange={(e) => setPlanFilter(e.target.value)}
-            className="px-3 py-2 text-xs bg-slate-950 border border-slate-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium"
+            className="px-3 py-2 text-xs bg-slate-950 border border-slate-800 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-teal-500 font-medium w-full md:w-auto"
           >
             <option value="all">All Businesses ({businesses.length})</option>
             <option value="free">Starter Free ({freeAccounts})</option>

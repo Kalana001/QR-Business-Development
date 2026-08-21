@@ -52,8 +52,8 @@ export default function DashboardLayout({
             .update({
               subscription_plan: 'enterprise',
               subscription_status: 'active',
-              max_items: 999999,
-              max_categories: 999999,
+              max_items: null,
+              max_categories: null,
             })
             .eq('id', bizData.id)
             .select()
@@ -90,8 +90,8 @@ export default function DashboardLayout({
             theme_color: '#0F172A',
             subscription_plan: isSuperAdmin ? 'enterprise' : 'free',
             subscription_status: 'active',
-            max_items: isSuperAdmin ? 999999 : 10,
-            max_categories: isSuperAdmin ? 999999 : 5,
+            max_items: isSuperAdmin ? null : 10,
+            max_categories: isSuperAdmin ? null : 5,
           })
           .select()
           .single();
@@ -138,7 +138,7 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row" suppressHydrationWarning>
-      {/* Sidebar navigation */}
+      {/* Desktop Sidebar Navigation (Hidden on <md screens) */}
       <aside className="hidden md:flex flex-col w-64 bg-slate-900 border-r border-slate-800 text-slate-300 min-h-screen shrink-0 overflow-x-hidden">
         {/* Brand Header */}
         <div className="p-6 border-b border-slate-800 flex items-center justify-between overflow-hidden">
@@ -220,8 +220,8 @@ export default function DashboardLayout({
         </div>
       </aside>
 
-      {/* Mobile Header Navigation */}
-      <div className="md:hidden bg-slate-900 text-white p-4 border-b border-slate-800 flex items-center justify-between sticky top-0 z-30">
+      {/* Mobile Top Navigation Bar (<md screens) */}
+      <div className="md:hidden bg-slate-900 text-white px-4 py-3 border-b border-slate-800 flex items-center justify-between sticky top-0 z-30 shadow-md">
         <Link href="/dashboard" className="flex items-center gap-2 font-bold text-sm min-w-0 overflow-hidden">
           <div className="p-1.5 bg-teal-500 text-slate-950 rounded-md shrink-0">
             <QrCode className="w-4 h-4" />
@@ -231,43 +231,101 @@ export default function DashboardLayout({
 
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="p-2 text-slate-300 hover:text-white shrink-0"
+          className="p-2 text-slate-300 hover:text-white rounded-lg hover:bg-slate-800 shrink-0"
+          aria-label="Toggle navigation menu"
         >
           {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
         </button>
       </div>
 
-      {/* Mobile Drawer Menu */}
+      {/* Mobile Slide-Over Navigation Drawer (<md screens) */}
       {mobileMenuOpen && (
-        <div className="md:hidden bg-slate-900 border-b border-slate-800 px-4 pb-4 space-y-2">
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = pathname === item.href;
-            return (
+        <div className="md:hidden fixed inset-0 z-50 flex">
+          {/* Backdrop Overlay */}
+          <div 
+            className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs transition-opacity" 
+            onClick={() => setMobileMenuOpen(false)} 
+          />
+
+          {/* Drawer Panel */}
+          <div className="relative z-10 w-72 max-w-[85vw] bg-slate-900 text-slate-300 flex flex-col justify-between h-full p-4 shadow-2xl border-r border-slate-800 animate-fade-in overflow-y-auto">
+            <div>
+              {/* Header */}
+              <div className="flex items-center justify-between pb-4 mb-4 border-b border-slate-800">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <div className="p-2 bg-teal-500 text-slate-950 rounded-lg shrink-0">
+                    <QrCode className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0">
+                    <div className="text-sm font-bold text-white truncate">{business?.name}</div>
+                    <div className="text-[10px] text-teal-400 font-normal capitalize truncate">{business?.business_type}</div>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Public Catalog Link */}
+              {business && (
+                <a
+                  href={`/c/${business.slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-between w-full p-2.5 mb-4 bg-teal-500/10 text-teal-300 border border-teal-500/30 rounded-xl text-xs font-medium"
+                >
+                  <span className="truncate">View Public Catalog</span>
+                  <ExternalLink className="w-3.5 h-3.5 shrink-0 ml-1" />
+                </a>
+              )}
+
+              {/* Navigation Items */}
+              <nav className="space-y-1">
+                {navItems.map((item) => {
+                  const Icon = item.icon;
+                  const isActive = pathname === item.href;
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      onClick={() => setMobileMenuOpen(false)}
+                      className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors ${
+                        isActive ? 'bg-teal-500 text-slate-950 font-bold' : 'text-slate-300 hover:bg-slate-800'
+                      }`}
+                    >
+                      <Icon className="w-5 h-5" />
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
+              </nav>
+            </div>
+
+            {/* Footer Admin & Logout */}
+            <div className="pt-4 border-t border-slate-800 space-y-2 mt-6">
               <Link
-                key={item.href}
-                href={item.href}
+                href="/admin"
                 onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium ${
-                  isActive ? 'bg-teal-500 text-slate-950 font-semibold' : 'text-slate-300'
-                }`}
+                className="flex items-center gap-2 px-3 py-2.5 text-xs font-bold text-teal-400 bg-teal-500/10 rounded-xl"
               >
-                <Icon className="w-4 h-4" />
-                <span>{item.label}</span>
+                <ShieldCheck className="w-4 h-4" /> Super Admin Console
               </Link>
-            );
-          })}
-          <Link
-            href="/admin"
-            className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-teal-400 bg-teal-500/10 rounded-lg"
-          >
-            <ShieldCheck className="w-4 h-4" /> Super Admin Console
-          </Link>
+              <button
+                onClick={handleSignOut}
+                className="flex items-center gap-2 w-full px-3 py-2.5 text-xs text-rose-400 hover:bg-rose-500/10 rounded-xl"
+              >
+                <LogOut className="w-4 h-4" /> Sign Out
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
-      {/* Main Content Area */}
-      <main className="flex-1 p-4 sm:p-8 max-w-7xl mx-auto w-full overflow-x-hidden">
+      {/* Main Content Container */}
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full overflow-x-hidden min-w-0">
         {children}
       </main>
     </div>

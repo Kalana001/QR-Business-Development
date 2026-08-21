@@ -386,7 +386,7 @@ export default function PublicCustomerCatalogPage({
         {selectedItem && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
             <div
-              className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col justify-between"
+              className="bg-white w-full max-w-md sm:max-w-lg rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden max-h-[88dvh] sm:max-h-[85vh] flex flex-col justify-between"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Media Banner */}
