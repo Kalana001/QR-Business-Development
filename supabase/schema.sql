@@ -32,6 +32,11 @@ BEGIN
 END;
 $$;
 
+-- Seed Super Admin Platform Account
+INSERT INTO public.platform_admins (user_id)
+SELECT id FROM auth.users WHERE LOWER(email) = 'adminkal@gmail.com'
+ON CONFLICT (user_id) DO NOTHING;
+
 -- 3. Businesses Table (Multi-tenant Root with Subscriptions)
 CREATE TABLE IF NOT EXISTS public.businesses (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
