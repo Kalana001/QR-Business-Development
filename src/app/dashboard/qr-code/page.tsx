@@ -83,7 +83,7 @@ export default function DashboardQrCodePage() {
   }, [business, darkColor, lightColor, margin]);
 
   const planKey = (business?.subscription_plan || 'free').toLowerCase();
-  const isPaidPlan = isSuperAdmin || planKey === 'pro' || planKey === 'pro_growth' || planKey === 'enterprise' || planKey === 'business' || planKey === 'business_plus';
+  const isPaidPlan = isSuperAdmin || planKey === 'pro' || planKey === 'pro_growth' || planKey === 'enterprise' || planKey === 'enterprise_gift' || planKey === 'business' || planKey === 'business_plus';
 
   const downloadPng = () => {
     if (!qrDataUrl || !business) return;

@@ -59,7 +59,7 @@ export default function DashboardAnalyticsPage() {
   }
 
   const planKey = (business?.subscription_plan || 'free').toLowerCase();
-  const isBusinessPlan = isSuperAdmin || planKey === 'enterprise' || planKey === 'business' || planKey === 'business_plus';
+  const isBusinessPlan = isSuperAdmin || planKey === 'enterprise' || planKey === 'enterprise_gift' || planKey === 'business' || planKey === 'business_plus';
 
   if (!isBusinessPlan) {
     return (
@@ -140,7 +140,7 @@ export default function DashboardAnalyticsPage() {
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-extrabold text-slate-900">Advanced Analytics</h1>
             <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 border border-purple-200">
-              <Crown className="w-3 h-3 text-purple-600" /> Business Plus Active
+              <Crown className="w-3 h-3 text-purple-600" /> {planKey === 'enterprise_gift' ? '🎁 VIP Complimentary Gift Active' : 'Business Plus Active'}
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">

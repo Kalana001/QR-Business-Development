@@ -440,7 +440,7 @@ export default function SuperAdminDashboardPage() {
                         ) : (
                           <>
                             <span className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider inline-flex items-center gap-1 ${
-                              biz.subscription_plan === 'enterprise'
+                              biz.subscription_plan === 'enterprise' || biz.subscription_plan === 'enterprise_gift'
                                 ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
                                 : biz.subscription_plan === 'pro'
                                 ? 'bg-teal-500/20 text-teal-300 border border-teal-500/30'
@@ -448,8 +448,12 @@ export default function SuperAdminDashboardPage() {
                             }`}>
                               {planMeta.name}
                             </span>
-                            <div className="text-[11px] text-slate-400 mt-1">
-                              {planMeta.priceLKR > 0 ? `LKR ${planMeta.priceLKR.toLocaleString()}/mo` : 'Free Forever'}
+                            <div className="text-[11px] text-slate-400 mt-1 font-semibold">
+                              {biz.subscription_plan === 'enterprise_gift'
+                                ? '🎁 VIP Complimentary Gift'
+                                : planMeta.priceLKR > 0
+                                ? `LKR ${planMeta.priceLKR.toLocaleString()}/mo`
+                                : 'Free Forever'}
                             </div>
                           </>
                         )}
@@ -572,8 +576,8 @@ export default function SuperAdminDashboardPage() {
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
               Select Package Tier
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {(['free', 'pro', 'enterprise'] as SubscriptionPlan[]).map((planKey) => {
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+              {(['free', 'pro', 'enterprise', 'enterprise_gift'] as SubscriptionPlan[]).map((planKey) => {
                 const plan = SUBSCRIPTION_PLANS_META[planKey];
                 const isSelected = selectedPlan === planKey;
 
@@ -584,14 +588,18 @@ export default function SuperAdminDashboardPage() {
                     onClick={() => setSelectedPlan(planKey)}
                     className={`p-3 rounded-xl border text-left flex flex-col justify-between transition-all cursor-pointer ${
                       isSelected
-                        ? 'border-teal-500 bg-teal-500/10 text-slate-900 shadow-md font-bold'
+                        ? 'border-purple-600 bg-purple-50 text-slate-900 shadow-md font-bold'
                         : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
                     }`}
                   >
                     <div>
                       <div className="text-xs font-extrabold">{plan.name}</div>
-                      <div className="text-xs text-teal-700 font-extrabold mt-1">
-                        {plan.priceLKR > 0 ? `LKR ${plan.priceLKR.toLocaleString()}/mo` : 'Free Forever'}
+                      <div className="text-xs text-purple-700 font-extrabold mt-1">
+                        {planKey === 'enterprise_gift'
+                          ? '🎁 Free VIP Gift'
+                          : plan.priceLKR > 0
+                          ? `LKR ${plan.priceLKR.toLocaleString()}/mo`
+                          : 'Free Forever'}
                       </div>
                     </div>
                     <div className="text-[10px] text-slate-500 mt-2">

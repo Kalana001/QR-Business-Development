@@ -1,6 +1,6 @@
 export type BusinessType = 'restaurant' | 'bookshop' | 'salon' | 'general';
 export type UserRole = 'owner' | 'staff';
-export type SubscriptionPlan = 'free' | 'pro' | 'enterprise';
+export type SubscriptionPlan = 'free' | 'pro' | 'enterprise' | 'enterprise_gift';
 export type SubscriptionStatus = 'active' | 'expired';
 
 export interface Profile {
@@ -142,6 +142,23 @@ export const SUBSCRIPTION_PLANS_META: Record<SubscriptionPlan, SubscriptionPlanM
       'Multiple Selectable Catalog Design Templates',
       'Custom Branding & Logo Uploads',
       'Dedicated Admin Priority Support',
+    ],
+  },
+  enterprise_gift: {
+    id: 'enterprise_gift',
+    name: 'Business Plus (VIP Gift)',
+    priceLKR: 0,
+    maxItems: null,
+    maxCategories: null,
+    badge: '🎁 VIP Gift',
+    description: 'Complimentary full Business Plus access gifted by Platform Administrator.',
+    features: [
+      'Unlimited Catalog Items',
+      'Unlimited Categories',
+      'Advanced QR Scan & Catalog Analytics',
+      'Multiple Selectable Catalog Design Templates',
+      'Printable 5"x7" Table Tent Flyers',
+      'Complimentary VIP Access',
     ],
   },
 };
