@@ -3,13 +3,14 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { 
-  Building2, Search, Filter, ShieldCheck, CheckCircle2, AlertCircle, Calendar, Crown, ExternalLink, RefreshCw, Zap, DollarSign, BarChart3, QrCode
+  Building2, Search, Filter, ShieldCheck, CheckCircle2, AlertCircle, Calendar, Crown, ExternalLink, RefreshCw, Zap, DollarSign, BarChart3, QrCode, Eye, Smartphone, TrendingUp, Users, AlertTriangle 
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { createClient } from '@/lib/supabase/client';
 import { Business, SubscriptionPlan, SubscriptionStatus, SUBSCRIPTION_PLANS_META } from '@/lib/types';
+import { getGlobalPlatformAnalytics, getAnalyticsSummary, GlobalAnalyticsSummary, AnalyticsSummary } from '@/lib/analytics';
 
 interface BusinessWithMetrics extends Business {
   item_count?: number;
@@ -24,6 +25,13 @@ export default function SuperAdminDashboardPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [planFilter, setPlanFilter] = useState<string>('all');
   const [totalScansCount, setTotalScansCount] = useState<number>(0);
+  const [globalAnalytics, setGlobalAnalytics] = useState<GlobalAnalyticsSummary | null>(null);
+
+  // Inspector Modal State
+  const [inspectBiz, setInspectBiz] = useState<BusinessWithMetrics | null>(null);
+  const [inspectAnalytics, setInspectAnalytics] = useState<AnalyticsSummary | null>(null);
+  const [isInspectorOpen, setIsInspectorOpen] = useState(false);
+  const [loadingInspect, setLoadingInspect] = useState(false);
 
   // Subscription Approval Modal State
   const [selectedBiz, setSelectedBiz] = useState<BusinessWithMetrics | null>(null);
@@ -91,8 +99,23 @@ export default function SuperAdminDashboardPage() {
     });
 
     setBusinesses(enriched);
+
+    // Fetch Global Platform Analytics
+    const globalData = await getGlobalPlatformAnalytics(enriched);
+    setGlobalAnalytics(globalData);
+    setTotalScansCount(globalData.totalPlatformScans);
+
     setLoading(false);
   }
+
+  const handleInspectAnalytics = async (biz: BusinessWithMetrics) => {
+    setInspectBiz(biz);
+    setLoadingInspect(true);
+    setIsInspectorOpen(true);
+    const summary = await getAnalyticsSummary(biz.id, 30);
+    setInspectAnalytics(summary);
+    setLoadingInspect(false);
+  };
 
   const openApprovalModal = (biz: BusinessWithMetrics) => {
     if (biz.is_super_admin_owner) return;
@@ -247,6 +270,89 @@ export default function SuperAdminDashboardPage() {
         </div>
       </div>
 
+      {/* Global Platform QR Traffic & Business Leaderboard */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top 5 Most Scanned Businesses Leaderboard */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl">
+          <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <QrCode className="w-5 h-5 text-teal-400" /> Top Scanned Businesses (Leaderboard)
+            </h3>
+            <span className="text-xs font-mono text-teal-400 font-bold px-2.5 py-1 bg-teal-500/10 border border-teal-500/20 rounded-full">
+              {globalAnalytics?.totalPlatformScans || 0} Total Scans
+            </span>
+          </div>
+
+          <div className="space-y-3">
+            {!globalAnalytics?.topBusinesses || globalAnalytics.topBusinesses.length === 0 ? (
+              <div className="p-4 text-center text-xs text-slate-500 bg-slate-950/60 rounded-xl border border-slate-800">
+                No scan activity recorded yet across registered businesses.
+              </div>
+            ) : (
+              globalAnalytics.topBusinesses.map((biz, idx) => (
+                <div key={biz.businessId + idx} className="space-y-1.5 p-2 bg-slate-950/40 rounded-xl border border-slate-800/80">
+                  <div className="flex items-center justify-between text-xs font-bold">
+                    <span className="text-slate-200 flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-teal-500 text-slate-950 text-[10px] flex items-center justify-center font-black">
+                        #{idx + 1}
+                      </span>
+                      {biz.businessName}
+                    </span>
+                    <span className="text-teal-400 font-mono">
+                      {biz.scanCount} scans ({biz.percentage}%)
+                    </span>
+                  </div>
+                  <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-teal-400 rounded-full transition-all duration-500"
+                      style={{ width: `${Math.max(biz.percentage, 8)}%` }}
+                    />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </div>
+
+        {/* Global Peak Hours Chart */}
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4 shadow-xl flex flex-col justify-between">
+          <div className="border-b border-slate-800 pb-3">
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-purple-400" /> Global Peak Scanning Hours
+            </h3>
+            <p className="text-xs text-slate-400 mt-1">Scan activity distribution across customer peak dining & shopping hours.</p>
+          </div>
+
+          <div className="flex items-end justify-between gap-1 h-32 pt-4 px-2">
+            {!globalAnalytics?.hourlyPeakScans ? (
+              <div className="w-full text-center text-xs text-slate-500 py-8">Loading scan activity...</div>
+            ) : (
+              globalAnalytics.hourlyPeakScans.map((h, i) => {
+                const maxCount = Math.max(...globalAnalytics.hourlyPeakScans.map(item => item.count), 1);
+                const heightPct = Math.round((h.count / maxCount) * 100);
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1 group relative">
+                    <div className="w-full bg-slate-800 rounded-t-sm overflow-hidden flex items-end h-24">
+                      <div
+                        className="w-full bg-purple-500 group-hover:bg-purple-400 transition-all rounded-t-sm"
+                        style={{ height: `${Math.max(heightPct, 4)}%` }}
+                      />
+                    </div>
+                    {i % 4 === 0 && (
+                      <span className="text-[9px] font-mono text-slate-400">{h.hourLabel}</span>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          <div className="text-[11px] text-slate-500 font-medium pt-2 border-t border-slate-800 flex items-center gap-1">
+            <CheckCircle2 className="w-3.5 h-3.5 text-purple-400" /> Real-time scan logs aggregated across all active accounts.
+          </div>
+        </div>
+      </div>
+
       {/* Toolbar & Search */}
       <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 flex flex-col md:flex-row gap-3 items-center justify-between">
         <div className="relative w-full md:w-80">
@@ -389,6 +495,16 @@ export default function SuperAdminDashboardPage() {
                       {/* Actions */}
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-2">
+                          <Button
+                            onClick={() => handleInspectAnalytics(biz)}
+                            size="sm"
+                            variant="outline"
+                            className="gap-1 border-purple-500/40 text-purple-300 hover:bg-purple-950/40 text-xs font-semibold"
+                            title="Inspect Business Scan & Customer Analytics"
+                          >
+                            <BarChart3 className="w-3.5 h-3.5" /> Inspect Analytics
+                          </Button>
+
                           <a
                             href={`/c/${biz.slug}`}
                             target="_blank"
@@ -503,6 +619,97 @@ export default function SuperAdminDashboardPage() {
             </p>
           </div>
         </form>
+      </Modal>
+
+      {/* One-Click Business Analytics Inspector Modal */}
+      <Modal
+        isOpen={isInspectorOpen}
+        onClose={() => setIsInspectorOpen(false)}
+        title={`Analytics Inspector — ${inspectBiz?.name || 'Business'}`}
+        maxWidth="lg"
+      >
+        <div className="space-y-6 text-slate-900">
+          <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+            <div>
+              <div className="text-xs font-mono text-teal-700 font-bold">/c/{inspectBiz?.slug}</div>
+              <div className="text-[11px] text-slate-500 capitalize">{inspectBiz?.business_type} • Plan: {inspectBiz?.subscription_plan || 'free'}</div>
+            </div>
+            <a
+              href={`/c/${inspectBiz?.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1 text-xs font-bold text-teal-600 hover:underline"
+            >
+              <ExternalLink className="w-3.5 h-3.5" /> View Public Catalog
+            </a>
+          </div>
+
+          {loadingInspect ? (
+            <div className="py-12 text-center">
+              <div className="w-8 h-8 border-4 border-slate-900 border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-xs text-slate-500 mt-2 font-medium">Fetching Business Analytics...</p>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {/* Stat Cards Grid */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="p-3 bg-slate-50 border border-slate-200 rounded-xl text-center">
+                  <div className="text-[10px] uppercase font-bold text-slate-500">Total Scans</div>
+                  <div className="text-xl font-black text-slate-900">{inspectAnalytics?.totalScans || 0}</div>
+                </div>
+                <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl text-center">
+                  <div className="text-[10px] uppercase font-bold text-purple-700">Visitors</div>
+                  <div className="text-xl font-black text-purple-900">{inspectAnalytics?.uniqueVisitors || 0}</div>
+                </div>
+                <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-center">
+                  <div className="text-[10px] uppercase font-bold text-amber-700">Item Views</div>
+                  <div className="text-xl font-black text-amber-900">{inspectAnalytics?.totalItemViews || 0}</div>
+                </div>
+              </div>
+
+              {/* Top Viewed Items */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider">Top Viewed Catalog Items</h4>
+                {!inspectAnalytics?.topItems || inspectAnalytics.topItems.length === 0 ? (
+                  <div className="text-xs text-slate-400 italic p-3 bg-slate-50 rounded-lg">No item views recorded yet.</div>
+                ) : (
+                  inspectAnalytics.topItems.map((item, idx) => (
+                    <div key={item.id + idx} className="p-2.5 bg-slate-50 rounded-lg flex items-center justify-between text-xs">
+                      <span className="font-bold text-slate-800">#{idx + 1} {item.name}</span>
+                      <span className="font-mono text-slate-600">{item.views} views ({item.percentage}%)</span>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Search Keywords & Zero Result Searches */}
+              <div className="space-y-2">
+                <h4 className="text-xs font-bold text-slate-800 uppercase tracking-wider font-semibold">Customer Search Keywords</h4>
+                {!inspectAnalytics?.topSearches || inspectAnalytics.topSearches.length === 0 ? (
+                  <div className="text-xs text-slate-400 italic p-3 bg-slate-50 rounded-lg">No search queries logged yet.</div>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {inspectAnalytics.topSearches.map((s) => (
+                      <span key={s.query} className="px-2.5 py-1 bg-purple-100 text-purple-800 rounded-md text-xs font-medium">
+                        &quot;{s.query}&quot; ({s.count}x)
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Device Breakdown */}
+              <div className="p-3 bg-slate-50 rounded-xl border border-slate-200">
+                <div className="text-xs font-bold text-slate-700 uppercase tracking-wider mb-2">Device Distribution</div>
+                <div className="grid grid-cols-3 gap-2 text-center text-xs font-medium">
+                  <div>iPhone: <span className="font-bold text-slate-900">{inspectAnalytics?.deviceBreakdown.iphone || 0}</span></div>
+                  <div>Android: <span className="font-bold text-slate-900">{inspectAnalytics?.deviceBreakdown.android || 0}</span></div>
+                  <div>Desktop: <span className="font-bold text-slate-900">{inspectAnalytics?.deviceBreakdown.desktop || 0}</span></div>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
       </Modal>
     </div>
   );

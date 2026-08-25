@@ -262,3 +262,73 @@ export async function getAnalyticsSummary(businessId: string, daysLimit: number 
     deviceBreakdown,
   };
 }
+
+export interface GlobalAnalyticsSummary {
+  totalPlatformScans: number;
+  topBusinesses: { businessId: string; businessName: string; scanCount: number; percentage: number }[];
+  hourlyPeakScans: { hourLabel: string; count: number }[];
+}
+
+/**
+ * Fetch aggregated platform-wide QR analytics across all businesses for Super Admin
+ */
+export async function getGlobalPlatformAnalytics(allBusinesses: { id: string; name: string }[]): Promise<GlobalAnalyticsSummary> {
+  let allScans: AnalyticsScan[] = [];
+  const supabase = createClient();
+
+  try {
+    const { data } = await supabase.from('analytics_qr_scans').select('*');
+    if (data && data.length > 0) allScans = data;
+  } catch (err) {}
+
+  // LocalStorage fallback check across business IDs
+  if (allScans.length === 0 && typeof localStorage !== 'undefined') {
+    allBusinesses.forEach((b) => {
+      try {
+        const stored = JSON.parse(localStorage.getItem(`analytics_scans_${b.id}`) || '[]');
+        allScans.push(...stored);
+      } catch (e) {}
+    });
+  }
+
+  // Count by business
+  const bizScanMap: Record<string, number> = {};
+  const hourlyCount: number[] = new Array(24).fill(0);
+
+  allScans.forEach((s) => {
+    if (s.business_id) {
+      bizScanMap[s.business_id] = (bizScanMap[s.business_id] || 0) + 1;
+    }
+    const hour = new Date(s.created_at || Date.now()).getHours();
+    hourlyCount[hour] = (hourlyCount[hour] || 0) + 1;
+  });
+
+  const total = allScans.length;
+  const bizList = Object.entries(bizScanMap)
+    .map(([bId, count]) => {
+      const biz = allBusinesses.find((b) => b.id === bId);
+      return {
+        businessId: bId,
+        businessName: biz?.name || 'Customer Business',
+        scanCount: count,
+        percentage: total > 0 ? Math.round((count / total) * 100) : 0,
+      };
+    })
+    .sort((a, b) => b.scanCount - a.scanCount)
+    .slice(0, 5);
+
+  const hourlyPeakScans = hourlyCount.map((count, hr) => {
+    const period = hr >= 12 ? 'PM' : 'AM';
+    const displayHr = hr % 12 === 0 ? 12 : hr % 12;
+    return {
+      hourLabel: `${displayHr}${period}`,
+      count,
+    };
+  });
+
+  return {
+    totalPlatformScans: total,
+    topBusinesses: bizList,
+    hourlyPeakScans,
+  };
+}
