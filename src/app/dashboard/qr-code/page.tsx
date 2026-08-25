@@ -51,9 +51,9 @@ export default function DashboardQrCodePage() {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || (typeof window !== 'undefined' ? window.location.origin : 'https://qr-business-development.vercel.app');
     const targetUrl = `${baseUrl}/c/${business.slug}`;
 
-    // Render to Canvas / DataURL
+    // Render to Canvas / DataURL (600px high resolution for print)
     QRCode.toDataURL(targetUrl, {
-      width: 400,
+      width: 600,
       margin: margin,
       color: {
         dark: darkColor,
@@ -112,7 +112,7 @@ export default function DashboardQrCodePage() {
     : `/c/${business?.slug}`;
 
   return (
-    <div className="space-y-8 animate-fade-in print:p-0">
+    <div className="space-y-8 animate-fade-in print:p-0 print:m-0 print:bg-white">
       {/* Non-printable Controls & Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
         <div>
@@ -129,15 +129,15 @@ export default function DashboardQrCodePage() {
           <Button variant="outline" onClick={downloadPng} className="flex-1 sm:flex-none gap-2 text-xs font-semibold">
             <Download className="w-3.5 h-3.5" /> Download PNG
           </Button>
-          <Button onClick={handlePrint} className="w-full sm:w-auto gap-2 text-xs font-semibold bg-slate-900">
-            <Printer className="w-3.5 h-3.5" /> Print Tabletop Flyer
+          <Button onClick={handlePrint} className="w-full sm:w-auto gap-2 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white shadow-md">
+            <Printer className="w-3.5 h-3.5 text-teal-400" /> Print Tabletop Flyer
           </Button>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 print:hidden">
-        {/* Customization Panel */}
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6 shadow-xs h-fit">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 print:block print:w-full">
+        {/* Customization Panel (Hidden during printing) */}
+        <div className="bg-white rounded-2xl border border-slate-200 p-6 space-y-6 shadow-xs h-fit print:hidden">
           <h2 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 flex items-center gap-2">
             <QrIcon className="w-5 h-5 text-teal-600" /> Customization Controls
           </h2>
@@ -211,55 +211,57 @@ export default function DashboardQrCodePage() {
         </div>
 
         {/* Live Printable Tabletop Flyer Preview */}
-        <div className="lg:col-span-2 flex flex-col items-center">
-          <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">
+        <div className="lg:col-span-2 flex flex-col items-center print:w-full print:m-0">
+          <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3 print:hidden">
             Printable Tabletop Tent Preview (Standard 5&quot; x 7&quot; Layout)
           </div>
 
           {/* Tabletop Flyer Document */}
           <div
             id="printable-flyer"
-            className="w-full max-w-md bg-white border-2 border-slate-200 rounded-3xl p-5 sm:p-8 shadow-xl flex flex-col items-center text-center space-y-5 sm:space-y-6 print:border-none print:shadow-none print:max-w-none print:w-full print:p-12"
+            className="w-full max-w-lg bg-white border-2 border-slate-200 rounded-3xl p-6 sm:p-10 shadow-2xl flex flex-col items-center text-center space-y-6 print:border-2 print:border-slate-900 print:shadow-none print:max-w-none print:w-[6.5in] print:h-[9in] print:mx-auto print:my-0 print:p-10 print:rounded-3xl print:flex print:flex-col print:justify-between print:page-break-inside-avoid"
           >
             {/* Header / Business Brand */}
-            <div className="space-y-2">
-              <div className="inline-flex items-center justify-center p-3 bg-slate-900 text-white rounded-2xl mb-1 shadow-sm">
-                <QrIcon className="w-8 h-8 text-teal-400" />
+            <div className="space-y-3 w-full">
+              <div className="inline-flex items-center justify-center p-4 bg-slate-900 text-white rounded-2xl shadow-md mb-1">
+                <QrIcon className="w-10 h-10 text-teal-400" />
               </div>
-              <h2 className="text-xl sm:text-2xl font-extrabold text-slate-900 tracking-tight">
+              <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight print:text-4xl">
                 {business?.name}
               </h2>
-              <p className="text-xs font-semibold uppercase tracking-widest text-slate-400">
-                Digital Catalog & Menu
-              </p>
+              <div className="flex items-center justify-center gap-2">
+                <span className="px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-700 text-xs font-bold uppercase tracking-wider print:text-sm">
+                  {business?.business_type || 'Business'} Catalog & Menu
+                </span>
+              </div>
             </div>
 
-            {/* High-Res QR Code Display */}
-            <div className="p-3 sm:p-4 bg-white border border-slate-200 rounded-2xl shadow-inner my-1 sm:my-2">
+            {/* High-Res Large QR Code Display */}
+            <div className="p-4 sm:p-6 bg-white border-2 border-slate-200 rounded-3xl shadow-md my-2 flex items-center justify-center print:border-slate-400 print:p-6 print:my-4">
               {qrDataUrl && (
                 <img
                   src={qrDataUrl}
                   alt="Business Catalog QR Code"
-                  className="w-44 h-44 sm:w-56 sm:h-56 max-w-full object-contain"
+                  className="w-64 h-64 sm:w-80 sm:h-80 max-w-full object-contain print:w-[3.5in] print:h-[3.5in]"
                 />
               )}
             </div>
 
             {/* Customer Scan Callout */}
-            <div className="space-y-2 max-w-xs">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-slate-100 rounded-full text-xs font-bold text-slate-800">
-                <Smartphone className="w-3.5 h-3.5 text-teal-600" /> Point Camera to Scan
+            <div className="space-y-3 max-w-sm">
+              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-slate-900 text-white rounded-full text-xs font-bold shadow-sm print:text-sm print:py-2 print:px-5">
+                <Smartphone className="w-4 h-4 text-teal-400" /> Point Camera to Scan
               </div>
-              <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                No app installation required. Scan with any smartphone camera to instantly view menu, items & details.
+              <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed print:text-base">
+                No app installation required. Scan with any smartphone camera to view items, prices & details.
               </p>
             </div>
 
             {/* Footer Watermark */}
-            <div className="pt-4 border-t border-slate-100 w-full flex items-center justify-between text-[10px] text-slate-400 font-mono">
-              <span>{catalogUrl}</span>
-              <span className="flex items-center gap-1 font-semibold text-slate-500">
-                <ShieldCheck className="w-3 h-3 text-teal-500" /> Touchless Catalog
+            <div className="pt-5 border-t-2 border-slate-100 w-full flex items-center justify-between text-xs text-slate-500 font-mono print:text-sm print:border-slate-300">
+              <span className="font-semibold text-slate-800">{catalogUrl}</span>
+              <span className="flex items-center gap-1.5 font-bold text-slate-700">
+                <ShieldCheck className="w-4 h-4 text-teal-600" /> Touchless Catalog
               </span>
             </div>
           </div>
