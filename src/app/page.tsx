@@ -1,5 +1,5 @@
 import Link from 'next/link';
-import { QrCode, Store, Utensils, BookOpen, Scissors, ArrowRight, ShieldCheck, Smartphone } from 'lucide-react';
+import { QrCode, Store, Utensils, BookOpen, Scissors, ArrowRight, ShieldCheck, Smartphone, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 
 export default function LandingPage() {
@@ -15,7 +15,10 @@ export default function LandingPage() {
             <span>QR Catalog Studio</span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-6">
+            <a href="#pricing" className="text-sm font-semibold text-slate-300 hover:text-teal-400 transition-colors hidden sm:inline-block">
+              Pricing
+            </a>
             <Link href="/login">
               <Button variant="ghost" className="text-slate-300 hover:text-white hover:bg-slate-800">
                 Log In
@@ -101,6 +104,169 @@ export default function LandingPage() {
             </p>
           </div>
         </div>
+
+        {/* Pricing Packages Section */}
+        <section id="pricing" className="mt-24 scroll-mt-20">
+          <div className="text-center space-y-3 max-w-2xl mx-auto mb-12">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-400 text-xs font-semibold uppercase tracking-wider">
+              Flexible Pricing
+            </div>
+            <h2 className="text-3xl sm:text-4xl font-extrabold text-white tracking-tight">
+              Simple, transparent packages for every business
+            </h2>
+            <p className="text-slate-400 text-sm sm:text-base">
+              Start for free today. Upgrade anytime as your catalog and customer base grow.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
+            {/* Starter Free */}
+            <div className="p-8 bg-slate-900/60 border border-slate-800 rounded-3xl flex flex-col justify-between hover:border-slate-700 transition-all">
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold uppercase tracking-wider px-3 py-1 rounded-full bg-slate-800 text-slate-300 border border-slate-700">
+                    Free Forever
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Starter Free</h3>
+                  <p className="text-xs text-slate-400 mt-1">Perfect for small businesses creating their first digital QR catalog.</p>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-extrabold text-white">LKR 0</span>
+                  <span className="text-slate-400 text-xs font-medium">/ month</span>
+                </div>
+                <ul className="space-y-3 text-xs text-slate-300 pt-4 border-t border-slate-800/80">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                    <span>Up to <strong>10 Catalog Items</strong></span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                    <span>Up to <strong>5 Categories</strong></span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                    <span>Instant Mobile QR Customer View</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                    <span>Standard Support</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="pt-8">
+                <Link href="/signup">
+                  <Button variant="outline" className="w-full border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700 py-2.5">
+                    Start Free
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            {/* Pro Growth - Highlighted */}
+            <div className="p-8 bg-gradient-to-b from-slate-900/90 via-slate-900 to-slate-950 border-2 border-teal-500 rounded-3xl flex flex-col justify-between shadow-xl shadow-teal-950/30 relative">
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-0.5 rounded-full bg-teal-500 text-slate-950 text-[11px] font-extrabold uppercase tracking-wider">
+                Most Popular
+              </div>
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold uppercase tracking-wider px-3 py-1 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                    Pro Growth
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Pro Growth</h3>
+                  <p className="text-xs text-slate-400 mt-1">Ideal for cafés, bookshops, and salons with expanding catalogs.</p>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-extrabold text-white">LKR 2,000</span>
+                  <span className="text-slate-400 text-xs font-medium">/ month</span>
+                </div>
+                <ul className="space-y-3 text-xs text-slate-200 pt-4 border-t border-slate-800">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                    <span>Up to <strong>150 Catalog Items</strong></span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                    <span>Up to <strong>20 Categories</strong></span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                    <span>Custom Branding & Accent Colors</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                    <span>Printable 5&quot;x7&quot; Table Tent Flyers</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                    <span>Priority Admin Activation</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="pt-8">
+                <Link href="/signup">
+                  <Button className="w-full bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold border-none py-2.5">
+                    Upgrade to Pro Growth
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
+            {/* Business Plus */}
+            <div className="p-8 bg-slate-900/60 border border-slate-800 rounded-3xl flex flex-col justify-between hover:border-purple-500/40 transition-all">
+              <div className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold uppercase tracking-wider px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                    Best Value
+                  </span>
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-white">Business Plus</h3>
+                  <p className="text-xs text-slate-400 mt-1">Built for large restaurants, retail stores, and multi-category shops.</p>
+                </div>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-4xl font-extrabold text-white">LKR 3,500</span>
+                  <span className="text-slate-400 text-xs font-medium">/ month</span>
+                </div>
+                <ul className="space-y-3 text-xs text-slate-300 pt-4 border-t border-slate-800/80">
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-purple-400 shrink-0" />
+                    <span><strong>Unlimited Catalog Items</strong> (∞)</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-purple-400 shrink-0" />
+                    <span><strong>Unlimited Categories</strong> (∞)</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-purple-400 shrink-0" />
+                    <span>All Pro Growth Features Included</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-purple-400 shrink-0" />
+                    <span>High-Resolution Print PDF Exports</span>
+                  </li>
+                  <li className="flex items-center gap-2">
+                    <CheckCircle className="w-4 h-4 text-purple-400 shrink-0" />
+                    <span>Dedicated Super Admin Onboarding</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="pt-8">
+                <Link href="/signup">
+                  <Button variant="outline" className="w-full border-purple-500/40 bg-purple-950/20 text-purple-300 hover:bg-purple-900/30 py-2.5">
+                    Start Business Plus
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </section>
 
         {/* Live Public Catalog Demo Links */}
         <div className="mt-16 p-8 bg-gradient-to-r from-slate-900 via-slate-900/80 to-slate-900 border border-slate-800 rounded-2xl">
