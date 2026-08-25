@@ -142,8 +142,8 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row" suppressHydrationWarning>
-      {/* Desktop Sidebar Navigation (Hidden on <md screens) */}
-      <aside className="hidden md:flex flex-col w-64 bg-slate-900 border-r border-slate-800 text-slate-300 min-h-screen shrink-0 overflow-x-hidden">
+      {/* Desktop Sidebar Navigation (Hidden on <md screens & print) */}
+      <aside className="hidden md:flex flex-col w-64 bg-slate-900 border-r border-slate-800 text-slate-300 min-h-screen shrink-0 overflow-x-hidden print:hidden">
         {/* Brand Header */}
         <div className="p-6 border-b border-slate-800 flex items-center justify-between overflow-hidden">
           <Link href="/dashboard" className="flex items-center gap-2.5 font-bold text-white text-base min-w-0 w-full overflow-hidden">

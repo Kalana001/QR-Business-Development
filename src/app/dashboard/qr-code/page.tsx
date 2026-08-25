@@ -223,14 +223,11 @@ export default function DashboardQrCodePage() {
           >
             {/* Header / Business Brand */}
             <div className="space-y-3 w-full">
-              <div className="inline-flex items-center justify-center p-4 bg-slate-900 text-white rounded-2xl shadow-md mb-1">
-                <QrIcon className="w-10 h-10 text-teal-400" />
-              </div>
               <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight print:text-4xl">
                 {business?.name}
               </h2>
               <div className="flex items-center justify-center gap-2">
-                <span className="px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-700 text-xs font-bold uppercase tracking-wider print:text-sm">
+                <span className="px-3.5 py-1 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-700 text-xs font-bold uppercase tracking-wider print:text-sm">
                   {business?.business_type || 'Business'} Catalog & Menu
                 </span>
               </div>
@@ -257,10 +254,9 @@ export default function DashboardQrCodePage() {
               </p>
             </div>
 
-            {/* Footer Watermark */}
-            <div className="pt-5 border-t-2 border-slate-100 w-full flex items-center justify-between text-xs text-slate-500 font-mono print:text-sm print:border-slate-300">
-              <span className="font-semibold text-slate-800">{catalogUrl}</span>
-              <span className="flex items-center gap-1.5 font-bold text-slate-700">
+            {/* Footer Watermark - Centered Touchless Catalog without site URL or top line */}
+            <div className="w-full flex items-center justify-center text-xs text-slate-500 font-mono print:text-sm">
+              <span className="flex items-center justify-center gap-1.5 font-bold text-slate-700 text-center">
                 <ShieldCheck className="w-4 h-4 text-teal-600" /> Touchless Catalog
               </span>
             </div>
