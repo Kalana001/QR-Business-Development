@@ -411,7 +411,7 @@ export default function SuperAdminDashboardPage() {
                   const planKey = biz.subscription_plan || 'free';
                   const planMeta = SUBSCRIPTION_PLANS_META[planKey];
                   const rawMax = biz.max_items;
-                  const maxItemsDisplay = (rawMax === null || rawMax === undefined || planKey === 'enterprise') ? '∞' : rawMax;
+                  const maxItemsDisplay = (biz.is_super_admin_owner || rawMax === null || rawMax === undefined || planKey === 'enterprise') ? '∞' : rawMax;
 
                   return (
                     <tr key={biz.id} className={`hover:bg-slate-800/50 transition-colors ${
