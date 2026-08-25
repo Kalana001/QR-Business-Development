@@ -105,7 +105,7 @@ export const CategoryPlaceholder: React.FC<CategoryPlaceholderProps> = ({
 
   return (
     <div
-      className={`relative w-full h-full min-h-[140px] flex flex-col items-center justify-center bg-gradient-to-br ${bgGradient} overflow-hidden rounded-lg p-4 select-none ${className}`}
+      className={`relative w-full h-full flex flex-col items-center justify-center bg-gradient-to-br ${bgGradient} overflow-hidden rounded-lg p-3 select-none ${className}`}
     >
       {/* Decorative background geometric pattern */}
       <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:16px_16px]" />
@@ -113,21 +113,10 @@ export const CategoryPlaceholder: React.FC<CategoryPlaceholderProps> = ({
       {/* Subtle corner light flare */}
       <div className="absolute -top-12 -right-12 w-28 h-28 bg-white/10 rounded-full blur-xl pointer-events-none" />
 
-      {/* Main icon container */}
-      <div className="relative z-10 p-3 rounded-full bg-white/10 backdrop-blur-md border border-white/15 shadow-inner mb-2 group-hover:scale-105 transition-transform duration-300">
-        <IconComponent className={`w-8 h-8 ${accentColor}`} />
+      {/* Main icon container - Dead centered */}
+      <div className="relative z-10 p-3 rounded-full bg-white/10 backdrop-blur-md border border-white/15 shadow-inner flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+        <IconComponent className={`w-7 h-7 sm:w-8 sm:h-8 ${accentColor}`} />
       </div>
-
-      {/* Display text tag if provided */}
-      {itemName ? (
-        <span className="relative z-10 text-xs font-medium text-white/80 line-clamp-1 max-w-[90%] text-center tracking-wide">
-          {itemName}
-        </span>
-      ) : (
-        <span className="relative z-10 text-[10px] uppercase font-semibold text-white/50 tracking-wider">
-          {businessType}
-        </span>
-      )}
     </div>
   );
 };
