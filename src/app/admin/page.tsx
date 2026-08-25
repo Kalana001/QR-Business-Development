@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { 
-  Building2, Search, Filter, ShieldCheck, CheckCircle2, AlertCircle, Calendar, Crown, ExternalLink, RefreshCw, Zap, DollarSign 
+  Building2, Search, Filter, ShieldCheck, CheckCircle2, AlertCircle, Calendar, Crown, ExternalLink, RefreshCw, Zap, DollarSign, BarChart3, QrCode
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -23,6 +23,7 @@ export default function SuperAdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [planFilter, setPlanFilter] = useState<string>('all');
+  const [totalScansCount, setTotalScansCount] = useState<number>(0);
 
   // Subscription Approval Modal State
   const [selectedBiz, setSelectedBiz] = useState<BusinessWithMetrics | null>(null);
@@ -60,6 +61,16 @@ export default function SuperAdminDashboardPage() {
     const { data: catData } = await supabase.from('categories').select('id, business_id');
     const { data: profilesData } = await supabase.from('profiles').select('id, full_name');
     const { data: authUser } = await supabase.auth.getUser();
+
+    // Query platform scans
+    let scansCount = 0;
+    try {
+      const { count } = await supabase.from('analytics_qr_scans').select('*', { count: 'exact', head: true });
+      if (count !== null) scansCount = count;
+    } catch (e) {
+      // fallback
+    }
+    setTotalScansCount(scansCount);
 
     const enriched = (bizData || []).map((b) => {
       const itemsCount = (itemsData || []).filter((i) => i.business_id === b.id).length;

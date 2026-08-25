@@ -8,6 +8,7 @@ import { CategoryPlaceholder } from '@/components/placeholders/CategoryPlacehold
 import { createClient } from '@/lib/supabase/client';
 import { Business, CatalogItem, Category, BUSINESS_TYPES_META } from '@/lib/types';
 import { formatCurrency, formatDuration } from '@/lib/utils';
+import { logQrScan, logItemView, logSearchQuery } from '@/lib/analytics';
 
 export default function PublicCustomerCatalogPage({
   params,
@@ -96,6 +97,20 @@ export default function PublicCustomerCatalogPage({
     loadPublicCatalog();
   }, [slug]);
 
+  // Log QR Scan when catalog loads
+  useEffect(() => {
+    if (business?.id) {
+      logQrScan(business.id);
+    }
+  }, [business?.id]);
+
+  const handleSelectItem = (item: CatalogItem) => {
+    setSelectedItem(item);
+    if (business?.id) {
+      logItemView(business.id, item.id, item.name);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
@@ -136,6 +151,15 @@ export default function PublicCustomerCatalogPage({
     const matchesCat = activeCategory === 'all' || item.category_id === activeCategory;
     return matchesSearch && matchesCat;
   });
+
+  // Log Search Queries (debounced)
+  useEffect(() => {
+    if (!searchQuery.trim() || !business?.id) return;
+    const timer = setTimeout(() => {
+      logSearchQuery(business.id, searchQuery, filteredItems.length);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [searchQuery, business?.id, filteredItems.length]);
 
   const featuredItems = publishedItems.filter((i) => i.is_featured);
 
@@ -258,7 +282,7 @@ export default function PublicCustomerCatalogPage({
                 {featuredItems.map((item) => (
                   <div
                     key={item.id}
-                    onClick={() => setSelectedItem(item)}
+                    onClick={() => handleSelectItem(item)}
                     className="w-48 bg-slate-900 text-white rounded-2xl overflow-hidden shrink-0 shadow-md cursor-pointer active:scale-98 transition-transform flex flex-col justify-between"
                   >
                     <div className="h-28 w-full bg-slate-800 relative">
@@ -297,7 +321,7 @@ export default function PublicCustomerCatalogPage({
                 return (
                   <div
                     key={item.id}
-                    onClick={() => setSelectedItem(item)}
+                    onClick={() => handleSelectItem(item)}
                     className="bg-white border border-slate-200 rounded-2xl p-4 shadow-xs hover:border-slate-300 active:bg-slate-50 transition-all cursor-pointer flex items-center justify-between gap-4"
                   >
                     {/* Item Info */}
