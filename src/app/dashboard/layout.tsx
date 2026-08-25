@@ -18,6 +18,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const router = useRouter();
   const [business, setBusiness] = useState<Business | null>(null);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [fullCatalogUrl, setFullCatalogUrl] = useState('');
@@ -33,7 +34,10 @@ export default function DashboardLayout({
         return;
       }
 
-      const isSuperAdmin = user.email?.toLowerCase() === 'adminkal@gmail.com';
+      // Query database RPC is_super_admin
+      const { data: adminRpc } = await supabase.rpc('is_super_admin');
+      const isSuperAdminUser = Boolean(adminRpc);
+      setIsSuperAdmin(isSuperAdminUser);
 
       // Fetch user's business workspace
       const { data: bizData } = await supabase
@@ -46,7 +50,7 @@ export default function DashboardLayout({
 
       if (bizData) {
         // Ensure Super Admin account has Unlimited Enterprise features
-        if (isSuperAdmin && bizData.subscription_plan !== 'enterprise') {
+        if (isSuperAdminUser && bizData.subscription_plan !== 'enterprise') {
           const { data: updatedBiz } = await supabase
             .from('businesses')
             .update({
@@ -69,7 +73,7 @@ export default function DashboardLayout({
       } else {
         // Read exact business name and type typed during sign-up from user_metadata
         const metaName = user.user_metadata?.business_name;
-        const defaultName = isSuperAdmin
+        const defaultName = isSuperAdminUser
           ? 'Master Super Admin Workspace'
           : (metaName && metaName.trim()
             ? metaName.trim()
@@ -88,10 +92,10 @@ export default function DashboardLayout({
             business_type: metaType,
             currency: 'LKR',
             theme_color: '#0F172A',
-            subscription_plan: isSuperAdmin ? 'enterprise' : 'free',
+            subscription_plan: isSuperAdminUser ? 'enterprise' : 'free',
             subscription_status: 'active',
-            max_items: isSuperAdmin ? null : 10,
-            max_categories: isSuperAdmin ? null : 5,
+            max_items: isSuperAdminUser ? null : 10,
+            max_categories: isSuperAdminUser ? null : 5,
           })
           .select()
           .single();
@@ -306,13 +310,15 @@ export default function DashboardLayout({
 
             {/* Footer Admin & Logout */}
             <div className="pt-4 border-t border-slate-800 space-y-2 mt-6">
-              <Link
-                href="/admin"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex items-center gap-2 px-3 py-2.5 text-xs font-bold text-teal-400 bg-teal-500/10 rounded-xl"
-              >
-                <ShieldCheck className="w-4 h-4" /> Super Admin Console
-              </Link>
+              {isSuperAdmin && (
+                <Link
+                  href="/admin"
+                  onClick={() => setMobileMenuOpen(false)}
+                  className="flex items-center gap-2 px-3 py-2.5 text-xs font-bold text-teal-400 bg-teal-500/10 rounded-xl"
+                >
+                  <ShieldCheck className="w-4 h-4" /> Super Admin Console
+                </Link>
+              )}
               <button
                 onClick={handleSignOut}
                 className="flex items-center gap-2 w-full px-3 py-2.5 text-xs text-rose-400 hover:bg-rose-500/10 rounded-xl"
