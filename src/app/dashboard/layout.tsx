@@ -201,16 +201,18 @@ export default function DashboardLayout({
           })}
         </nav>
 
-        {/* Super Admin Control Link */}
-        <div className="px-4 py-2">
-          <Link
-            href="/admin"
-            className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-teal-400 bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/30 rounded-xl transition-colors"
-          >
-            <ShieldCheck className="w-4 h-4 shrink-0" />
-            <span className="truncate">Super Admin Console</span>
-          </Link>
-        </div>
+        {/* Super Admin Control Link - Visible ONLY for Super Admin */}
+        {isSuperAdmin && (
+          <div className="px-4 py-2">
+            <Link
+              href="/admin"
+              className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-teal-400 bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/30 rounded-xl transition-colors"
+            >
+              <ShieldCheck className="w-4 h-4 shrink-0" />
+              <span className="truncate">Super Admin Console</span>
+            </Link>
+          </div>
+        )}
 
         {/* Footer User Info */}
         <div className="p-4 border-t border-slate-800 space-y-2">
