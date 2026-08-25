@@ -138,9 +138,9 @@ export const SUBSCRIPTION_PLANS_META: Record<SubscriptionPlan, SubscriptionPlanM
     features: [
       'Unlimited Catalog Items',
       'Unlimited Categories',
+      'Advanced QR Scan & Catalog Analytics',
       'Custom Branding & Logo Uploads',
       'Dedicated Admin Priority Support',
-      'Full Multi-Tenant Access',
     ],
   },
 };

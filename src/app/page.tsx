@@ -248,7 +248,7 @@ export default function LandingPage() {
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-purple-400 shrink-0" />
-                    <span>High-Resolution Print PDF Exports</span>
+                    <span><strong>Advanced QR & Catalog Analytics</strong> (Scans, Top Items & Search Trends)</span>
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-purple-400 shrink-0" />
