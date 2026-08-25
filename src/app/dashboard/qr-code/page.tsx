@@ -2,14 +2,17 @@
 
 import React, { useEffect, useState, useRef } from 'react';
 import QRCode from 'qrcode';
-import { QrCode as QrIcon, Download, Printer, ExternalLink, Sparkles, Smartphone, ShieldCheck } from 'lucide-react';
+import { QrCode as QrIcon, Download, Printer, ExternalLink, Sparkles, Smartphone, ShieldCheck, Crown, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { UpgradeModal } from '@/components/ui/UpgradeModal';
 import { createClient } from '@/lib/supabase/client';
 import { Business } from '@/lib/types';
 
 export default function DashboardQrCodePage() {
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   
   // Customization controls
   const [darkColor, setDarkColor] = useState('#0F172A');
@@ -35,6 +38,9 @@ export default function DashboardQrCodePage() {
         setLoading(false);
         return;
       }
+
+      const { data: adminRpc } = await supabase.rpc('is_super_admin');
+      setIsSuperAdmin(Boolean(adminRpc));
 
       const { data: biz } = await supabase.from('businesses').select('*').eq('owner_id', user.id).single();
       if (biz) setBusiness(biz as Business);
@@ -76,6 +82,9 @@ export default function DashboardQrCodePage() {
       .catch((err) => console.error('QR SVG error:', err));
   }, [business, darkColor, lightColor, margin]);
 
+  const planKey = (business?.subscription_plan || 'free').toLowerCase();
+  const isPaidPlan = isSuperAdmin || planKey === 'pro' || planKey === 'pro_growth' || planKey === 'enterprise' || planKey === 'business' || planKey === 'business_plus';
+
   const downloadPng = () => {
     if (!qrDataUrl || !business) return;
     const link = document.createElement('a');
@@ -96,6 +105,10 @@ export default function DashboardQrCodePage() {
   };
 
   const handlePrint = () => {
+    if (!isPaidPlan) {
+      setIsUpgradeModalOpen(true);
+      return;
+    }
     window.print();
   };
 
@@ -213,69 +226,99 @@ export default function DashboardQrCodePage() {
         </div>
 
         {/* Live Printable Tabletop Flyer Preview */}
-        <div className="lg:col-span-2 flex flex-col items-center print:w-full print:m-0">
-          <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3 print:hidden">
+        <div className="lg:col-span-2 flex flex-col items-center print:w-full print:m-0 relative">
+          <div className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3 print:hidden flex items-center gap-2">
             Printable Tabletop Tent Preview (Standard 5&quot; x 7&quot; Layout)
+            {!isPaidPlan && (
+              <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1">
+                <Crown className="w-3 h-3 text-amber-600" /> Pro Feature
+              </span>
+            )}
           </div>
 
-          {/* Tabletop Flyer Document */}
-          <div
-            id="printable-flyer"
-            className="w-full max-w-lg bg-white border-2 border-slate-200 rounded-3xl p-6 sm:p-10 shadow-2xl flex flex-col items-center text-center space-y-6 print:border-2 print:border-slate-900 print:shadow-none print:max-w-none print:w-[6.5in] print:h-[9in] print:mx-auto print:my-0 print:p-10 print:rounded-3xl print:flex print:flex-col print:justify-between print:page-break-inside-avoid"
-          >
-            {/* Header / Business Brand with Centered Logo */}
-            <div className="space-y-3 w-full flex flex-col items-center">
-              {business?.logo_url ? (
-                <img
-                  src={business.logo_url}
-                  alt={business.name}
-                  className="w-14 h-14 object-cover rounded-2xl border border-slate-200 shadow-md mb-1"
-                />
-              ) : (
-                <div className="inline-flex items-center justify-center p-3.5 bg-slate-900 text-white rounded-2xl shadow-md mb-1">
-                  <QrIcon className="w-8 h-8 text-teal-400" />
+          <div className="relative w-full max-w-lg">
+            {/* Locked Overlay for Free Tier */}
+            {!isPaidPlan && (
+              <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-xs rounded-3xl z-20 flex flex-col items-center justify-center p-6 text-center text-white space-y-4 print:hidden">
+                <div className="p-3.5 bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-2xl shadow-lg">
+                  <Crown className="w-8 h-8" />
                 </div>
-              )}
-              <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight print:text-4xl">
-                {business?.name}
-              </h2>
-              <div className="flex items-center justify-center gap-2">
-                <span className="px-3.5 py-1 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-700 text-xs font-bold uppercase tracking-wider print:text-sm">
-                  {business?.business_type || 'Business'} Catalog & Menu
+                <div className="space-y-1.5 max-w-xs">
+                  <h3 className="text-lg font-bold text-white">Pro & Business Feature</h3>
+                  <p className="text-xs text-slate-300 leading-relaxed">
+                    Printable 5&quot; x 7&quot; Table Tent Flyers are available exclusively on Pro Growth and Business Plus plans.
+                  </p>
+                </div>
+                <Button onClick={() => setIsUpgradeModalOpen(true)} className="bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs gap-2 shadow-md">
+                  <Crown className="w-4 h-4" /> Upgrade Package to Unlock
+                </Button>
+              </div>
+            )}
+
+            {/* Tabletop Flyer Document */}
+            <div
+              id="printable-flyer"
+              className="w-full max-w-lg bg-white border-2 border-slate-200 rounded-3xl p-6 sm:p-10 shadow-2xl flex flex-col items-center text-center space-y-6 print:border-2 print:border-slate-900 print:shadow-none print:max-w-none print:w-[6.5in] print:h-[9in] print:mx-auto print:my-0 print:p-10 print:rounded-3xl print:flex print:flex-col print:justify-between print:page-break-inside-avoid"
+            >
+              {/* Header / Business Brand with Centered Logo */}
+              <div className="space-y-3 w-full flex flex-col items-center">
+                {business?.logo_url ? (
+                  <img
+                    src={business.logo_url}
+                    alt={business.name}
+                    className="w-14 h-14 object-cover rounded-2xl border border-slate-200 shadow-md mb-1"
+                  />
+                ) : (
+                  <div className="inline-flex items-center justify-center p-3.5 bg-slate-900 text-white rounded-2xl shadow-md mb-1">
+                    <QrIcon className="w-8 h-8 text-teal-400" />
+                  </div>
+                )}
+                <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight print:text-4xl">
+                  {business?.name}
+                </h2>
+                <div className="flex items-center justify-center gap-2">
+                  <span className="px-3.5 py-1 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-700 text-xs font-bold uppercase tracking-wider print:text-sm">
+                    {business?.business_type || 'Business'} Catalog & Menu
+                  </span>
+                </div>
+              </div>
+
+              {/* High-Res Large QR Code Display */}
+              <div className="p-4 sm:p-6 bg-white border-2 border-slate-200 rounded-3xl shadow-md my-2 flex items-center justify-center print:border-slate-400 print:p-6 print:my-4">
+                {qrDataUrl && (
+                  <img
+                    src={qrDataUrl}
+                    alt="Business Catalog QR Code"
+                    className="w-64 h-64 sm:w-80 sm:h-80 max-w-full object-contain print:w-[3.5in] print:h-[3.5in]"
+                  />
+                )}
+              </div>
+
+              {/* Customer Scan Callout */}
+              <div className="space-y-3 max-w-sm">
+                <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-slate-900 text-white rounded-full text-xs font-bold shadow-sm print:text-sm print:py-2 print:px-5">
+                  <Smartphone className="w-4 h-4 text-teal-400" /> Point Camera to Scan
+                </div>
+                <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed print:text-base">
+                  No app installation required. Scan with any smartphone camera to view items, prices & details.
+                </p>
+              </div>
+
+              {/* Footer Watermark - Centered Touchless Catalog without site URL or top line */}
+              <div className="w-full flex items-center justify-center text-xs text-slate-500 font-mono print:text-sm">
+                <span className="flex items-center justify-center gap-1.5 font-bold text-slate-700 text-center">
+                  <ShieldCheck className="w-4 h-4 text-teal-600" /> Touchless Catalog
                 </span>
               </div>
-            </div>
-
-            {/* High-Res Large QR Code Display */}
-            <div className="p-4 sm:p-6 bg-white border-2 border-slate-200 rounded-3xl shadow-md my-2 flex items-center justify-center print:border-slate-400 print:p-6 print:my-4">
-              {qrDataUrl && (
-                <img
-                  src={qrDataUrl}
-                  alt="Business Catalog QR Code"
-                  className="w-64 h-64 sm:w-80 sm:h-80 max-w-full object-contain print:w-[3.5in] print:h-[3.5in]"
-                />
-              )}
-            </div>
-
-            {/* Customer Scan Callout */}
-            <div className="space-y-3 max-w-sm">
-              <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-slate-900 text-white rounded-full text-xs font-bold shadow-sm print:text-sm print:py-2 print:px-5">
-                <Smartphone className="w-4 h-4 text-teal-400" /> Point Camera to Scan
-              </div>
-              <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed print:text-base">
-                No app installation required. Scan with any smartphone camera to view items, prices & details.
-              </p>
-            </div>
-
-            {/* Footer Watermark - Centered Touchless Catalog without site URL or top line */}
-            <div className="w-full flex items-center justify-center text-xs text-slate-500 font-mono print:text-sm">
-              <span className="flex items-center justify-center gap-1.5 font-bold text-slate-700 text-center">
-                <ShieldCheck className="w-4 h-4 text-teal-600" /> Touchless Catalog
-              </span>
             </div>
           </div>
         </div>
       </div>
+
+      <UpgradeModal
+        isOpen={isUpgradeModalOpen}
+        onClose={() => setIsUpgradeModalOpen(false)}
+      />
     </div>
   );
 }
