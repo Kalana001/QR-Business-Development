@@ -126,7 +126,7 @@ export default function DashboardQrCodePage() {
 
   return (
     <div className="space-y-8 animate-fade-in print:p-0 print:m-0 print:bg-white">
-      <style dangerouslySetInnerHTML={{ __html: '@media print { @page { margin: 10mm; } }' }} />
+      <style dangerouslySetInnerHTML={{ __html: '@media print { @page { size: portrait; margin: 5mm; } html, body { height: 100% !important; overflow: hidden !important; margin: 0 !important; padding: 0 !important; } }' }} />
 
       {/* Non-printable Controls & Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
@@ -258,7 +258,7 @@ export default function DashboardQrCodePage() {
             {/* Tabletop Flyer Document */}
             <div
               id="printable-flyer"
-              className="w-full max-w-lg bg-white border-2 border-slate-200 rounded-3xl p-6 sm:p-10 shadow-2xl flex flex-col items-center text-center space-y-6 print:border-2 print:border-slate-900 print:shadow-none print:max-w-none print:w-[6.5in] print:h-[9in] print:mx-auto print:my-0 print:p-10 print:rounded-3xl print:flex print:flex-col print:justify-between print:page-break-inside-avoid"
+              className="w-full max-w-lg bg-white border-2 border-slate-200 rounded-3xl p-6 sm:p-10 shadow-2xl flex flex-col items-center text-center space-y-6 print:border-2 print:border-slate-900 print:shadow-none print:max-w-none print:w-[6.5in] print:max-h-[9.5in] print:h-auto print:mx-auto print:my-0 print:p-8 print:rounded-3xl print:flex print:flex-col print:justify-between print:page-break-inside-avoid print:break-inside-avoid"
             >
               {/* Header / Business Brand with Centered Logo */}
               <div className="space-y-3 w-full flex flex-col items-center">

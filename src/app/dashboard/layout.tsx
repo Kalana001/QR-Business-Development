@@ -141,7 +141,7 @@ export default function DashboardLayout({
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row" suppressHydrationWarning>
+    <div className="min-h-screen bg-slate-100 flex flex-col md:flex-row print:p-0 print:m-0 print:bg-white print:min-h-0 print:block" suppressHydrationWarning>
       {/* Desktop Sidebar Navigation (Hidden on <md screens & print) */}
       <aside className="hidden md:flex flex-col w-64 bg-slate-900 border-r border-slate-800 text-slate-300 min-h-screen shrink-0 overflow-x-hidden print:hidden">
         {/* Brand Header */}
@@ -333,7 +333,7 @@ export default function DashboardLayout({
       )}
 
       {/* Main Content Container */}
-      <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full overflow-x-hidden min-w-0">
+      <main className="flex-1 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto w-full overflow-x-hidden min-w-0 print:p-0 print:m-0 print:max-w-none print:w-full print:overflow-visible">
         {children}
       </main>
     </div>
