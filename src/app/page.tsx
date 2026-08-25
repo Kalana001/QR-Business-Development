@@ -286,16 +286,6 @@ export default function LandingPage() {
                   🍽️ Bistro Demo
                 </Button>
               </Link>
-              <Link href="/c/page-turner-books" target="_blank">
-                <Button size="sm" variant="outline" className="border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700">
-                  📚 Bookshop Demo
-                </Button>
-              </Link>
-              <Link href="/c/velvet-and-blade" target="_blank">
-                <Button size="sm" variant="outline" className="border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700">
-                  💈 Salon Demo
-                </Button>
-              </Link>
             </div>
           </div>
         </div>
