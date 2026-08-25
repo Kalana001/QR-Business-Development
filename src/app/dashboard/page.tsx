@@ -9,6 +9,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
 import { Business, CatalogItem, Category, BUSINESS_TYPES_META } from '@/lib/types';
+import { formatCurrency } from '@/lib/utils';
 
 export default function DashboardOverviewPage() {
   const router = useRouter();
@@ -195,7 +196,7 @@ export default function DashboardOverviewPage() {
                     <div className="text-xs text-slate-500 line-clamp-1">{item.description}</div>
                   </div>
                   <div className="text-right">
-                    <div className="text-sm font-bold text-slate-900">${item.price.toFixed(2)}</div>
+                    <div className="text-sm font-bold text-slate-900">{formatCurrency(item.price, business?.currency)}</div>
                     <span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
                       item.is_available ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'
                     }`}>
