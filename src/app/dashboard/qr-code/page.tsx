@@ -113,6 +113,8 @@ export default function DashboardQrCodePage() {
 
   return (
     <div className="space-y-8 animate-fade-in print:p-0 print:m-0 print:bg-white">
+      <style dangerouslySetInnerHTML={{ __html: '@media print { @page { margin: 10mm; } }' }} />
+
       {/* Non-printable Controls & Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
         <div>
@@ -221,8 +223,19 @@ export default function DashboardQrCodePage() {
             id="printable-flyer"
             className="w-full max-w-lg bg-white border-2 border-slate-200 rounded-3xl p-6 sm:p-10 shadow-2xl flex flex-col items-center text-center space-y-6 print:border-2 print:border-slate-900 print:shadow-none print:max-w-none print:w-[6.5in] print:h-[9in] print:mx-auto print:my-0 print:p-10 print:rounded-3xl print:flex print:flex-col print:justify-between print:page-break-inside-avoid"
           >
-            {/* Header / Business Brand */}
-            <div className="space-y-3 w-full">
+            {/* Header / Business Brand with Centered Logo */}
+            <div className="space-y-3 w-full flex flex-col items-center">
+              {business?.logo_url ? (
+                <img
+                  src={business.logo_url}
+                  alt={business.name}
+                  className="w-14 h-14 object-cover rounded-2xl border border-slate-200 shadow-md mb-1"
+                />
+              ) : (
+                <div className="inline-flex items-center justify-center p-3.5 bg-slate-900 text-white rounded-2xl shadow-md mb-1">
+                  <QrIcon className="w-8 h-8 text-teal-400" />
+                </div>
+              )}
               <h2 className="text-2xl sm:text-4xl font-extrabold text-slate-900 tracking-tight print:text-4xl">
                 {business?.name}
               </h2>
