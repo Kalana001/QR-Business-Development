@@ -226,8 +226,8 @@ export default function DashboardLayout({
         </div>
       </aside>
 
-      {/* Mobile Top Navigation Bar (<md screens) */}
-      <div className="md:hidden bg-slate-900 text-white px-4 py-3 border-b border-slate-800 flex items-center justify-between sticky top-0 z-30 shadow-md">
+      {/* Mobile Top Navigation Bar (<md screens & hidden on print) */}
+      <div className="md:hidden print:hidden bg-slate-900 text-white px-4 py-3 border-b border-slate-800 flex items-center justify-between sticky top-0 z-30 shadow-md">
         <Link href="/dashboard" className="flex items-center gap-2 font-bold text-sm min-w-0 overflow-hidden">
           <div className="p-1.5 bg-teal-500 text-slate-950 rounded-md shrink-0">
             <QrCode className="w-4 h-4" />
@@ -244,9 +244,9 @@ export default function DashboardLayout({
         </button>
       </div>
 
-      {/* Mobile Slide-Over Navigation Drawer (<md screens) */}
+      {/* Mobile Slide-Over Navigation Drawer (<md screens & hidden on print) */}
       {mobileMenuOpen && (
-        <div className="md:hidden fixed inset-0 z-50 flex">
+        <div className="md:hidden print:hidden fixed inset-0 z-50 flex">
           {/* Backdrop Overlay */}
           <div 
             className="fixed inset-0 bg-slate-950/80 backdrop-blur-xs transition-opacity" 

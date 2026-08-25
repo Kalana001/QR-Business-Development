@@ -126,7 +126,7 @@ export default function DashboardQrCodePage() {
 
   return (
     <div className="space-y-8 animate-fade-in print:p-0 print:m-0 print:bg-white">
-      <style dangerouslySetInnerHTML={{ __html: '@media print { @page { size: portrait; margin: 5mm; } html, body { height: 100% !important; overflow: hidden !important; margin: 0 !important; padding: 0 !important; } }' }} />
+      <style dangerouslySetInnerHTML={{ __html: '@media print { @page { size: portrait; margin: 0; } html, body { height: 100vh !important; width: 100vw !important; margin: 0 !important; padding: 0 !important; overflow: hidden !important; background: #ffffff !important; } #printable-flyer-wrapper { display: flex !important; align-items: center !important; justify-content: center !important; min-height: 100vh !important; height: 100vh !important; width: 100vw !important; margin: 0 !important; padding: 0 !important; } }' }} />
 
       {/* Non-printable Controls & Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 print:hidden">
@@ -236,7 +236,7 @@ export default function DashboardQrCodePage() {
             )}
           </div>
 
-          <div className="relative w-full max-w-lg">
+          <div id="printable-flyer-wrapper" className="relative w-full max-w-lg print:max-w-none print:w-full print:h-[100vh] print:flex print:items-center print:justify-center">
             {/* Locked Overlay for Free Tier */}
             {!isPaidPlan && (
               <div className="absolute inset-0 bg-slate-950/75 backdrop-blur-xs rounded-3xl z-20 flex flex-col items-center justify-center p-6 text-center text-white space-y-4 print:hidden">
@@ -258,7 +258,7 @@ export default function DashboardQrCodePage() {
             {/* Tabletop Flyer Document */}
             <div
               id="printable-flyer"
-              className="w-full max-w-lg bg-white border-2 border-slate-200 rounded-3xl p-6 sm:p-10 shadow-2xl flex flex-col items-center text-center space-y-6 print:border-2 print:border-slate-900 print:shadow-none print:max-w-none print:w-[6.5in] print:max-h-[9.5in] print:h-auto print:mx-auto print:my-0 print:p-8 print:rounded-3xl print:flex print:flex-col print:justify-between print:page-break-inside-avoid print:break-inside-avoid"
+              className="w-full max-w-lg bg-white border-2 border-slate-200 rounded-3xl p-6 sm:p-10 shadow-2xl flex flex-col items-center text-center space-y-6 print:border-2 print:border-slate-900 print:shadow-none print:max-w-none print:w-[6.2in] print:max-h-[9.2in] print:h-auto print:mx-auto print:my-auto print:p-8 print:rounded-3xl print:flex print:flex-col print:justify-between print:page-break-inside-avoid print:break-inside-avoid"
             >
               {/* Header / Business Brand with Centered Logo */}
               <div className="space-y-3 w-full flex flex-col items-center">
