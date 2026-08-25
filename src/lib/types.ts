@@ -139,6 +139,7 @@ export const SUBSCRIPTION_PLANS_META: Record<SubscriptionPlan, SubscriptionPlanM
       'Unlimited Catalog Items',
       'Unlimited Categories',
       'Advanced QR Scan & Catalog Analytics',
+      'Multiple Selectable Catalog Design Templates',
       'Custom Branding & Logo Uploads',
       'Dedicated Admin Priority Support',
     ],
