@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { 
-  QrCode, LayoutDashboard, Package, Layers, Settings, ExternalLink, LogOut, Store, Menu, X, ShieldCheck, BarChart3
+  QrCode, LayoutDashboard, Package, Layers, Settings, ExternalLink, LogOut, Store, Menu, X, ShieldCheck, BarChart3, Palette
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Business } from '@/lib/types';
@@ -124,6 +124,7 @@ export default function DashboardLayout({
     { href: '/dashboard/items', label: 'Catalog Items', icon: Package },
     { href: '/dashboard/categories', label: 'Categories', icon: Layers },
     { href: '/dashboard/qr-code', label: 'QR Code Studio', icon: QrCode },
+    { href: '/dashboard/design', label: 'Catalog Design', icon: Palette },
     { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
     { href: '/dashboard/business', label: 'Business Settings', icon: Settings },
   ];
