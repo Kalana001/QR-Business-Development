@@ -137,20 +137,28 @@ export default function LandingPage() {
                   <span className="text-slate-400 text-xs font-medium">/ month</span>
                 </div>
                 <ul className="space-y-3 text-xs text-slate-300 pt-4 border-t border-slate-800/80">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                  <li className="flex items-start gap-2.5">
+                    <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                    </div>
                     <span>Up to <strong>10 Catalog Items</strong></span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                  <li className="flex items-start gap-2.5">
+                    <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                    </div>
                     <span>Up to <strong>5 Categories</strong></span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                  <li className="flex items-start gap-2.5">
+                    <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                    </div>
                     <span>Instant Mobile QR Customer View</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                  <li className="flex items-start gap-2.5">
+                    <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                    </div>
                     <span>Standard Support</span>
                   </li>
                 </ul>
@@ -185,24 +193,34 @@ export default function LandingPage() {
                   <span className="text-slate-400 text-xs font-medium">/ month</span>
                 </div>
                 <ul className="space-y-3 text-xs text-slate-200 pt-4 border-t border-slate-800">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                  <li className="flex items-start gap-2.5">
+                    <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                    </div>
                     <span>Up to <strong>150 Catalog Items</strong></span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                  <li className="flex items-start gap-2.5">
+                    <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                    </div>
                     <span>Up to <strong>20 Categories</strong></span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                  <li className="flex items-start gap-2.5">
+                    <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                    </div>
                     <span>Custom Branding & Accent Colors</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                  <li className="flex items-start gap-2.5">
+                    <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                    </div>
                     <span>Printable 5&quot;x7&quot; Table Tent Flyers</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                  <li className="flex items-start gap-2.5">
+                    <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                    </div>
                     <span>Priority Admin Activation</span>
                   </li>
                 </ul>
@@ -234,24 +252,34 @@ export default function LandingPage() {
                   <span className="text-slate-400 text-xs font-medium">/ month</span>
                 </div>
                 <ul className="space-y-3 text-xs text-slate-300 pt-4 border-t border-slate-800/80">
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-purple-400 shrink-0" />
+                  <li className="flex items-start gap-2.5">
+                    <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-purple-400 shrink-0" />
+                    </div>
                     <span><strong>Unlimited Catalog Items</strong></span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-purple-400 shrink-0" />
+                  <li className="flex items-start gap-2.5">
+                    <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-purple-400 shrink-0" />
+                    </div>
                     <span><strong>Unlimited Categories</strong></span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-purple-400 shrink-0" />
+                  <li className="flex items-start gap-2.5">
+                    <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-purple-400 shrink-0" />
+                    </div>
                     <span>All Pro Growth Features Included</span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-purple-400 shrink-0" />
+                  <li className="flex items-start gap-2.5">
+                    <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-purple-400 shrink-0" />
+                    </div>
                     <span><strong>Advanced QR & Catalog Analytics</strong></span>
                   </li>
-                  <li className="flex items-center gap-2">
-                    <CheckCircle className="w-4 h-4 text-purple-400 shrink-0" />
+                  <li className="flex items-start gap-2.5">
+                    <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-purple-400 shrink-0" />
+                    </div>
                     <span><strong>Premium Catalog Designs</strong></span>
                   </li>
                 </ul>

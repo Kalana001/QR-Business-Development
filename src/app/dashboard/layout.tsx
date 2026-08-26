@@ -190,14 +190,16 @@ export default function DashboardLayout({
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-bold transition-all ${
                   isActive
-                    ? 'bg-teal-500 text-slate-950 font-semibold'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800'
+                    ? 'bg-teal-500 text-slate-950 shadow-xs'
+                    : 'text-slate-400 hover:text-white hover:bg-slate-800/80'
                 }`}
               >
-                <Icon className="w-4 h-4 shrink-0" />
-                <span className="truncate">{item.label}</span>
+                <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                  <Icon className="w-4 h-4 shrink-0" />
+                </div>
+                <span className="truncate whitespace-nowrap">{item.label}</span>
               </Link>
             );
           })}
@@ -208,10 +210,12 @@ export default function DashboardLayout({
           <div className="px-4 py-2">
             <Link
               href="/admin"
-              className="flex items-center gap-2 px-3 py-2 text-xs font-bold text-teal-400 bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/30 rounded-xl transition-colors"
+              className="flex items-center gap-2.5 px-3 py-2.5 text-xs font-bold text-teal-400 bg-teal-500/10 hover:bg-teal-500/20 border border-teal-500/30 rounded-xl transition-colors"
             >
-              <ShieldCheck className="w-4 h-4 shrink-0" />
-              <span className="truncate">Super Admin Console</span>
+              <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                <ShieldCheck className="w-4 h-4 shrink-0 text-teal-400" />
+              </div>
+              <span className="truncate whitespace-nowrap">Super Admin Console</span>
             </Link>
           </div>
         )}
@@ -300,12 +304,14 @@ export default function DashboardLayout({
                       key={item.href}
                       href={item.href}
                       onClick={() => setMobileMenuOpen(false)}
-                      className={`flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium transition-colors ${
-                        isActive ? 'bg-teal-500 text-slate-950 font-bold' : 'text-slate-300 hover:bg-slate-800'
+                      className={`flex items-center gap-3 px-3 py-3 rounded-xl text-xs font-bold transition-all ${
+                        isActive ? 'bg-teal-500 text-slate-950 shadow-xs' : 'text-slate-300 hover:bg-slate-800'
                       }`}
                     >
-                      <Icon className="w-5 h-5" />
-                      <span>{item.label}</span>
+                      <div className="w-5 h-5 flex items-center justify-center shrink-0">
+                        <Icon className="w-4 h-4 shrink-0" />
+                      </div>
+                      <span className="truncate whitespace-nowrap">{item.label}</span>
                     </Link>
                   );
                 })}

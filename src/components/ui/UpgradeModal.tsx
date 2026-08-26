@@ -90,10 +90,12 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
 
                 <div className="pt-3 border-t border-slate-200/20 space-y-2">
                   {plan.features.map((feat) => (
-                    <div key={feat} className="flex items-center gap-2 text-xs">
-                      <CheckCircle2 className={`w-4 h-4 shrink-0 ${
-                        plan.id === 'pro' ? 'text-teal-600' : 'text-teal-400'
-                      }`} />
+                    <div key={feat} className="flex items-start gap-2.5 text-xs">
+                      <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">
+                        <CheckCircle2 className={`w-4 h-4 shrink-0 ${
+                          plan.id === 'pro' ? 'text-teal-600' : 'text-teal-400'
+                        }`} />
+                      </div>
                       <span className={plan.id === 'pro' ? 'text-slate-700 font-medium' : 'text-slate-300'}>
                         {feat}
                       </span>
