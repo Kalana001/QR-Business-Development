@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/client';
 import { BusinessType } from '@/lib/types';
 
-export type TemplateId = 'modern-dark' | 'fresh-light' | 'warm-colors' | 'soft-pastel' | 'elegant-premium' | 'minimal-clean';
+export type TemplateId = 'minimal-clean' | 'modern-dark' | 'fresh-light' | 'warm-colors' | 'soft-pastel' | 'elegant-premium';
 
 export interface CatalogTemplate {
   id: TemplateId;
@@ -34,6 +34,23 @@ export interface CatalogThemeSettings {
 }
 
 export const CATALOG_TEMPLATES: Record<TemplateId, CatalogTemplate> = {
+  'minimal-clean': {
+    id: 'minimal-clean',
+    name: 'Classic Light (Default)',
+    description: 'Clean light background with white item cards, dark slate typography, and crisp pricing.',
+    bestFor: 'All Business Types (Default Theme)',
+    suitableTypes: ['bookshop', 'general', 'salon', 'restaurant'],
+    isPremium: false,
+    defaultColors: {
+      primary: '#0F172A',
+      secondary: '#1E293B',
+      accent: '#0F172A',
+      background: '#F8FAFC',
+      cardBg: '#FFFFFF',
+      text: '#0F172A',
+      subtext: '#64748B',
+    },
+  },
   'modern-dark': {
     id: 'modern-dark',
     name: 'Modern Dark',
@@ -117,23 +134,6 @@ export const CATALOG_TEMPLATES: Record<TemplateId, CatalogTemplate> = {
       cardBg: '#1C1917',
       text: '#FEF3C7',
       subtext: '#D6D3D1',
-    },
-  },
-  'minimal-clean': {
-    id: 'minimal-clean',
-    name: 'Classic Light (Default)',
-    description: 'Clean light background with white item cards, dark slate typography, and crisp pricing.',
-    bestFor: 'All Business Types (Default Theme)',
-    suitableTypes: ['bookshop', 'general', 'salon', 'restaurant'],
-    isPremium: false,
-    defaultColors: {
-      primary: '#0F172A',
-      secondary: '#1E293B',
-      accent: '#0F172A',
-      background: '#F8FAFC',
-      cardBg: '#FFFFFF',
-      text: '#0F172A',
-      subtext: '#64748B',
     },
   },
 };
