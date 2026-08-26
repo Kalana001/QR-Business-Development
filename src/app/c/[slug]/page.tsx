@@ -138,10 +138,10 @@ export default function PublicCustomerCatalogPage({
       publishedItems={publishedItems}
       themeSettings={themeSettings || {
         business_id: business.id,
-        template_id: 'modern-dark',
+        template_id: 'minimal-clean',
         primary_color: business.theme_color || '#0F172A',
         secondary_color: '#1E293B',
-        accent_color: '#38BDF8',
+        accent_color: '#0F172A',
         card_style: 'rounded',
         header_style: 'standard',
       }}

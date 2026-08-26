@@ -30,8 +30,8 @@ export function CatalogRenderer({
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedItem, setSelectedItem] = useState<CatalogItem | null>(null);
 
-  const templateId = (themeSettings?.template_id || 'modern-dark') as TemplateId;
-  const templateMeta = CATALOG_TEMPLATES[templateId] || CATALOG_TEMPLATES['modern-dark'];
+  const templateId = (themeSettings?.template_id || 'minimal-clean') as TemplateId;
+  const templateMeta = CATALOG_TEMPLATES[templateId] || CATALOG_TEMPLATES['minimal-clean'];
 
   // Color overrides or template defaults
   const primaryColor = themeSettings?.primary_color || templateMeta.defaultColors.primary;
