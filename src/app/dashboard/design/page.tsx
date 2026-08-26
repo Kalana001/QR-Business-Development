@@ -215,65 +215,7 @@ export default function DashboardCatalogDesignPage() {
         </div>
       )}
 
-      {/* Active Template Customizer Panel */}
-      {themeSettings && (
-        <div className="bg-slate-900 text-white rounded-3xl p-6 shadow-xl border border-slate-800 space-y-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-4">
-            <div>
-              <div className="text-[10px] font-mono text-purple-400 font-bold uppercase tracking-wider">Active Design Settings</div>
-              <h3 className="text-lg font-bold text-white flex items-center gap-2 mt-0.5">
-                <Palette className="w-5 h-5 text-purple-400" /> {CATALOG_TEMPLATES[themeSettings.template_id]?.name || 'Modern Dark'}
-              </h3>
-            </div>
 
-            <div className="flex items-center gap-2">
-              <Button
-                onClick={handleResetDefaults}
-                variant="outline"
-                size="sm"
-                className="border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs gap-1.5"
-              >
-                <RotateCcw className="w-3.5 h-3.5" /> Reset Defaults
-              </Button>
-              <Button
-                onClick={() => setPreviewTemplateId(themeSettings.template_id)}
-                size="sm"
-                className="bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs gap-1.5"
-              >
-                <Eye className="w-3.5 h-3.5" /> Preview Real Catalog
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs">
-            <div className="space-y-1">
-              <label className="block font-semibold text-slate-300">Header Primary Color</label>
-              <div className="flex items-center gap-3 bg-slate-950 p-2 rounded-xl border border-slate-800">
-                <input
-                  type="color"
-                  value={themeSettings.primary_color}
-                  onChange={(e) => handleCustomColorChange('primary', e.target.value)}
-                  className="w-8 h-8 rounded-lg cursor-pointer border-none bg-transparent"
-                />
-                <span className="font-mono text-slate-300 font-bold">{themeSettings.primary_color}</span>
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="block font-semibold text-slate-300">Highlight Accent Color</label>
-              <div className="flex items-center gap-3 bg-slate-950 p-2 rounded-xl border border-slate-800">
-                <input
-                  type="color"
-                  value={themeSettings.accent_color}
-                  onChange={(e) => handleCustomColorChange('accent', e.target.value)}
-                  className="w-8 h-8 rounded-lg cursor-pointer border-none bg-transparent"
-                />
-                <span className="font-mono text-slate-300 font-bold">{themeSettings.accent_color}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* 6 Template Cards Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
