@@ -106,7 +106,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
 
               <div className="pt-6">
                 <a
-                  href={`https://wa.me/?text=Hello%20Admin,%20I%20want%20to%20upgrade%20my%20business%20catalog%20to%20${encodeURIComponent(plan.name)}%20(LKR%20${plan.priceLKR}/mo).`}
+                  href={`https://wa.me/94712220731?text=Hello%20Admin,%20I%20want%20to%20upgrade%20my%20business%20catalog%20to%20${encodeURIComponent(plan.name)}%20(LKR%20${plan.priceLKR}/mo).`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className={`flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all ${
