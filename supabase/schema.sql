@@ -470,6 +470,7 @@ DECLARE
   v_max_items INT;
   v_max_categories INT;
   v_result public.businesses;
+  v_amount NUMERIC(10,2);
 BEGIN
   -- 1. Enforce Super Admin Check
   IF NOT public.is_super_admin() THEN
@@ -477,27 +478,34 @@ BEGIN
   END IF;
 
   -- 2. Validate Subscription Plan (Reject invalid plans - FIX #7)
-  IF p_plan NOT IN ('free', 'pro', 'enterprise') THEN
-    RAISE EXCEPTION 'Invalid subscription plan: %. Plan must be free, pro, or enterprise.', p_plan USING ERRCODE = '22023';
+  IF p_plan NOT IN ('free', 'pro', 'enterprise', 'enterprise_gift') THEN
+    RAISE EXCEPTION 'Invalid subscription plan: %. Plan must be free, pro, enterprise, or enterprise_gift.', p_plan USING ERRCODE = '22023';
   END IF;
 
   -- 3. Validate Date Range for Paid Plans (FIX #7)
-  IF p_plan IN ('pro', 'enterprise') THEN
+  IF p_plan IN ('pro', 'enterprise', 'enterprise_gift') THEN
     IF p_end_date IS NULL OR p_end_date <= p_start_date THEN
       RAISE EXCEPTION 'Invalid date range: end_date must be later than start_date.' USING ERRCODE = '22023';
     END IF;
   END IF;
 
-  -- 4. Calculate Internal Limits
+  -- 4. Calculate Internal Limits and Pricing Amount
   IF p_plan = 'pro' THEN
     v_max_items := 150;
     v_max_categories := 20;
+    v_amount := 2000.00;
   ELSIF p_plan = 'enterprise' THEN
     v_max_items := NULL; -- NULL means Unlimited (Business Plus)
     v_max_categories := NULL; -- NULL means Unlimited (Business Plus)
+    v_amount := 3500.00;
+  ELSIF p_plan = 'enterprise_gift' THEN
+    v_max_items := NULL; -- NULL means Unlimited (VIP Gift)
+    v_max_categories := NULL; -- NULL means Unlimited (VIP Gift)
+    v_amount := 0.00;
   ELSE
     v_max_items := 10;
     v_max_categories := 5;
+    v_amount := 0.00;
   END IF;
 
   UPDATE public.businesses
@@ -511,6 +519,25 @@ BEGIN
     updated_at = NOW()
   WHERE id = p_business_id
   RETURNING * INTO v_result;
+
+  -- 5. Record Payment Entry
+  INSERT INTO public.subscription_payments (
+    business_id, plan, amount, payment_reference, start_date, end_date, approved_by
+  ) VALUES (
+    p_business_id, p_plan, v_amount, 'Super Admin Manual Approval', p_start_date, p_end_date, auth.uid()
+  );
+
+  -- 6. Log Admin Audit Action
+  INSERT INTO public.admin_audit_logs (
+    admin_user_id, business_id, action, details
+  ) VALUES (
+    auth.uid(), p_business_id, 'subscription_approved', jsonb_build_object(
+      'plan', p_plan,
+      'start_date', p_start_date,
+      'end_date', p_end_date,
+      'amount', v_amount
+    )
+  );
 
   RETURN v_result;
 END;

@@ -324,6 +324,14 @@ export default function LandingPage() {
         <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p>© {new Date().getFullYear()} QR Catalog Studio. Production Multi-tenant SaaS.</p>
           <div className="flex items-center gap-4">
+            <Link href="/terms" className="hover:text-slate-300 transition-colors">
+              Terms of Service
+            </Link>
+            <span>•</span>
+            <Link href="/privacy" className="hover:text-slate-300 transition-colors">
+              Privacy Policy
+            </Link>
+            <span>•</span>
             <span className="flex items-center gap-1 text-slate-400">
               <ShieldCheck className="w-4 h-4 text-teal-400" /> PostgreSQL RLS Secured
             </span>
