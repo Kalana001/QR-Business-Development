@@ -138,10 +138,9 @@ export const SUBSCRIPTION_PLANS_META: Record<SubscriptionPlan, SubscriptionPlanM
     features: [
       'Unlimited Catalog Items',
       'Unlimited Categories',
-      'Advanced QR Scan & Catalog Analytics',
-      'Multiple Selectable Catalog Design Templates',
-      'Custom Branding & Logo Uploads',
-      'Dedicated Admin Priority Support',
+      'All Pro Growth Features Included',
+      'Advanced QR & Catalog Analytics',
+      'Premium Catalog Designs',
     ],
   },
   enterprise_gift: {
@@ -155,9 +154,9 @@ export const SUBSCRIPTION_PLANS_META: Record<SubscriptionPlan, SubscriptionPlanM
     features: [
       'Unlimited Catalog Items',
       'Unlimited Categories',
-      'Advanced QR Scan & Catalog Analytics',
-      'Multiple Selectable Catalog Design Templates',
-      'Printable 5"x7" Table Tent Flyers',
+      'All Pro Growth Features Included',
+      'Advanced QR & Catalog Analytics',
+      'Premium Catalog Designs',
       'Complimentary VIP Access',
     ],
   },

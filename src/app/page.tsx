@@ -252,7 +252,7 @@ export default function LandingPage() {
                   </li>
                   <li className="flex items-center gap-2">
                     <CheckCircle className="w-4 h-4 text-purple-400 shrink-0" />
-                    <span><strong>Multiple Selectable Catalog Design Templates</strong></span>
+                    <span><strong>Premium Catalog Designs</strong></span>
                   </li>
                 </ul>
               </div>
