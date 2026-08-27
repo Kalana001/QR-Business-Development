@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { UpgradeModal } from '@/components/ui/UpgradeModal';
+import { BulkImportModal } from '@/components/catalog/BulkImportModal';
 import { CategoryPlaceholder } from '@/components/placeholders/CategoryPlaceholder';
 import { createClient } from '@/lib/supabase/client';
 import { Business, CatalogItem, Category, BUSINESS_TYPES_META, SUBSCRIPTION_PLANS_META } from '@/lib/types';
@@ -26,6 +27,15 @@ export default function DashboardItemsPage() {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+  const [isCreateCategoryModalOpen, setIsCreateCategoryModalOpen] = useState(false);
+
+  // Inline Category Creation Fields
+  const [newCategoryName, setNewCategoryName] = useState('');
+  const [newCategoryDesc, setNewCategoryDesc] = useState('');
+  const [creatingCategory, setCreatingCategory] = useState(false);
+  const [categoryError, setCategoryError] = useState<string | null>(null);
+
   const [editingItem, setEditingItem] = useState<CatalogItem | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
@@ -232,6 +242,52 @@ export default function DashboardItemsPage() {
     setBadges(badges.filter((badge) => badge !== b));
   };
 
+  const handleInlineCreateCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!business || !newCategoryName.trim()) return;
+
+    // Calculate category subscription limit
+    const rawMaxCategories = business.max_categories;
+    const isUnlimitedCategories = isSuperAdmin || (!isExpired && (rawMaxCategories === null || rawMaxCategories === undefined || currentPlanKey === 'enterprise'));
+    const maxAllowedCategories = isUnlimitedCategories ? Infinity : (isExpired ? 5 : (rawMaxCategories ?? 5));
+
+    if (categories.length >= maxAllowedCategories) {
+      setCategoryError(`Category limit reached (${categories.length}/${maxAllowedCategories}). Please upgrade your plan to create more categories.`);
+      return;
+    }
+
+    setCreatingCategory(true);
+    setCategoryError(null);
+
+    try {
+      const supabase = createClient();
+      const { data: newCat, error } = await supabase
+        .from('categories')
+        .insert({
+          business_id: business.id,
+          name: newCategoryName.trim(),
+          description: newCategoryDesc.trim() || null,
+          display_order: categories.length + 1,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      if (newCat) {
+        setCategories([...categories, newCat as Category]);
+        setCategoryId(newCat.id); // Automatically select newly created category!
+        setIsCreateCategoryModalOpen(false);
+        setNewCategoryName('');
+        setNewCategoryDesc('');
+      }
+    } catch (err: any) {
+      setCategoryError(err.message || 'Error creating category.');
+    } finally {
+      setCreatingCategory(false);
+    }
+  };
+
   // Filtered items
   const filteredItems = items.filter((item) => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -254,9 +310,18 @@ export default function DashboardItemsPage() {
             Manage products and services displayed to customers when scanning your QR code.
           </p>
         </div>
-        <Button onClick={openAddModal} className="gap-2 font-semibold shadow-sm">
-          <Plus className="w-4 h-4" /> Add New {bMeta.itemTerm}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => setIsBulkImportOpen(true)}
+            variant="outline"
+            className="gap-2 font-semibold border-teal-500/40 text-teal-700 bg-teal-50 hover:bg-teal-100 shadow-xs"
+          >
+            <Upload className="w-4 h-4" /> Bulk Import
+          </Button>
+          <Button onClick={openAddModal} className="gap-2 font-semibold shadow-xs">
+            <Plus className="w-4 h-4" /> Add New {bMeta.itemTerm}
+          </Button>
+        </div>
       </div>
 
       {/* EXPIRED SUBSCRIPTION WARNING BANNER */}
@@ -573,12 +638,31 @@ export default function DashboardItemsPage() {
             />
 
             <div className="space-y-1">
-              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-                Category
-              </label>
+              <div className="flex items-center justify-between">
+                <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                  Category
+                </label>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCategoryError(null);
+                    setIsCreateCategoryModalOpen(true);
+                  }}
+                  className="text-xs font-bold text-teal-600 hover:text-teal-700 flex items-center gap-1 cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" /> Create New
+                </button>
+              </div>
               <select
                 value={categoryId}
-                onChange={(e) => setCategoryId(e.target.value)}
+                onChange={(e) => {
+                  if (e.target.value === '__CREATE_NEW__') {
+                    setCategoryError(null);
+                    setIsCreateCategoryModalOpen(true);
+                  } else {
+                    setCategoryId(e.target.value);
+                  }
+                }}
                 className="w-full px-3 py-2 text-sm bg-white border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-950 font-medium"
               >
                 <option value="">Uncategorized</option>
@@ -587,6 +671,9 @@ export default function DashboardItemsPage() {
                     {c.name}
                   </option>
                 ))}
+                <option value="__CREATE_NEW__" className="font-bold text-teal-600 bg-teal-50">
+                  + Create New Category...
+                </option>
               </select>
             </div>
           </div>
@@ -716,6 +803,69 @@ export default function DashboardItemsPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Inline Create Category Modal */}
+      <Modal
+        isOpen={isCreateCategoryModalOpen}
+        onClose={() => setIsCreateCategoryModalOpen(false)}
+        title="Create New Category"
+        maxWidth="sm"
+        footer={
+          <>
+            <Button type="button" variant="outline" onClick={() => setIsCreateCategoryModalOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              form="inline-category-form"
+              isLoading={creatingCategory}
+              className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold text-xs"
+            >
+              Create & Select
+            </Button>
+          </>
+        }
+      >
+        <form id="inline-category-form" onSubmit={handleInlineCreateCategory} className="space-y-4">
+          {categoryError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-lg text-rose-600 text-xs flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 shrink-0" />
+              <span>{categoryError}</span>
+            </div>
+          )}
+
+          <Input
+            label="Category Name"
+            placeholder="e.g. Special Offers, Starters, Desserts"
+            value={newCategoryName}
+            onChange={(e) => setNewCategoryName(e.target.value)}
+            required
+          />
+
+          <Input
+            label="Description (Optional)"
+            placeholder="e.g. Fresh daily chef specials"
+            value={newCategoryDesc}
+            onChange={(e) => setNewCategoryDesc(e.target.value)}
+          />
+        </form>
+      </Modal>
+
+      {/* Bulk Import Modal */}
+      {business && (
+        <BulkImportModal
+          isOpen={isBulkImportOpen}
+          onClose={() => setIsBulkImportOpen(false)}
+          business={business}
+          categories={categories}
+          existingItems={items}
+          onImportSuccess={loadData}
+          onOpenUpgradeModal={() => {
+            setIsBulkImportOpen(false);
+            setIsUpgradeModalOpen(true);
+          }}
+        />
+      )}
     </div>
   );
 }
