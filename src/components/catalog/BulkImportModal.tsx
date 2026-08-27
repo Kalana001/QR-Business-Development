@@ -219,8 +219,26 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
     }
   };
 
+  const sanitizeFormula = (val: any): any => {
+    if (typeof val === 'string') {
+      const trimmed = val.trim();
+      if (['=', '+', '-', '@'].some((char) => trimmed.startsWith(char))) {
+        return `'${val}`;
+      }
+    }
+    return val;
+  };
+
+  const sanitizeRowObj = (obj: Record<string, any>): Record<string, any> => {
+    const sanitized: Record<string, any> = {};
+    Object.keys(obj).forEach((key) => {
+      sanitized[key] = sanitizeFormula(obj[key]);
+    });
+    return sanitized;
+  };
+
   const handleDownloadCSVTemplate = () => {
-    const sampleData = getSampleRows();
+    const sampleData = getSampleRows().map(sanitizeRowObj);
     const csvContent = Papa.unparse(sampleData);
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
@@ -233,7 +251,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
   };
 
   const handleDownloadExcelTemplate = () => {
-    const sampleData = getSampleRows();
+    const sampleData = getSampleRows().map(sanitizeRowObj);
     const worksheet = XLSX.utils.json_to_sheet(sampleData);
     const workbook = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(workbook, worksheet, 'Catalog Items');
@@ -547,7 +565,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
   const handleDownloadErrorReport = () => {
     if (parsedRows.length === 0) return;
 
-    const reportData = parsedRows.map((r) => ({
+    const reportData = parsedRows.map((r) => sanitizeRowObj({
       Row: r.rowIndex,
       Name: r.name || '(Empty)',
       Category: r.categoryName || 'Uncategorized',

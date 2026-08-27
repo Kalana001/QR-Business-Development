@@ -201,7 +201,11 @@ export default function DashboardItemsPage() {
       setIsModalOpen(false);
       await loadData();
     } catch (err: any) {
-      setFormError(err.message || 'Error saving item.');
+      let msg = err.message || 'Error saving item.';
+      if (msg.includes('Quota Exceeded') || msg.includes('catalog items')) {
+        msg = 'You have reached the maximum number of catalog items allowed on your current package. Please upgrade to add more items.';
+      }
+      setFormError(msg);
     } finally {
       setSubmitting(false);
     }
@@ -282,7 +286,11 @@ export default function DashboardItemsPage() {
         setNewCategoryDesc('');
       }
     } catch (err: any) {
-      setCategoryError(err.message || 'Error creating category.');
+      let msg = err.message || 'Error creating category.';
+      if (msg.includes('Quota Exceeded') || msg.includes('categories')) {
+        msg = 'You have reached the maximum number of categories allowed on your current package. Please upgrade to add more categories.';
+      }
+      setCategoryError(msg);
     } finally {
       setCreatingCategory(false);
     }

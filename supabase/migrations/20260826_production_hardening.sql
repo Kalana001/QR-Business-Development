@@ -1,9 +1,15 @@
 -- ============================================================================
 -- Supabase Production Hardening Migration
--- 1. Payment History Table (subscription_payments)
+-- 1. Subscription Payments Table (subscription_payments)
 -- 2. Admin Audit Logs Table (admin_audit_logs)
 -- 3. Hardened admin_update_subscription RPC function with auto-logging
+-- 4. Database-Level Item Quota Enforcement Trigger (enforce_catalog_item_quota)
+-- 5. Database-Level Category Quota Enforcement Trigger (enforce_category_quota)
+-- 6. Publication Column Compatibility (is_public)
 -- ============================================================================
+
+-- Safely ensure is_public column exists on businesses
+ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT true;
 
 -- 1. Subscription Payments Table
 CREATE TABLE IF NOT EXISTS public.subscription_payments (
@@ -149,5 +155,119 @@ BEGIN
   RETURN v_result;
 END;
 $$;
+
+-- 4. Database-Level Item Quota Enforcement Trigger
+CREATE OR REPLACE FUNCTION public.enforce_catalog_item_quota()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_biz public.businesses%ROWTYPE;
+  v_current_count INT;
+  v_max_allowed INT;
+  v_is_expired BOOLEAN;
+BEGIN
+  -- Super Admins bypass subscription quota limits
+  IF public.is_super_admin() THEN
+    RETURN NEW;
+  END IF;
+
+  -- Retrieve target business record
+  SELECT * INTO v_biz FROM public.businesses WHERE id = NEW.business_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Invalid business ID: %', NEW.business_id USING ERRCODE = '22023';
+  END IF;
+
+  -- Check expiration
+  v_is_expired := public.is_business_subscription_expired(v_biz.subscription_status, v_biz.subscription_end_date);
+
+  -- Calculate effective max allowed items (NULL max_items or enterprise plan = Unlimited)
+  IF v_is_expired THEN
+    v_max_allowed := 10;
+  ELSIF v_biz.subscription_plan = 'enterprise' OR v_biz.subscription_plan = 'enterprise_gift' OR v_biz.max_items IS NULL THEN
+    v_max_allowed := NULL; -- Unlimited
+  ELSE
+    v_max_allowed := COALESCE(v_biz.max_items, 10);
+  END IF;
+
+  -- If limit is not unlimited, check current item count
+  IF v_max_allowed IS NOT NULL THEN
+    SELECT COUNT(*) INTO v_current_count
+    FROM public.catalog_items
+    WHERE business_id = NEW.business_id;
+
+    IF v_current_count >= v_max_allowed THEN
+      RAISE EXCEPTION 'Quota Exceeded: You have reached the maximum allowed catalog items (%) for your subscription plan.', v_max_allowed
+        USING ERRCODE = '42501';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS tr_enforce_item_quota ON public.catalog_items;
+CREATE TRIGGER tr_enforce_item_quota
+  BEFORE INSERT ON public.catalog_items
+  FOR EACH ROW EXECUTE FUNCTION public.enforce_catalog_item_quota();
+
+-- 5. Database-Level Category Quota Enforcement Trigger
+CREATE OR REPLACE FUNCTION public.enforce_category_quota()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_biz public.businesses%ROWTYPE;
+  v_current_count INT;
+  v_max_allowed INT;
+  v_is_expired BOOLEAN;
+BEGIN
+  -- Super Admins bypass subscription quota limits
+  IF public.is_super_admin() THEN
+    RETURN NEW;
+  END IF;
+
+  -- Retrieve target business record
+  SELECT * INTO v_biz FROM public.businesses WHERE id = NEW.business_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Invalid business ID: %', NEW.business_id USING ERRCODE = '22023';
+  END IF;
+
+  -- Check expiration
+  v_is_expired := public.is_business_subscription_expired(v_biz.subscription_status, v_biz.subscription_end_date);
+
+  -- Calculate effective max allowed categories (NULL max_categories or enterprise plan = Unlimited)
+  IF v_is_expired THEN
+    v_max_allowed := 5;
+  ELSIF v_biz.subscription_plan = 'enterprise' OR v_biz.subscription_plan = 'enterprise_gift' OR v_biz.max_categories IS NULL THEN
+    v_max_allowed := NULL; -- Unlimited
+  ELSE
+    v_max_allowed := COALESCE(v_biz.max_categories, 5);
+  END IF;
+
+  -- If limit is not unlimited, check current category count
+  IF v_max_allowed IS NOT NULL THEN
+    SELECT COUNT(*) INTO v_current_count
+    FROM public.categories
+    WHERE business_id = NEW.business_id;
+
+    IF v_current_count >= v_max_allowed THEN
+      RAISE EXCEPTION 'Quota Exceeded: You have reached the maximum allowed categories (%) for your subscription plan.', v_max_allowed
+        USING ERRCODE = '42501';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS tr_enforce_category_quota ON public.categories;
+CREATE TRIGGER tr_enforce_category_quota
+  BEFORE INSERT ON public.categories
+  FOR EACH ROW EXECUTE FUNCTION public.enforce_category_quota();
 
 NOTIFY pgrst, 'reload schema';

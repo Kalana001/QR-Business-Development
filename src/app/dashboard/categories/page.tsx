@@ -122,7 +122,11 @@ export default function DashboardCategoriesPage() {
       setIsModalOpen(false);
       await loadCategories();
     } catch (err: any) {
-      setFormError(err.message || 'Error saving category.');
+      let msg = err.message || 'Error saving category.';
+      if (msg.includes('Quota Exceeded') || msg.includes('categories')) {
+        msg = 'You have reached the maximum number of categories allowed on your current package. Please upgrade to add more categories.';
+      }
+      setFormError(msg);
     } finally {
       setSubmitting(false);
     }

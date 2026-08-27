@@ -649,5 +649,121 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
 
+-- ============================================================================
+-- DATABASE-LEVEL SUBSCRIPTION QUOTA ENFORCEMENT TRIGGERS
+-- ============================================================================
+
+CREATE OR REPLACE FUNCTION public.enforce_catalog_item_quota()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_biz public.businesses%ROWTYPE;
+  v_current_count INT;
+  v_max_allowed INT;
+  v_is_expired BOOLEAN;
+BEGIN
+  -- Super Admins bypass subscription quota limits
+  IF public.is_super_admin() THEN
+    RETURN NEW;
+  END IF;
+
+  -- Retrieve target business record
+  SELECT * INTO v_biz FROM public.businesses WHERE id = NEW.business_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Invalid business ID: %', NEW.business_id USING ERRCODE = '22023';
+  END IF;
+
+  -- Check expiration
+  v_is_expired := public.is_business_subscription_expired(v_biz.subscription_status, v_biz.subscription_end_date);
+
+  -- Calculate effective max allowed items (NULL max_items or enterprise plan = Unlimited)
+  IF v_is_expired THEN
+    v_max_allowed := 10;
+  ELSIF v_biz.subscription_plan = 'enterprise' OR v_biz.subscription_plan = 'enterprise_gift' OR v_biz.max_items IS NULL THEN
+    v_max_allowed := NULL; -- Unlimited
+  ELSE
+    v_max_allowed := COALESCE(v_biz.max_items, 10);
+  END IF;
+
+  -- If limit is not unlimited, check current item count
+  IF v_max_allowed IS NOT NULL THEN
+    SELECT COUNT(*) INTO v_current_count
+    FROM public.catalog_items
+    WHERE business_id = NEW.business_id;
+
+    IF v_current_count >= v_max_allowed THEN
+      RAISE EXCEPTION 'Quota Exceeded: You have reached the maximum allowed catalog items (%) for your subscription plan.', v_max_allowed
+        USING ERRCODE = '42501';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS tr_enforce_item_quota ON public.catalog_items;
+CREATE TRIGGER tr_enforce_item_quota
+  BEFORE INSERT ON public.catalog_items
+  FOR EACH ROW EXECUTE FUNCTION public.enforce_catalog_item_quota();
+
+CREATE OR REPLACE FUNCTION public.enforce_category_quota()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+DECLARE
+  v_biz public.businesses%ROWTYPE;
+  v_current_count INT;
+  v_max_allowed INT;
+  v_is_expired BOOLEAN;
+BEGIN
+  -- Super Admins bypass subscription quota limits
+  IF public.is_super_admin() THEN
+    RETURN NEW;
+  END IF;
+
+  -- Retrieve target business record
+  SELECT * INTO v_biz FROM public.businesses WHERE id = NEW.business_id;
+  IF NOT FOUND THEN
+    RAISE EXCEPTION 'Invalid business ID: %', NEW.business_id USING ERRCODE = '22023';
+  END IF;
+
+  -- Check expiration
+  v_is_expired := public.is_business_subscription_expired(v_biz.subscription_status, v_biz.subscription_end_date);
+
+  -- Calculate effective max allowed categories (NULL max_categories or enterprise plan = Unlimited)
+  IF v_is_expired THEN
+    v_max_allowed := 5;
+  ELSIF v_biz.subscription_plan = 'enterprise' OR v_biz.subscription_plan = 'enterprise_gift' OR v_biz.max_categories IS NULL THEN
+    v_max_allowed := NULL; -- Unlimited
+  ELSE
+    v_max_allowed := COALESCE(v_biz.max_categories, 5);
+  END IF;
+
+  -- If limit is not unlimited, check current category count
+  IF v_max_allowed IS NOT NULL THEN
+    SELECT COUNT(*) INTO v_current_count
+    FROM public.categories
+    WHERE business_id = NEW.business_id;
+
+    IF v_current_count >= v_max_allowed THEN
+      RAISE EXCEPTION 'Quota Exceeded: You have reached the maximum allowed categories (%) for your subscription plan.', v_max_allowed
+        USING ERRCODE = '42501';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+
+DROP TRIGGER IF EXISTS tr_enforce_category_quota ON public.categories;
+CREATE TRIGGER tr_enforce_category_quota
+  BEFORE INSERT ON public.categories
+  FOR EACH ROW EXECUTE FUNCTION public.enforce_category_quota();
+
 -- Notify PostgREST API to reload schema cache
 NOTIFY pgrst, 'reload schema';
