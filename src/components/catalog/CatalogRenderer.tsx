@@ -6,7 +6,7 @@ import {
 } from 'lucide-react';
 import { CategoryPlaceholder } from '@/components/placeholders/CategoryPlaceholder';
 import { Business, CatalogItem, Category, BUSINESS_TYPES_META } from '@/lib/types';
-import { formatCurrency, formatDuration } from '@/lib/utils';
+import { formatCurrency, formatDuration, getContrastTextColor } from '@/lib/utils';
 import { CatalogThemeSettings, CATALOG_TEMPLATES, TemplateId } from '@/lib/templates';
 
 interface CatalogRendererProps {
@@ -40,6 +40,21 @@ export function CatalogRenderer({
   const cardBgColor = templateMeta.defaultColors.cardBg;
   const textColor = templateMeta.defaultColors.text;
   const subtextColor = templateMeta.defaultColors.subtext;
+
+  const isDarkTemplate = templateId === 'modern-dark' || templateId === 'elegant-premium';
+  const activePillText = getContrastTextColor(accentColor);
+
+  const inactivePillBg = isDarkTemplate
+    ? 'rgba(255, 255, 255, 0.1)'
+    : 'rgba(15, 23, 42, 0.05)';
+
+  const inactivePillText = isDarkTemplate
+    ? '#E2E8F0'
+    : '#334155';
+
+  const inactivePillBorder = isDarkTemplate
+    ? 'rgba(255, 255, 255, 0.15)'
+    : 'rgba(203, 213, 225, 0.8)';
 
   const bMeta = BUSINESS_TYPES_META[business.business_type] || BUSINESS_TYPES_META.general;
 
@@ -157,10 +172,10 @@ export function CatalogRenderer({
               placeholder={`Search ${bMeta.itemTerm.toLowerCase()}s...`}
               value={searchQuery}
               onChange={(e) => handleSearchInput(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 border rounded-xl text-xs focus:outline-none transition-all"
+              className="w-full pl-9 pr-8 py-2 border rounded-xl text-xs focus:outline-none transition-all placeholder:text-slate-400"
               style={{
-                backgroundColor: templateId === 'modern-dark' || templateId === 'elegant-premium' ? 'rgba(255,255,255,0.08)' : '#F1F5F9',
-                borderColor: 'rgba(226,232,240,0.2)',
+                backgroundColor: isDarkTemplate ? 'rgba(255, 255, 255, 0.08)' : '#F1F5F9',
+                borderColor: isDarkTemplate ? 'rgba(255, 255, 255, 0.15)' : '#CBD5E1',
                 color: textColor,
               }}
             />
@@ -176,16 +191,26 @@ export function CatalogRenderer({
 
           {/* Category Pill Tabs */}
           <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-            <button
-              onClick={() => setActiveCategory('all')}
-              className="px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all"
-              style={{
-                backgroundColor: activeCategory === 'all' ? accentColor : 'rgba(241, 245, 249, 0.15)',
-                color: activeCategory === 'all' ? '#020617' : textColor,
-              }}
-            >
-              All ({publishedItems.length})
-            </button>
+            {(() => {
+              const isAllActive = activeCategory === 'all';
+              return (
+                <button
+                  onClick={() => setActiveCategory('all')}
+                  className="px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer"
+                  style={{
+                    backgroundColor: isAllActive ? accentColor : inactivePillBg,
+                    color: isAllActive ? activePillText : inactivePillText,
+                    borderColor: isAllActive ? 'transparent' : inactivePillBorder,
+                    borderWidth: '1px',
+                    borderStyle: 'solid',
+                    boxShadow: isAllActive ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
+                  }}
+                >
+                  All ({publishedItems.length})
+                </button>
+              );
+            })()}
+
             {categories.map((cat) => {
               const catCount = publishedItems.filter((i) => i.category_id === cat.id).length;
               const isCatActive = activeCategory === cat.id;
@@ -193,10 +218,14 @@ export function CatalogRenderer({
                 <button
                   key={cat.id}
                   onClick={() => setActiveCategory(cat.id)}
-                  className="px-3.5 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all"
+                  className="px-3.5 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-all flex items-center gap-1.5 shrink-0 focus:outline-none focus:ring-2 focus:ring-slate-400 cursor-pointer"
                   style={{
-                    backgroundColor: isCatActive ? accentColor : 'rgba(241, 245, 249, 0.15)',
-                    color: isCatActive ? '#020617' : textColor,
+                    backgroundColor: isCatActive ? accentColor : inactivePillBg,
+                    color: isCatActive ? activePillText : inactivePillText,
+                    borderColor: isCatActive ? 'transparent' : inactivePillBorder,
+                    borderWidth: '1px',
+                    borderStyle: 'solid',
+                    boxShadow: isCatActive ? '0 2px 8px rgba(0,0,0,0.15)' : 'none',
                   }}
                 >
                   {cat.name} ({catCount})
@@ -225,7 +254,7 @@ export function CatalogRenderer({
                     onClick={() => handleItemClick(item)}
                     className="w-48 rounded-2xl overflow-hidden shrink-0 shadow-md cursor-pointer active:scale-98 transition-transform flex flex-col justify-between border"
                     style={{ 
-                      backgroundColor: templateId === 'modern-dark' || templateId === 'elegant-premium' ? '#0F172A' : '#FFFFFF',
+                      backgroundColor: isDarkTemplate ? '#0F172A' : '#FFFFFF',
                       borderColor: 'rgba(226, 232, 240, 0.15)',
                     }}
                   >
@@ -237,7 +266,7 @@ export function CatalogRenderer({
                       )}
                       <span 
                         className="absolute top-2 right-2 font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-full shadow-xs"
-                        style={{ backgroundColor: accentColor, color: '#020617' }}
+                        style={{ backgroundColor: accentColor, color: activePillText }}
                       >
                         Star
                       </span>
