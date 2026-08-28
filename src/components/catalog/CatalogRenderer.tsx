@@ -8,6 +8,7 @@ import { CategoryPlaceholder } from '@/components/placeholders/CategoryPlacehold
 import { Business, CatalogItem, Category, BUSINESS_TYPES_META } from '@/lib/types';
 import { formatCurrency, formatDuration, getContrastTextColor } from '@/lib/utils';
 import { CatalogThemeSettings, CATALOG_TEMPLATES, TemplateId } from '@/lib/templates';
+import { BackgroundRenderer } from '@/components/catalog/BackgroundRenderer';
 
 interface CatalogRendererProps {
   business: Business;
@@ -32,6 +33,7 @@ export function CatalogRenderer({
 
   const templateId = (themeSettings?.template_id || 'minimal-clean') as TemplateId;
   const templateMeta = CATALOG_TEMPLATES[templateId] || CATALOG_TEMPLATES['minimal-clean'];
+  const backgroundStyleId = themeSettings?.background_style || 'clean';
 
   // Color overrides or template defaults
   const primaryColor = themeSettings?.primary_color || templateMeta.defaultColors.primary;
@@ -81,22 +83,31 @@ export function CatalogRenderer({
   };
 
   return (
-    <div 
+    <BackgroundRenderer
+      styleId={backgroundStyleId}
+      primaryColor={primaryColor}
+      accentColor={accentColor}
+      isDarkTemplate={isDarkTemplate}
       className="min-h-screen text-slate-900 flex justify-center selection:bg-slate-900 selection:text-white transition-colors duration-300"
-      style={{ backgroundColor: bgColor }}
     >
       {/* Viewport Container */}
       <div 
-        className="w-full max-w-md min-h-screen border-x shadow-2xl flex flex-col justify-between relative"
+        className="w-full max-w-md min-h-screen border-x shadow-2xl flex flex-col justify-between relative overflow-hidden"
         style={{ backgroundColor: cardBgColor, borderColor: 'rgba(226, 232, 240, 0.2)' }}
       >
         
-        {/* Header / Brand Banner */}
+        {/* Header / Brand Banner with subtle depth */}
         <header
           className="relative px-5 pt-8 pb-6 overflow-hidden shadow-md"
           style={{ backgroundColor: primaryColor }}
         >
-          <div className="absolute inset-0 opacity-10 bg-[radial-gradient(#fff_1px,transparent_1px)] [background-size:12px_12px]" />
+          <BackgroundRenderer
+            styleId={backgroundStyleId}
+            primaryColor={primaryColor}
+            accentColor={accentColor}
+            isDarkTemplate={true}
+            headerOnly={true}
+          />
 
           <div className="relative z-10 space-y-3 text-white">
             <div className="flex items-center justify-between">
@@ -420,6 +431,6 @@ export function CatalogRenderer({
           <p>© {new Date().getFullYear()} {business.name}. Powered by QR Business Studio.</p>
         </footer>
       </div>
-    </div>
+    </BackgroundRenderer>
   );
 }

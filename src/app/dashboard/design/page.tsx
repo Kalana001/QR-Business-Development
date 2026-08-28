@@ -2,14 +2,16 @@
 
 import React, { useEffect, useState } from 'react';
 import { 
-  Palette, Eye, CheckCircle2, RotateCcw, Save, Crown, Sparkles, Filter, X, Smartphone, Store, Utensils, BookOpen, Scissors 
+  Palette, Eye, CheckCircle2, RotateCcw, Save, Crown, Sparkles, Filter, X, Smartphone, Store, Utensils, BookOpen, Scissors, Layers, Star 
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { UpgradeModal } from '@/components/ui/UpgradeModal';
 import { createClient } from '@/lib/supabase/client';
 import { Business, Category, CatalogItem } from '@/lib/types';
 import { CATALOG_TEMPLATES, TemplateId, CatalogTemplate, CatalogThemeSettings, getBusinessThemeSettings, saveBusinessThemeSettings } from '@/lib/templates';
+import { BACKGROUND_STYLES, BackgroundStyleId, RECOMMENDED_BACKGROUNDS_BY_BIZ_TYPE } from '@/lib/backgrounds';
 import { CatalogRenderer } from '@/components/catalog/CatalogRenderer';
+import { BackgroundRenderer } from '@/components/catalog/BackgroundRenderer';
 
 export default function DashboardCatalogDesignPage() {
   const [business, setBusiness] = useState<Business | null>(null);
@@ -91,7 +93,7 @@ export default function DashboardCatalogDesignPage() {
   const isPaidPlan = isSuperAdmin || planKey === 'pro' || planKey === 'pro_growth' || planKey === 'enterprise' || planKey === 'enterprise_gift' || planKey === 'business' || planKey === 'business_plus';
 
   const handleSelectTemplate = async (templateId: TemplateId) => {
-    if (!isPaidPlan) {
+    if (!isPaidPlan && templateId !== 'minimal-clean') {
       setIsUpgradeModalOpen(true);
       return;
     }
@@ -101,13 +103,20 @@ export default function DashboardCatalogDesignPage() {
     const templateMeta = CATALOG_TEMPLATES[templateId];
 
     const newSettings: CatalogThemeSettings = {
+      ...(themeSettings || {
+        business_id: business.id,
+        primary_color: templateMeta.defaultColors.primary,
+        secondary_color: templateMeta.defaultColors.secondary,
+        accent_color: templateMeta.defaultColors.accent,
+        card_style: 'rounded',
+        header_style: 'standard',
+      }),
       business_id: business.id,
       template_id: templateId,
+      background_style: themeSettings?.background_style || 'clean',
       primary_color: templateMeta.defaultColors.primary,
       secondary_color: templateMeta.defaultColors.secondary,
       accent_color: templateMeta.defaultColors.accent,
-      card_style: 'rounded',
-      header_style: 'standard',
     };
 
     const success = await saveBusinessThemeSettings(newSettings);
@@ -119,26 +128,40 @@ export default function DashboardCatalogDesignPage() {
     setSaving(false);
   };
 
-  const handleCustomColorChange = async (type: 'primary' | 'accent', color: string) => {
-    if (!themeSettings) return;
-    const updated = {
-      ...themeSettings,
-      [type === 'primary' ? 'primary_color' : 'accent_color']: color,
-    };
-    setThemeSettings(updated);
-    await saveBusinessThemeSettings(updated);
-  };
+  const handleSelectBackground = async (bgId: BackgroundStyleId) => {
+    const bgMeta = BACKGROUND_STYLES[bgId];
+    if (bgMeta.isPremium && !isPaidPlan) {
+      setIsUpgradeModalOpen(true);
+      return;
+    }
 
-  const handleResetDefaults = async () => {
-    if (!themeSettings) return;
-    const templateMeta = CATALOG_TEMPLATES[themeSettings.template_id];
-    const reset = {
-      ...themeSettings,
-      primary_color: templateMeta.defaultColors.primary,
-      accent_color: templateMeta.defaultColors.accent,
+    setSaving(true);
+    setSaveSuccessMsg(null);
+
+    const currentTemplate = themeSettings?.template_id || 'minimal-clean';
+    const templateMeta = CATALOG_TEMPLATES[currentTemplate];
+
+    const newSettings: CatalogThemeSettings = {
+      ...(themeSettings || {
+        business_id: business.id,
+        template_id: currentTemplate,
+        primary_color: templateMeta.defaultColors.primary,
+        secondary_color: templateMeta.defaultColors.secondary,
+        accent_color: templateMeta.defaultColors.accent,
+        card_style: 'rounded',
+        header_style: 'standard',
+      }),
+      business_id: business.id,
+      background_style: bgId,
     };
-    setThemeSettings(reset);
-    await saveBusinessThemeSettings(reset);
+
+    const success = await saveBusinessThemeSettings(newSettings);
+    if (success) {
+      setThemeSettings(newSettings);
+      setSaveSuccessMsg(`Applied "${bgMeta.name}" background style to your catalog!`);
+      setTimeout(() => setSaveSuccessMsg(null), 3000);
+    }
+    setSaving(false);
   };
 
   const templateKeys = Object.keys(CATALOG_TEMPLATES) as TemplateId[];
@@ -147,19 +170,25 @@ export default function DashboardCatalogDesignPage() {
     return CATALOG_TEMPLATES[key].suitableTypes.includes(filterType as any);
   });
 
+  const backgroundKeys = Object.keys(BACKGROUND_STYLES) as BackgroundStyleId[];
+  const recommendedBgs = RECOMMENDED_BACKGROUNDS_BY_BIZ_TYPE[business.business_type] || RECOMMENDED_BACKGROUNDS_BY_BIZ_TYPE.general;
+
+  const currentTemplateId = themeSettings?.template_id || 'minimal-clean';
+  const currentBgId = themeSettings?.background_style || 'clean';
+
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-10 animate-fade-in pb-12">
       {/* Header & Controls */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-extrabold text-slate-900">Choose Your Catalog Design</h1>
+            <h1 className="text-2xl font-extrabold text-slate-900">Catalog Design & Background Studio</h1>
             <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 border border-purple-200">
-              <Sparkles className="w-3 h-3 text-purple-600" /> Premium Templates
+              <Sparkles className="w-3 h-3 text-purple-600" /> Premium Design
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Give your customers a better browsing experience with a professional catalog design.
+            Customize your catalog layout template and subtle background style for your customers.
           </p>
         </div>
 
@@ -215,112 +244,245 @@ export default function DashboardCatalogDesignPage() {
         </div>
       )}
 
+      {/* SECTION 1: CATALOG LAYOUT TEMPLATES */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+              <Palette className="w-5 h-5 text-purple-600" /> Catalog Layout Template
+            </h2>
+            <p className="text-xs text-slate-500">
+              Select the structure and typography layout for your catalog cards.
+            </p>
+          </div>
+          <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
+            Active: <strong className="text-slate-900">{CATALOG_TEMPLATES[currentTemplateId]?.name}</strong>
+          </span>
+        </div>
 
+        {/* 6 Template Cards Grid */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredTemplateKeys.map((tKey) => {
+            const t = CATALOG_TEMPLATES[tKey];
+            const isActive = currentTemplateId === t.id;
 
-      {/* 6 Template Cards Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {filteredTemplateKeys.map((tKey) => {
-          const t = CATALOG_TEMPLATES[tKey];
-          const isActive = themeSettings?.template_id === t.id;
-
-          return (
-            <div
-              key={t.id}
-              className={`bg-white rounded-3xl border p-6 flex flex-col justify-between shadow-xs transition-all relative ${
-                isActive
-                  ? 'border-2 border-purple-600 shadow-md ring-2 ring-purple-500/20'
-                  : 'border-slate-200 hover:border-slate-300'
-              }`}
-            >
-              {/* Active Badge floating at top right with z-20 stacking context */}
-              {isActive && (
-                <div className="absolute top-3 right-3 z-20 bg-purple-600 text-white text-[10px] font-extrabold uppercase px-3 py-1 rounded-full flex items-center gap-1 shadow-md border border-purple-400/30">
-                  <CheckCircle2 className="w-3 h-3" /> Currently Active
-                </div>
-              )}
-
-              {/* Visual Card Representation */}
-              <div className="space-y-4">
-                <div 
-                  className="h-36 rounded-2xl p-4 flex flex-col justify-between shadow-inner relative overflow-hidden border"
-                  style={{ 
-                    backgroundColor: t.defaultColors.background,
-                    borderColor: 'rgba(226, 232, 240, 0.3)'
-                  }}
-                >
-                  <div className="flex items-center justify-between">
-                    <div 
-                      className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider"
-                      style={{ backgroundColor: t.defaultColors.primary, color: '#FFFFFF' }}
-                    >
-                      {t.name}
-                    </div>
-                    <div 
-                      className="w-2.5 h-2.5 rounded-full"
-                      style={{ backgroundColor: t.defaultColors.accent }}
-                    />
+            return (
+              <div
+                key={t.id}
+                className={`bg-white rounded-3xl border p-6 flex flex-col justify-between shadow-xs transition-all relative ${
+                  isActive
+                    ? 'border-2 border-purple-600 shadow-md ring-2 ring-purple-500/20'
+                    : 'border-slate-200 hover:border-slate-300'
+                }`}
+              >
+                {/* Active Badge floating at top right with z-20 stacking context */}
+                {isActive && (
+                  <div className="absolute top-3 right-3 z-20 bg-purple-600 text-white text-[10px] font-extrabold uppercase px-3 py-1 rounded-full flex items-center gap-1 shadow-md border border-purple-400/30">
+                    <CheckCircle2 className="w-3 h-3" /> Currently Active
                   </div>
+                )}
 
-                  {/* Card Sample */}
+                {/* Visual Card Representation */}
+                <div className="space-y-4">
                   <div 
-                    className="p-2.5 rounded-xl space-y-1 shadow-xs border"
-                    style={{ backgroundColor: t.defaultColors.cardBg, borderColor: 'rgba(226, 232, 240, 0.2)' }}
+                    className="h-36 rounded-2xl p-4 flex flex-col justify-between shadow-inner relative overflow-hidden border"
+                    style={{ 
+                      backgroundColor: t.defaultColors.background,
+                      borderColor: 'rgba(226, 232, 240, 0.3)'
+                    }}
                   >
-                    <div className="text-[11px] font-extrabold truncate" style={{ color: t.defaultColors.text }}>
-                      Sample Item Card
+                    <div className="flex items-center justify-between">
+                      <div 
+                        className="px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider"
+                        style={{ backgroundColor: t.defaultColors.primary, color: '#FFFFFF' }}
+                      >
+                        {t.name}
+                      </div>
+                      <div 
+                        className="w-2.5 h-2.5 rounded-full"
+                        style={{ backgroundColor: t.defaultColors.accent }}
+                      />
                     </div>
-                    <div className="text-[10px] font-black" style={{ color: t.defaultColors.accent }}>
-                      LKR 1,500
+
+                    {/* Card Sample */}
+                    <div 
+                      className="p-2.5 rounded-xl space-y-1 shadow-xs border"
+                      style={{ backgroundColor: t.defaultColors.cardBg, borderColor: 'rgba(226, 232, 240, 0.2)' }}
+                    >
+                      <div className="text-[11px] font-extrabold truncate" style={{ color: t.defaultColors.text }}>
+                        Sample Item Card
+                      </div>
+                      <div className="text-[10px] font-black" style={{ color: t.defaultColors.accent }}>
+                        LKR 1,500
+                      </div>
                     </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-base font-extrabold text-slate-900">{t.name}</h3>
+                      {isActive && (
+                        <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1 border border-purple-200 shrink-0">
+                          <CheckCircle2 className="w-3 h-3 text-purple-600" /> Active
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 leading-relaxed min-h-[36px]">
+                      {t.description}
+                    </p>
+                  </div>
+
+                  <div className="text-[11px] font-semibold text-purple-700 bg-purple-50 px-3 py-1.5 rounded-xl border border-purple-100">
+                    Best for: {t.bestFor}
                   </div>
                 </div>
 
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="text-base font-extrabold text-slate-900">{t.name}</h3>
-                    {isActive && (
-                      <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1 border border-purple-200 shrink-0">
-                        <CheckCircle2 className="w-3 h-3 text-purple-600" /> Active
-                      </span>
-                    )}
+                {/* Action Buttons */}
+                <div className="pt-6 flex items-center gap-2">
+                  <Button
+                    onClick={() => setPreviewTemplateId(t.id)}
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 text-xs font-semibold gap-1.5 border-slate-300"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-slate-600" /> Preview
+                  </Button>
+
+                  <Button
+                    onClick={() => handleSelectTemplate(t.id)}
+                    disabled={saving}
+                    size="sm"
+                    className={`flex-1 text-xs font-bold gap-1.5 ${
+                      isActive
+                        ? 'bg-slate-900 hover:bg-slate-800 text-white'
+                        : 'bg-purple-600 hover:bg-purple-500 text-white'
+                    }`}
+                  >
+                    {isActive ? 'Applied' : 'Select Template'}
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* SECTION 2: BACKGROUND STYLE SYSTEM */}
+      <div className="space-y-4 pt-6 border-t border-slate-200">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div>
+            <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+              <Layers className="w-5 h-5 text-teal-600" /> Background Style
+            </h2>
+            <p className="text-xs text-slate-500">
+              Choose a subtle visual background treatment that complements your catalog.
+            </p>
+          </div>
+          <span className="text-xs font-bold text-teal-800 bg-teal-50 px-3 py-1 rounded-full border border-teal-200 self-start sm:self-auto">
+            Recommended for <span className="capitalize">{business.business_type}</span>
+          </span>
+        </div>
+
+        {/* 10 Background Style Cards Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
+          {backgroundKeys.map((bgId) => {
+            const bg = BACKGROUND_STYLES[bgId];
+            const isActive = currentBgId === bg.id;
+            const isRecommended = recommendedBgs.includes(bg.id);
+
+            return (
+              <div
+                key={bg.id}
+                onClick={() => handleSelectBackground(bg.id)}
+                className={`bg-white rounded-2xl border p-4 flex flex-col justify-between transition-all relative cursor-pointer group ${
+                  isActive
+                    ? 'border-2 border-teal-600 shadow-md ring-2 ring-teal-500/20 bg-teal-500/5'
+                    : 'border-slate-200 hover:border-slate-300 hover:shadow-xs'
+                }`}
+              >
+                {/* Visual Gradient/Pattern Thumbnail */}
+                <div className="space-y-3">
+                  <div className={`h-24 rounded-xl p-3 bg-gradient-to-br ${bg.previewGradient} relative overflow-hidden border border-slate-200/50 flex flex-col justify-between`}>
+                    <BackgroundRenderer styleId={bg.id} headerOnly={false} />
+
+                    <div className="flex items-center justify-between relative z-10">
+                      {isRecommended && (
+                        <span className="px-2 py-0.5 rounded-md bg-emerald-600 text-white text-[9px] font-extrabold uppercase tracking-wider shadow-xs flex items-center gap-1">
+                          <Star className="w-2.5 h-2.5 fill-white" /> Recommended
+                        </span>
+                      )}
+                      {bg.isPremium && !isRecommended && (
+                        <span className="px-2 py-0.5 rounded-md bg-slate-900/80 backdrop-blur-xs text-amber-300 text-[9px] font-extrabold uppercase tracking-wider">
+                          Pro
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="text-[10px] font-extrabold text-slate-800 bg-white/80 backdrop-blur-xs px-2 py-0.5 rounded-md self-start relative z-10">
+                      {bg.category.toUpperCase()}
+                    </div>
                   </div>
-                  <p className="text-xs text-slate-500 leading-relaxed min-h-[36px]">
-                    {t.description}
-                  </p>
+
+                  {/* Title & Description */}
+                  <div className="space-y-1">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-xs font-bold text-slate-900 group-hover:text-teal-700 transition-colors">
+                        {bg.name}
+                      </h4>
+                      {isActive && (
+                        <CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0" />
+                      )}
+                    </div>
+                    <p className="text-[11px] text-slate-500 leading-normal line-clamp-2">
+                      {bg.description}
+                    </p>
+                  </div>
                 </div>
 
-                <div className="text-[11px] font-semibold text-purple-700 bg-purple-50 px-3 py-1.5 rounded-xl border border-purple-100">
-                  Best for: {t.bestFor}
+                {/* Status Footer */}
+                <div className="pt-3 mt-2 border-t border-slate-100 flex items-center justify-between">
+                  <span className={`text-[10px] font-extrabold ${isActive ? 'text-teal-700' : 'text-slate-400'}`}>
+                    {isActive ? '✓ Currently Active' : 'Click to Apply'}
+                  </span>
                 </div>
               </div>
+            );
+          })}
+        </div>
+      </div>
 
-              {/* Action Buttons */}
-              <div className="pt-6 flex items-center gap-2">
-                <Button
-                  onClick={() => setPreviewTemplateId(t.id)}
-                  variant="outline"
-                  size="sm"
-                  className="flex-1 text-xs font-semibold gap-1.5 border-slate-300"
-                >
-                  <Eye className="w-3.5 h-3.5 text-slate-600" /> Preview
-                </Button>
+      {/* SECTION 3: LIVE INTEGRATED CATALOG PREVIEW */}
+      <div className="space-y-4 pt-6 border-t border-slate-200">
+        <div>
+          <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+            <Smartphone className="w-5 h-5 text-indigo-600" /> Live Interactive Catalog Preview
+          </h2>
+          <p className="text-xs text-slate-500">
+            Real-time preview showing your template layout combined with your selected background style.
+          </p>
+        </div>
 
-                <Button
-                  onClick={() => handleSelectTemplate(t.id)}
-                  disabled={saving}
-                  size="sm"
-                  className={`flex-1 text-xs font-bold gap-1.5 ${
-                    isActive
-                      ? 'bg-slate-900 hover:bg-slate-800 text-white'
-                      : 'bg-purple-600 hover:bg-purple-500 text-white'
-                  }`}
-                >
-                  {isActive ? 'Applied' : 'Select Template'}
-                </Button>
-              </div>
+        <div className="bg-slate-950 p-6 sm:p-10 rounded-3xl border border-slate-800 shadow-2xl flex items-center justify-center">
+          <div className="w-full max-w-md bg-slate-900 rounded-[2.5rem] p-3 border-4 border-slate-800 shadow-2xl">
+            <div className="rounded-[2rem] overflow-hidden max-h-[600px] overflow-y-auto no-scrollbar border border-slate-800">
+              <CatalogRenderer
+                business={business}
+                categories={categories}
+                publishedItems={publishedItems}
+                themeSettings={themeSettings || {
+                  business_id: business.id,
+                  template_id: currentTemplateId,
+                  background_style: currentBgId,
+                  primary_color: CATALOG_TEMPLATES[currentTemplateId].defaultColors.primary,
+                  secondary_color: CATALOG_TEMPLATES[currentTemplateId].defaultColors.secondary,
+                  accent_color: CATALOG_TEMPLATES[currentTemplateId].defaultColors.accent,
+                  card_style: 'rounded',
+                  header_style: 'standard',
+                }}
+              />
             </div>
-          );
-        })}
+          </div>
+        </div>
       </div>
 
       {/* Real-Data Mobile Preview Modal */}
@@ -365,6 +527,7 @@ export default function DashboardCatalogDesignPage() {
                 themeSettings={{
                   business_id: business.id,
                   template_id: previewTemplateId,
+                  background_style: currentBgId,
                   primary_color: CATALOG_TEMPLATES[previewTemplateId].defaultColors.primary,
                   secondary_color: CATALOG_TEMPLATES[previewTemplateId].defaultColors.secondary,
                   accent_color: CATALOG_TEMPLATES[previewTemplateId].defaultColors.accent,
@@ -381,7 +544,7 @@ export default function DashboardCatalogDesignPage() {
       <UpgradeModal
         isOpen={isUpgradeModalOpen}
         onClose={() => setIsUpgradeModalOpen(false)}
-        reason="Upgrade to unlock 6 Premium Commercial Catalog Templates"
+        reason="Upgrade to unlock Premium Catalog Templates & Professional Background Styles"
       />
     </div>
   );

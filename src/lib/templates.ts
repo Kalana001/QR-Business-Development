@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/client';
 import { BusinessType } from '@/lib/types';
+import { BackgroundStyleId } from '@/lib/backgrounds';
 
 export type TemplateId = 'minimal-clean' | 'modern-dark' | 'fresh-light' | 'warm-colors' | 'soft-pastel' | 'elegant-premium';
 
@@ -24,6 +25,7 @@ export interface CatalogTemplate {
 export interface CatalogThemeSettings {
   business_id: string;
   template_id: TemplateId;
+  background_style?: BackgroundStyleId;
   primary_color: string;
   secondary_color: string;
   accent_color: string;
@@ -145,6 +147,7 @@ export async function getBusinessThemeSettings(businessId: string): Promise<Cata
   const defaultSettings: CatalogThemeSettings = {
     business_id: businessId,
     template_id: 'minimal-clean',
+    background_style: 'clean',
     primary_color: CATALOG_TEMPLATES['minimal-clean'].defaultColors.primary,
     secondary_color: CATALOG_TEMPLATES['minimal-clean'].defaultColors.secondary,
     accent_color: CATALOG_TEMPLATES['minimal-clean'].defaultColors.accent,
