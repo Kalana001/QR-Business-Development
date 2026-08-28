@@ -1,12 +1,12 @@
 -- ============================================================================
 -- QR Business Catalog — Background Customization System Migration
--- Adds catalog_theme_settings table & background_style column
+-- Adds catalog_theme_settings table & background_style column with pure-canvas default
 -- ============================================================================
 
 CREATE TABLE IF NOT EXISTS public.catalog_theme_settings (
   business_id UUID PRIMARY KEY REFERENCES public.businesses(id) ON DELETE CASCADE,
   template_id TEXT NOT NULL DEFAULT 'minimal-clean',
-  background_style TEXT NOT NULL DEFAULT 'clean',
+  background_style TEXT NOT NULL DEFAULT 'pure-canvas',
   primary_color TEXT NOT NULL DEFAULT '#0F172A',
   secondary_color TEXT NOT NULL DEFAULT '#1E293B',
   accent_color TEXT NOT NULL DEFAULT '#0F172A',
@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS public.catalog_theme_settings (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
-ALTER TABLE public.catalog_theme_settings ADD COLUMN IF NOT EXISTS background_style TEXT NOT NULL DEFAULT 'clean';
+ALTER TABLE public.catalog_theme_settings ADD COLUMN IF NOT EXISTS background_style TEXT NOT NULL DEFAULT 'pure-canvas';
 
 -- Enable RLS
 ALTER TABLE public.catalog_theme_settings ENABLE ROW LEVEL SECURITY;

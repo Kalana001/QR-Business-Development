@@ -9,6 +9,7 @@ import { Business, CatalogItem, Category, BUSINESS_TYPES_META } from '@/lib/type
 import { formatCurrency, formatDuration, getContrastTextColor } from '@/lib/utils';
 import { CatalogThemeSettings, CATALOG_TEMPLATES, TemplateId } from '@/lib/templates';
 import { BackgroundRenderer } from '@/components/catalog/BackgroundRenderer';
+import { normalizeBackgroundStyleId } from '@/lib/backgrounds';
 
 interface CatalogRendererProps {
   business: Business;
@@ -33,7 +34,7 @@ export function CatalogRenderer({
 
   const templateId = (themeSettings?.template_id || 'minimal-clean') as TemplateId;
   const templateMeta = CATALOG_TEMPLATES[templateId] || CATALOG_TEMPLATES['minimal-clean'];
-  const backgroundStyleId = themeSettings?.background_style || 'clean';
+  const backgroundStyleId = normalizeBackgroundStyleId(themeSettings?.background_style);
 
   // Color overrides or template defaults
   const primaryColor = themeSettings?.primary_color || templateMeta.defaultColors.primary;

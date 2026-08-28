@@ -2,14 +2,14 @@
 
 import React, { useEffect, useState } from 'react';
 import { 
-  Palette, Eye, CheckCircle2, RotateCcw, Save, Crown, Sparkles, Filter, X, Smartphone, Store, Utensils, BookOpen, Scissors, Layers, Star 
+  Palette, Eye, CheckCircle2, RotateCcw, Save, Crown, Sparkles, Filter, X, Smartphone, Store, Utensils, BookOpen, Scissors, Layers, Star, Maximize2 
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { UpgradeModal } from '@/components/ui/UpgradeModal';
 import { createClient } from '@/lib/supabase/client';
 import { Business, Category, CatalogItem } from '@/lib/types';
 import { CATALOG_TEMPLATES, TemplateId, CatalogTemplate, CatalogThemeSettings, getBusinessThemeSettings, saveBusinessThemeSettings } from '@/lib/templates';
-import { BACKGROUND_STYLES, BackgroundStyleId, RECOMMENDED_BACKGROUNDS_BY_BIZ_TYPE } from '@/lib/backgrounds';
+import { BACKGROUND_STYLES, BACKGROUND_CATEGORIES, BackgroundStyleId, BackgroundCategory, RECOMMENDED_BACKGROUNDS_BY_BIZ_TYPE, normalizeBackgroundStyleId } from '@/lib/backgrounds';
 import { CatalogRenderer } from '@/components/catalog/CatalogRenderer';
 import { BackgroundRenderer } from '@/components/catalog/BackgroundRenderer';
 
@@ -22,9 +22,11 @@ export default function DashboardCatalogDesignPage() {
   const [saving, setSaving] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [filterType, setFilterType] = useState<string>('all');
+  const [activeBgCategory, setActiveBgCategory] = useState<BackgroundCategory>('minimal');
 
   // Preview & Customization State
   const [previewTemplateId, setPreviewTemplateId] = useState<TemplateId | null>(null);
+  const [isFullscreenPreviewOpen, setIsFullscreenPreviewOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null);
 
@@ -113,7 +115,7 @@ export default function DashboardCatalogDesignPage() {
       }),
       business_id: business.id,
       template_id: templateId,
-      background_style: themeSettings?.background_style || 'clean',
+      background_style: normalizeBackgroundStyleId(themeSettings?.background_style),
       primary_color: templateMeta.defaultColors.primary,
       secondary_color: templateMeta.defaultColors.secondary,
       accent_color: templateMeta.defaultColors.accent,
@@ -122,7 +124,7 @@ export default function DashboardCatalogDesignPage() {
     const success = await saveBusinessThemeSettings(newSettings);
     if (success) {
       setThemeSettings(newSettings);
-      setSaveSuccessMsg(`Applied "${templateMeta.name}" template to your public catalog!`);
+      setSaveSuccessMsg(`Applied "${templateMeta.name}" template layout!`);
       setTimeout(() => setSaveSuccessMsg(null), 3000);
     }
     setSaving(false);
@@ -158,7 +160,7 @@ export default function DashboardCatalogDesignPage() {
     const success = await saveBusinessThemeSettings(newSettings);
     if (success) {
       setThemeSettings(newSettings);
-      setSaveSuccessMsg(`Applied "${bgMeta.name}" background style to your catalog!`);
+      setSaveSuccessMsg(`Applied "${bgMeta.name}" atmosphere style to your catalog!`);
       setTimeout(() => setSaveSuccessMsg(null), 3000);
     }
     setSaving(false);
@@ -171,10 +173,11 @@ export default function DashboardCatalogDesignPage() {
   });
 
   const backgroundKeys = Object.keys(BACKGROUND_STYLES) as BackgroundStyleId[];
+  const categoryBackgroundKeys = backgroundKeys.filter((id) => BACKGROUND_STYLES[id].category === activeBgCategory);
   const recommendedBgs = RECOMMENDED_BACKGROUNDS_BY_BIZ_TYPE[business.business_type] || RECOMMENDED_BACKGROUNDS_BY_BIZ_TYPE.general;
 
   const currentTemplateId = themeSettings?.template_id || 'minimal-clean';
-  const currentBgId = themeSettings?.background_style || 'clean';
+  const currentBgId = normalizeBackgroundStyleId(themeSettings?.background_style);
 
   return (
     <div className="space-y-10 animate-fade-in pb-12">
@@ -184,7 +187,7 @@ export default function DashboardCatalogDesignPage() {
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-extrabold text-slate-900">Catalog Design & Background Studio</h1>
             <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 border border-purple-200">
-              <Sparkles className="w-3 h-3 text-purple-600" /> Premium Design
+              <Sparkles className="w-3 h-3 text-purple-600" /> Premium Studio
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
@@ -192,48 +195,16 @@ export default function DashboardCatalogDesignPage() {
           </p>
         </div>
 
-        {/* Business Type Filters */}
-        <div className="flex items-center gap-1 bg-slate-200/80 p-1 rounded-xl border border-slate-300/60 shrink-0 overflow-x-auto no-scrollbar">
-          <button
-            onClick={() => setFilterType('all')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-              filterType === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-            }`}
+        <div className="flex items-center gap-2">
+          {/* Fullscreen Customer Preview Button */}
+          <Button
+            onClick={() => setIsFullscreenPreviewOpen(true)}
+            variant="outline"
+            size="sm"
+            className="text-xs font-bold gap-1.5 border-indigo-300 text-indigo-700 hover:bg-indigo-50"
           >
-            All Templates
-          </button>
-          <button
-            onClick={() => setFilterType('restaurant')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-              filterType === 'restaurant' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Restaurants
-          </button>
-          <button
-            onClick={() => setFilterType('bookshop')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-              filterType === 'bookshop' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Bookshops
-          </button>
-          <button
-            onClick={() => setFilterType('salon')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-              filterType === 'salon' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Salons
-          </button>
-          <button
-            onClick={() => setFilterType('general')}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-              filterType === 'general' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Retail
-          </button>
+            <Maximize2 className="w-3.5 h-3.5" /> Preview Full Catalog
+          </Button>
         </div>
       </div>
 
@@ -249,15 +220,56 @@ export default function DashboardCatalogDesignPage() {
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-              <Palette className="w-5 h-5 text-purple-600" /> Catalog Layout Template
+              <Palette className="w-5 h-5 text-purple-600" /> Catalog Template
             </h2>
             <p className="text-xs text-slate-500">
               Select the structure and typography layout for your catalog cards.
             </p>
           </div>
-          <span className="text-xs font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-full border border-slate-200">
-            Active: <strong className="text-slate-900">{CATALOG_TEMPLATES[currentTemplateId]?.name}</strong>
-          </span>
+
+          {/* Business Type Filters */}
+          <div className="flex items-center gap-1 bg-slate-200/80 p-1 rounded-xl border border-slate-300/60 shrink-0 overflow-x-auto no-scrollbar">
+            <button
+              onClick={() => setFilterType('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                filterType === 'all' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              All Templates
+            </button>
+            <button
+              onClick={() => setFilterType('restaurant')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                filterType === 'restaurant' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Restaurants
+            </button>
+            <button
+              onClick={() => setFilterType('bookshop')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                filterType === 'bookshop' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Bookshops
+            </button>
+            <button
+              onClick={() => setFilterType('salon')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                filterType === 'salon' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Salons
+            </button>
+            <button
+              onClick={() => setFilterType('general')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                filterType === 'general' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Retail
+            </button>
+          </div>
         </div>
 
         {/* 6 Template Cards Grid */}
@@ -367,25 +379,39 @@ export default function DashboardCatalogDesignPage() {
         </div>
       </div>
 
-      {/* SECTION 2: BACKGROUND STYLE SYSTEM */}
-      <div className="space-y-4 pt-6 border-t border-slate-200">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+      {/* SECTION 2: CATEGORIZED BACKGROUND STYLE SYSTEM */}
+      <div className="space-y-6 pt-8 border-t border-slate-200">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
               <Layers className="w-5 h-5 text-teal-600" /> Background Style
             </h2>
-            <p className="text-xs text-slate-500">
-              Choose a subtle visual background treatment that complements your catalog.
+            <p className="text-xs text-slate-500 mt-0.5">
+              Choose the atmosphere of your catalog without changing its layout.
             </p>
           </div>
-          <span className="text-xs font-bold text-teal-800 bg-teal-50 px-3 py-1 rounded-full border border-teal-200 self-start sm:self-auto">
-            Recommended for <span className="capitalize">{business.business_type}</span>
-          </span>
+
+          {/* Background Category Tabs */}
+          <div className="flex items-center gap-1 bg-slate-200/80 p-1 rounded-2xl border border-slate-300/60 shrink-0 overflow-x-auto no-scrollbar">
+            {BACKGROUND_CATEGORIES.map((cat) => (
+              <button
+                key={cat.id}
+                onClick={() => setActiveBgCategory(cat.id)}
+                className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
+                  activeBgCategory === cat.id
+                    ? 'bg-slate-900 text-white shadow-sm'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {cat.name}
+              </button>
+            ))}
+          </div>
         </div>
 
-        {/* 10 Background Style Cards Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
-          {backgroundKeys.map((bgId) => {
+        {/* 15 Background Style Cards Grid (Mini-Catalog Preview Cards) */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
+          {categoryBackgroundKeys.map((bgId) => {
             const bg = BACKGROUND_STYLES[bgId];
             const isActive = currentBgId === bg.id;
             const isRecommended = recommendedBgs.includes(bg.id);
@@ -394,54 +420,73 @@ export default function DashboardCatalogDesignPage() {
               <div
                 key={bg.id}
                 onClick={() => handleSelectBackground(bg.id)}
-                className={`bg-white rounded-2xl border p-4 flex flex-col justify-between transition-all relative cursor-pointer group ${
+                className={`bg-white rounded-3xl border p-4 flex flex-col justify-between transition-all relative cursor-pointer group shadow-xs ${
                   isActive
                     ? 'border-2 border-teal-600 shadow-md ring-2 ring-teal-500/20 bg-teal-500/5'
-                    : 'border-slate-200 hover:border-slate-300 hover:shadow-xs'
+                    : 'border-slate-200 hover:border-slate-300 hover:shadow-sm'
                 }`}
               >
-                {/* Visual Gradient/Pattern Thumbnail */}
                 <div className="space-y-3">
-                  <div className={`h-24 rounded-xl p-3 bg-gradient-to-br ${bg.previewGradient} relative overflow-hidden border border-slate-200/50 flex flex-col justify-between`}>
+                  {/* Rich Mini-Catalog Preview Box */}
+                  <div className={`h-40 rounded-2xl p-3 bg-gradient-to-br ${bg.previewGradient} relative overflow-hidden border border-slate-200/50 flex flex-col justify-between shadow-inner`}>
                     <BackgroundRenderer styleId={bg.id} headerOnly={false} />
 
+                    {/* Mini Header */}
                     <div className="flex items-center justify-between relative z-10">
-                      {isRecommended && (
-                        <span className="px-2 py-0.5 rounded-md bg-emerald-600 text-white text-[9px] font-extrabold uppercase tracking-wider shadow-xs flex items-center gap-1">
+                      <div className="flex items-center gap-1.5">
+                        <div className="w-5 h-5 rounded-full bg-white text-slate-900 font-extrabold text-[8px] flex items-center justify-center shadow-xs">
+                          {business.name.charAt(0)}
+                        </div>
+                        <span className="text-[10px] font-extrabold text-slate-900 bg-white/90 backdrop-blur-xs px-2 py-0.5 rounded-full truncate max-w-[100px]">
+                          {business.name}
+                        </span>
+                      </div>
+
+                      {isRecommended ? (
+                        <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[8px] font-black uppercase tracking-wider shadow-xs flex items-center gap-1">
                           <Star className="w-2.5 h-2.5 fill-white" /> Recommended
                         </span>
-                      )}
-                      {bg.isPremium && !isRecommended && (
-                        <span className="px-2 py-0.5 rounded-md bg-slate-900/80 backdrop-blur-xs text-amber-300 text-[9px] font-extrabold uppercase tracking-wider">
+                      ) : bg.isPremium ? (
+                        <span className="px-2 py-0.5 rounded-full bg-slate-900/80 backdrop-blur-xs text-amber-300 text-[8px] font-extrabold uppercase tracking-wider">
                           Pro
                         </span>
-                      )}
+                      ) : null}
                     </div>
 
-                    <div className="text-[10px] font-extrabold text-slate-800 bg-white/80 backdrop-blur-xs px-2 py-0.5 rounded-md self-start relative z-10">
-                      {bg.category.toUpperCase()}
+                    {/* Mini Product Card Preview */}
+                    <div className="bg-white/90 backdrop-blur-xs p-2.5 rounded-xl border border-white/40 shadow-xs relative z-10 space-y-1">
+                      <div className="flex items-center justify-between text-[10px] font-extrabold text-slate-900 truncate">
+                        <span>{publishedItems[0]?.name || 'Signature Item'}</span>
+                        <span className="text-teal-700 font-black">LKR 1,850</span>
+                      </div>
+                      <div className="h-1 w-12 bg-slate-200 rounded-full" />
+                    </div>
+
+                    {/* Mini Footer Pill */}
+                    <div className="text-[8px] font-extrabold uppercase tracking-widest text-slate-700 bg-white/80 backdrop-blur-xs px-2 py-0.5 rounded-md self-start relative z-10">
+                      {bg.category}
                     </div>
                   </div>
 
                   {/* Title & Description */}
-                  <div className="space-y-1">
+                  <div className="space-y-1 pt-1">
                     <div className="flex items-center justify-between">
-                      <h4 className="text-xs font-bold text-slate-900 group-hover:text-teal-700 transition-colors">
+                      <h4 className="text-sm font-extrabold text-slate-900 group-hover:text-teal-700 transition-colors">
                         {bg.name}
                       </h4>
                       {isActive && (
                         <CheckCircle2 className="w-4 h-4 text-teal-600 shrink-0" />
                       )}
                     </div>
-                    <p className="text-[11px] text-slate-500 leading-normal line-clamp-2">
+                    <p className="text-xs text-slate-500 leading-relaxed min-h-[32px]">
                       {bg.description}
                     </p>
                   </div>
                 </div>
 
-                {/* Status Footer */}
-                <div className="pt-3 mt-2 border-t border-slate-100 flex items-center justify-between">
-                  <span className={`text-[10px] font-extrabold ${isActive ? 'text-teal-700' : 'text-slate-400'}`}>
+                {/* Status Footer Button */}
+                <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between">
+                  <span className={`text-xs font-bold ${isActive ? 'text-teal-700' : 'text-slate-500 group-hover:text-slate-900'}`}>
                     {isActive ? '✓ Currently Active' : 'Click to Apply'}
                   </span>
                 </div>
@@ -452,14 +497,23 @@ export default function DashboardCatalogDesignPage() {
       </div>
 
       {/* SECTION 3: LIVE INTEGRATED CATALOG PREVIEW */}
-      <div className="space-y-4 pt-6 border-t border-slate-200">
-        <div>
-          <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
-            <Smartphone className="w-5 h-5 text-indigo-600" /> Live Interactive Catalog Preview
-          </h2>
-          <p className="text-xs text-slate-500">
-            Real-time preview showing your template layout combined with your selected background style.
-          </p>
+      <div className="space-y-4 pt-8 border-t border-slate-200">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-extrabold text-slate-900 flex items-center gap-2">
+              <Smartphone className="w-5 h-5 text-indigo-600" /> Live Interactive Catalog Preview
+            </h2>
+            <p className="text-xs text-slate-500">
+              Real-time preview showing your template layout combined with your selected background style.
+            </p>
+          </div>
+          <Button
+            onClick={() => setIsFullscreenPreviewOpen(true)}
+            size="sm"
+            className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs gap-1.5 shadow-sm"
+          >
+            <Maximize2 className="w-3.5 h-3.5" /> Preview Catalog Fullscreen
+          </Button>
         </div>
 
         <div className="bg-slate-950 p-6 sm:p-10 rounded-3xl border border-slate-800 shadow-2xl flex items-center justify-center">
@@ -485,14 +539,58 @@ export default function DashboardCatalogDesignPage() {
         </div>
       </div>
 
-      {/* Real-Data Mobile Preview Modal */}
-      {previewTemplateId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-xs animate-fade-in">
-          <div className="relative w-full max-w-md bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border border-slate-800 flex flex-col max-h-[90vh]">
+      {/* Fullscreen Realistic Customer Catalog Preview Modal */}
+      {isFullscreenPreviewOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 bg-slate-950/90 backdrop-blur-md animate-fade-in">
+          <div className="relative w-full max-w-lg bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border border-slate-800 flex flex-col h-[92vh]">
             {/* Modal Header */}
             <div className="px-6 py-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0 text-white">
               <div className="space-y-0.5">
-                <div className="text-xs font-bold text-purple-400 uppercase tracking-wider">Live Real-Data Preview</div>
+                <div className="text-xs font-bold text-teal-400 uppercase tracking-wider">Customer View Preview</div>
+                <h3 className="text-base font-extrabold text-white">
+                  {business.name} — Live Catalog
+                </h3>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setIsFullscreenPreviewOpen(false)}
+                  className="p-1.5 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Viewport Catalog Body */}
+            <div className="flex-1 overflow-y-auto no-scrollbar bg-slate-950">
+              <CatalogRenderer
+                business={business}
+                categories={categories}
+                publishedItems={publishedItems}
+                themeSettings={themeSettings || {
+                  business_id: business.id,
+                  template_id: currentTemplateId,
+                  background_style: currentBgId,
+                  primary_color: CATALOG_TEMPLATES[currentTemplateId].defaultColors.primary,
+                  secondary_color: CATALOG_TEMPLATES[currentTemplateId].defaultColors.secondary,
+                  accent_color: CATALOG_TEMPLATES[currentTemplateId].defaultColors.accent,
+                  card_style: 'rounded',
+                  header_style: 'standard',
+                }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Single Template Preview Modal */}
+      {previewTemplateId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-xs animate-fade-in">
+          <div className="relative w-full max-w-md bg-slate-950 rounded-3xl overflow-hidden shadow-2xl border border-slate-800 flex flex-col max-h-[90vh]">
+            <div className="px-6 py-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between shrink-0 text-white">
+              <div className="space-y-0.5">
+                <div className="text-xs font-bold text-purple-400 uppercase tracking-wider">Template Preview</div>
                 <h3 className="text-base font-extrabold text-white">
                   {CATALOG_TEMPLATES[previewTemplateId]?.name}
                 </h3>
@@ -518,7 +616,6 @@ export default function DashboardCatalogDesignPage() {
               </div>
             </div>
 
-            {/* Scrollable Real-Data Catalog Viewport */}
             <div className="flex-1 overflow-y-auto no-scrollbar">
               <CatalogRenderer
                 business={business}
@@ -544,7 +641,7 @@ export default function DashboardCatalogDesignPage() {
       <UpgradeModal
         isOpen={isUpgradeModalOpen}
         onClose={() => setIsUpgradeModalOpen(false)}
-        reason="Upgrade to unlock Premium Catalog Templates & Professional Background Styles"
+        reason="Upgrade to unlock Premium Catalog Templates & Professional Atmosphere Background Styles"
       />
     </div>
   );
