@@ -232,9 +232,9 @@ export default function DashboardCatalogDesignPage() {
                   : 'border-slate-200 hover:border-slate-300'
               }`}
             >
-              {/* Active Badge */}
+              {/* Active Badge floating at top right with z-20 stacking context */}
               {isActive && (
-                <div className="absolute top-4 right-4 bg-purple-600 text-white text-[10px] font-extrabold uppercase px-3 py-1 rounded-full flex items-center gap-1 shadow-xs">
+                <div className="absolute top-3 right-3 z-20 bg-purple-600 text-white text-[10px] font-extrabold uppercase px-3 py-1 rounded-full flex items-center gap-1 shadow-md border border-purple-400/30">
                   <CheckCircle2 className="w-3 h-3" /> Currently Active
                 </div>
               )}
@@ -276,7 +276,14 @@ export default function DashboardCatalogDesignPage() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <h3 className="text-base font-extrabold text-slate-900">{t.name}</h3>
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-base font-extrabold text-slate-900">{t.name}</h3>
+                    {isActive && (
+                      <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-extrabold uppercase tracking-wider flex items-center gap-1 border border-purple-200 shrink-0">
+                        <CheckCircle2 className="w-3 h-3 text-purple-600" /> Active
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-slate-500 leading-relaxed min-h-[36px]">
                     {t.description}
                   </p>
