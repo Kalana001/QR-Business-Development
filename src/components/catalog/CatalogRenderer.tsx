@@ -173,7 +173,10 @@ export function CatalogRenderer({
         {/* Sticky Search & Category Bar */}
         <div 
           className="sticky top-0 z-20 border-b px-4 py-3 space-y-3 shadow-xs backdrop-blur-md"
-          style={{ backgroundColor: cardBgColor, borderColor: 'rgba(226, 232, 240, 0.15)' }}
+          style={{ 
+            backgroundColor: isDarkTemplate ? 'rgba(15, 23, 42, 0.88)' : 'rgba(255, 255, 255, 0.88)', 
+            borderColor: isDarkTemplate ? 'rgba(255, 255, 255, 0.1)' : 'rgba(226, 232, 240, 0.8)' 
+          }}
         >
           {/* Search Box */}
           <div className="relative">
