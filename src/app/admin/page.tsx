@@ -11,6 +11,7 @@ import { Modal } from '@/components/ui/Modal';
 import { createClient } from '@/lib/supabase/client';
 import { Business, SubscriptionPlan, SubscriptionStatus, SUBSCRIPTION_PLANS_META } from '@/lib/types';
 import { getGlobalPlatformAnalytics, getAnalyticsSummary, GlobalAnalyticsSummary, AnalyticsSummary } from '@/lib/analytics';
+import { slugify } from '@/lib/utils';
 
 interface BusinessWithMetrics extends Business {
   item_count?: number;
@@ -43,6 +44,7 @@ export default function SuperAdminDashboardPage() {
   // Modal Form Fields
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan>('pro');
   const [startDateStr, setStartDateStr] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [adminSlug, setAdminSlug] = useState<string>('');
 
   useEffect(() => {
     loadMasterDirectory();
@@ -121,6 +123,7 @@ export default function SuperAdminDashboardPage() {
     if (biz.is_super_admin_owner) return;
     setSelectedBiz(biz);
     setSelectedPlan(biz.subscription_plan || 'pro');
+    setAdminSlug(biz.slug || '');
     
     const today = new Date().toISOString().split('T')[0];
     setStartDateStr(biz.subscription_start_date ? new Date(biz.subscription_start_date).toISOString().split('T')[0] : today);
@@ -147,7 +150,7 @@ export default function SuperAdminDashboardPage() {
 
       const supabase = createClient();
       
-      // Securely invoke server-side RPC for subscription update
+      // 1. Securely invoke server-side RPC for subscription update
       const { data: rpcResult, error } = await supabase.rpc('admin_update_subscription', {
         p_business_id: selectedBiz.id,
         p_plan: selectedPlan,
@@ -157,7 +160,17 @@ export default function SuperAdminDashboardPage() {
 
       if (error) throw error;
 
-      setSuccessMsg(`Successfully activated ${planMeta.name} for 1 month! Valid until ${endDate.toLocaleDateString()}`);
+      // 2. Admin Override: Update URL Slug if changed
+      const formattedSlug = slugify(adminSlug);
+      if (formattedSlug && formattedSlug !== selectedBiz.slug) {
+        const { error: slugErr } = await supabase
+          .from('businesses')
+          .update({ slug: formattedSlug })
+          .eq('id', selectedBiz.id);
+        if (slugErr) throw slugErr;
+      }
+
+      setSuccessMsg(`Successfully updated subscription & URL slug for ${selectedBiz.name}! Valid until ${endDate.toLocaleDateString()}`);
       
       // Reload directory
       await loadMasterDirectory();
@@ -624,6 +637,25 @@ export default function SuperAdminDashboardPage() {
             />
             <p className="text-[11px] text-slate-500 mt-1">
               Validity will be automatically extended for <strong>1 month</strong> from this start date.
+            </p>
+          </div>
+
+          {/* Public Catalog URL Slug Admin Unlock & Override */}
+          <div className="space-y-1 pt-3 border-t border-slate-200">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center justify-between">
+              <span>Public Catalog URL Slug (Admin Unlock & Override)</span>
+              <span className="text-[10px] text-purple-700 font-extrabold uppercase bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200">
+                Admin Unlock
+              </span>
+            </label>
+            <Input
+              value={adminSlug}
+              onChange={(e) => setAdminSlug(slugify(e.target.value))}
+              placeholder="e.g. bella-vista-bistro"
+              required
+            />
+            <p className="text-[11px] text-slate-500 mt-1">
+              Live customer URL: <strong className="text-slate-800 font-mono">/c/{slugify(adminSlug)}</strong>
             </p>
           </div>
         </form>

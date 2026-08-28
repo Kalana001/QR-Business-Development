@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Settings, Store, Save, CheckCircle2, AlertCircle, Utensils, BookOpen, Scissors, Link as LinkIcon, RefreshCw } from 'lucide-react';
+import { Settings, Store, Save, CheckCircle2, AlertCircle, Utensils, BookOpen, Scissors, Link as LinkIcon, RefreshCw, Lock, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { createClient } from '@/lib/supabase/client';
@@ -73,14 +73,9 @@ export default function DashboardBusinessSettingsPage() {
     setLogoUrl(b.logo_url || '');
   }
 
-  // Handle Business Name Change (Keeps slug STABLE to preserve printed QR codes)
+  // Handle Business Name Change
   const handleNameChange = (newName: string) => {
     setName(newName);
-  };
-
-  // Handle explicit slug edit
-  const handleSlugChange = (newSlug: string) => {
-    setSlug(slugify(newSlug));
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -90,11 +85,9 @@ export default function DashboardBusinessSettingsPage() {
     setSuccessMsg(null);
     setErrorMsg(null);
 
-    const formattedSlug = slugify(slug) || business.slug;
-
     const updatedPayload = {
       name,
-      slug: formattedSlug,
+      slug: business.slug, // Preserve original locked slug
       business_type: businessType,
       description: description || null,
       phone: phone || null,
@@ -112,7 +105,6 @@ export default function DashboardBusinessSettingsPage() {
       const { error } = await supabase.from('businesses').update(updatedPayload).eq('id', business.id);
       if (error) throw error;
       setSuccessMsg('Business details successfully updated!');
-      setSlug(formattedSlug);
       setBusiness({ ...business, ...updatedPayload });
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to update settings.');
@@ -128,6 +120,10 @@ export default function DashboardBusinessSettingsPage() {
       </div>
     );
   }
+
+  const whatsappRequestUrl = `https://wa.me/94712220731?text=${encodeURIComponent(
+    `Hello Admin, I want to request a URL Slug change for my business "${name || business?.name}" (Current URL slug: "${slug || business?.slug}"). Desired new slug: `
+  )}`;
 
   return (
     <div className="space-y-6 animate-fade-in max-w-4xl">
@@ -166,19 +162,52 @@ export default function DashboardBusinessSettingsPage() {
             required
           />
 
-          <div className="space-y-1">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-              Public Catalog URL Slug
+          <div className="space-y-2">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center justify-between">
+              <span>Public Catalog URL Slug</span>
+              <span className="text-[10px] text-amber-700 font-extrabold flex items-center gap-1">
+                <Lock className="w-3 h-3 text-amber-600" /> Protected (Locked)
+              </span>
             </label>
-            <Input
-              value={slug}
-              onChange={(e) => handleSlugChange(e.target.value)}
-              helperText="Warning: Changing URL slug will require re-printing physical QR codes."
-              required
-            />
-            <p className="text-xs text-slate-500 flex items-center gap-1 mt-1">
+
+            <div className="relative">
+              <input
+                type="text"
+                value={slug}
+                readOnly
+                disabled
+                className="w-full px-3 py-2 text-sm bg-slate-100 border border-slate-200 rounded-lg text-slate-600 font-mono cursor-not-allowed select-none"
+              />
+              <Lock className="w-4 h-4 absolute right-3 top-2.5 text-slate-400" />
+            </div>
+
+            <div className="p-3 bg-amber-500/10 border border-amber-500/30 rounded-xl text-slate-800 text-xs space-y-2">
+              <div className="flex items-start gap-2">
+                <Lock className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <p className="font-bold text-amber-950">URL Slug is Locked (Printed QR Code Safeguard)</p>
+                  <p className="text-[11px] text-amber-900 leading-relaxed">
+                    Your URL slug defines your public catalog link (<strong className="font-mono text-slate-900">/c/{slug}</strong>). Changing it alters your live QR URL. To protect your printed physical QR code stickers, slug edits require an Admin Request.
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-1">
+                <a
+                  href={whatsappRequestUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all shadow-xs"
+                >
+                  <MessageSquare className="w-4 h-4" />
+                  Request URL Slug Change (WhatsApp)
+                </a>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-500 flex items-center gap-1 pt-1">
               <LinkIcon className="w-3.5 h-3.5 text-teal-600 shrink-0" />
-              Live customer URL: <strong className="text-slate-800">/c/{slugify(slug || name)}</strong>
+              Live customer URL: <strong className="text-slate-800 font-mono">/c/{slug}</strong>
             </p>
           </div>
         </div>
