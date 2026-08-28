@@ -284,58 +284,6 @@ export default function DashboardAnalyticsPage() {
           </div>
         ) : (
           <div className="space-y-4 pt-2">
-            {/* Interactive Selected Day Details Banner */}
-            {(() => {
-              const activeTrendIndex = selectedTrendIndex !== null ? selectedTrendIndex : hoveredTrendIndex;
-              const activeIdx = activeTrendIndex !== null ? activeTrendIndex : (analytics?.dailyTrends ? analytics.dailyTrends.length - 1 : null);
-              const activeItem = activeIdx !== null && analytics?.dailyTrends ? analytics.dailyTrends[activeIdx] : null;
-
-              if (!activeItem) return null;
-
-              const totalEngagements = activeItem.scans + activeItem.views;
-
-              return (
-                <div className="p-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl shadow-lg border border-indigo-500/20 flex flex-wrap items-center justify-between gap-4 animate-fade-in">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-indigo-500/20 rounded-xl border border-indigo-400/30 text-indigo-300">
-                      <Calendar className="w-5 h-5" />
-                    </div>
-                    <div>
-                      <div className="text-[10px] uppercase font-bold tracking-wider text-indigo-300">Selected Date Details</div>
-                      <div className="text-sm font-black text-white">{activeItem.date}</div>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-6">
-                    <div className="text-right">
-                      <div className="text-[10px] font-bold text-teal-400 uppercase tracking-wider flex items-center justify-end gap-1">
-                        <QrCode className="w-3 h-3" /> QR Scans
-                      </div>
-                      <div className="text-lg font-black text-white">{activeItem.scans}</div>
-                    </div>
-
-                    <div className="h-8 w-px bg-white/10" />
-
-                    <div className="text-right">
-                      <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider flex items-center justify-end gap-1">
-                        <Eye className="w-3 h-3" /> Item Views
-                      </div>
-                      <div className="text-lg font-black text-white">{activeItem.views}</div>
-                    </div>
-
-                    <div className="h-8 w-px bg-white/10" />
-
-                    <div className="text-right">
-                      <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider flex items-center justify-end gap-1">
-                        <TrendingUp className="w-3 h-3" /> Total Activity
-                      </div>
-                      <div className="text-lg font-black text-amber-300">{totalEngagements}</div>
-                    </div>
-                  </div>
-                </div>
-              );
-            })()}
-
             {/* Interactive Bar Chart Viewport */}
             <div className="relative h-64 pt-8 pb-3 px-3 border-b border-slate-100 bg-slate-50/50 rounded-2xl border border-slate-200/80 overflow-x-auto no-scrollbar flex items-end justify-between gap-2">
               {/* Subtle Horizontal Gridlines */}
