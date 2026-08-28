@@ -87,22 +87,38 @@ export default function PublicCustomerCatalogPage({
     loadPublicCatalog();
   }, [slug]);
 
-  // Log QR Scan when catalog loads
+  // Log QR Scan when catalog loads with session-level deduplication
   useEffect(() => {
     if (business?.id) {
+      try {
+        const sessionKey = `qr_scanned_${business.id}`;
+        if (typeof sessionStorage !== 'undefined' && sessionStorage.getItem(sessionKey)) {
+          return; // Skip duplicate refresh scan event in same browser session
+        }
+        if (typeof sessionStorage !== 'undefined') {
+          sessionStorage.setItem(sessionKey, '1');
+        }
+      } catch (e) {}
+
       logQrScan(business.id);
     }
   }, [business?.id]);
 
-  // Debounced Search Tracking
+  // Debounced Search Tracking with accurate filtered results count
   useEffect(() => {
     if (!searchQuery || searchQuery.trim().length < 2 || !business?.id) return;
 
     const timer = setTimeout(() => {
-      logSearchQuery(business.id, searchQuery, publishedItems.length);
+      const qClean = searchQuery.toLowerCase().trim();
+      const matchingCount = publishedItems.filter((item) => 
+        item.name.toLowerCase().includes(qClean) ||
+        (item.description && item.description.toLowerCase().includes(qClean))
+      ).length;
+
+      logSearchQuery(business.id, searchQuery, matchingCount);
     }, 1000);
     return () => clearTimeout(timer);
-  }, [searchQuery, business?.id, publishedItems.length]);
+  }, [searchQuery, business?.id, publishedItems]);
 
   if (loading) {
     return (

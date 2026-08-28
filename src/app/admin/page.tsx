@@ -211,9 +211,12 @@ export default function SuperAdminDashboardPage() {
   // Calculate Customer Revenue Analytics (Excluding Super Admin Workspace)
   const customerBusinesses = businesses.filter((b) => !b.is_super_admin_owner);
   const proAccounts = customerBusinesses.filter((b) => b.subscription_plan === 'pro' && !getDaysRemaining(b.subscription_end_date).isExpired).length;
-  const enterpriseAccounts = customerBusinesses.filter((b) => b.subscription_plan === 'enterprise' && !getDaysRemaining(b.subscription_end_date).isExpired).length;
+  const enterpriseAccounts = customerBusinesses.filter((b) => (b.subscription_plan === 'enterprise' || (b.subscription_plan as string) === 'business_plus') && !getDaysRemaining(b.subscription_end_date).isExpired).length;
   const freeAccounts = customerBusinesses.filter((b) => b.subscription_plan === 'free' || !b.subscription_plan).length;
-  const monthlyRevenue = (proAccounts * 2000) + (enterpriseAccounts * 3500);
+  const estimatedMrr = (proAccounts * 2000) + (enterpriseAccounts * 3500);
+  const monthlyRevenue = (globalAnalytics?.totalPlatformRevenue && globalAnalytics.totalPlatformRevenue > 0) 
+    ? globalAnalytics.totalPlatformRevenue 
+    : estimatedMrr;
 
   return (
     <div className="space-y-8 animate-fade-in text-slate-100">
@@ -698,8 +701,8 @@ export default function SuperAdminDashboardPage() {
                   <div className="text-xl font-black text-slate-900">{inspectAnalytics?.totalScans || 0}</div>
                 </div>
                 <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl text-center">
-                  <div className="text-[10px] uppercase font-bold text-purple-700">Visitors</div>
-                  <div className="text-xl font-black text-purple-900">{inspectAnalytics?.uniqueVisitors || 0}</div>
+                  <div className="text-[10px] uppercase font-bold text-purple-700">Total Searches</div>
+                  <div className="text-xl font-black text-purple-900">{inspectAnalytics?.topSearches.length || 0}</div>
                 </div>
                 <div className="p-3 bg-amber-50 border border-amber-200 rounded-xl text-center">
                   <div className="text-[10px] uppercase font-bold text-amber-700">Item Views</div>

@@ -2,13 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import { 
-  BarChart3, QrCode, Eye, Search, Smartphone, Users, Crown, Calendar, TrendingUp, AlertTriangle, ArrowUpRight, CheckCircle2, Lock
+  BarChart3, QrCode, Eye, Search, Smartphone, Users, Crown, Calendar, TrendingUp, AlertTriangle, ArrowUpRight, CheckCircle2, Lock, ArrowDownRight, Layers, Sparkles 
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { UpgradeModal } from '@/components/ui/UpgradeModal';
 import { createClient } from '@/lib/supabase/client';
 import { Business } from '@/lib/types';
-import { getAnalyticsSummary, AnalyticsSummary } from '@/lib/analytics';
+import { getAnalyticsSummary, AnalyticsSummary, MetricComparison } from '@/lib/analytics';
 
 export default function DashboardAnalyticsPage() {
   const [business, setBusiness] = useState<Business | null>(null);
@@ -132,27 +132,52 @@ export default function DashboardAnalyticsPage() {
     );
   }
 
+  // Render Metric Trend Pill
+  const renderMetricTrend = (metric?: MetricComparison) => {
+    if (!metric || metric.notEnoughData || metric.percentageChange === null) {
+      return (
+        <span className="text-[11px] text-slate-400 font-medium">
+          Not enough data
+        </span>
+      );
+    }
+
+    const isPositive = metric.percentageChange >= 0;
+    return (
+      <span className={`text-[11px] font-bold flex items-center gap-0.5 ${isPositive ? 'text-emerald-600' : 'text-rose-600'}`}>
+        {isPositive ? (
+          <ArrowUpRight className="w-3.5 h-3.5" />
+        ) : (
+          <ArrowDownRight className="w-3.5 h-3.5" />
+        )}
+        {Math.abs(metric.percentageChange)}% vs prev period
+      </span>
+    );
+  };
+
+  const hasActivity = (analytics?.totalScans || 0) > 0 || (analytics?.totalItemViews || 0) > 0;
+
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8 animate-fade-in pb-12">
       {/* Header & Date Controls */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-extrabold text-slate-900">Advanced Analytics</h1>
+            <h1 className="text-2xl font-extrabold text-slate-900">Business Analytics Studio</h1>
             <span className="px-2.5 py-0.5 rounded-full bg-purple-100 text-purple-800 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1 border border-purple-200">
               <Crown className="w-3 h-3 text-purple-600" /> {planKey === 'enterprise_gift' ? '🎁 VIP Complimentary Gift Active' : 'Business Plus Active'}
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Real-time customer engagement metrics, scan traffic, and search intelligence.
+            Real-time customer engagement metrics, scan traffic, and product intelligence.
           </p>
         </div>
 
         {/* Date Filter Buttons */}
-        <div className="flex items-center gap-1 bg-slate-200/80 p-1 rounded-xl border border-slate-300/60 shrink-0">
+        <div className="flex items-center gap-1 bg-slate-200/80 p-1 rounded-xl border border-slate-300/60 shrink-0 overflow-x-auto no-scrollbar">
           <button
             onClick={() => setDaysFilter(7)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
               daysFilter === 7
                 ? 'bg-white text-slate-900 shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
@@ -162,7 +187,7 @@ export default function DashboardAnalyticsPage() {
           </button>
           <button
             onClick={() => setDaysFilter(30)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
               daysFilter === 30
                 ? 'bg-white text-slate-900 shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
@@ -172,7 +197,7 @@ export default function DashboardAnalyticsPage() {
           </button>
           <button
             onClick={() => setDaysFilter(365)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
               daysFilter === 365
                 ? 'bg-white text-slate-900 shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
@@ -187,11 +212,9 @@ export default function DashboardAnalyticsPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex items-center justify-between">
           <div className="space-y-1">
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Total QR Scans</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">QR Scans</div>
             <div className="text-2xl font-black text-slate-900">{analytics?.totalScans || 0}</div>
-            <div className="text-[11px] text-teal-600 font-semibold flex items-center gap-1">
-              <TrendingUp className="w-3 h-3" /> Real-time scan logs
-            </div>
+            {renderMetricTrend(analytics?.scansMetric)}
           </div>
           <div className="p-3 bg-teal-50 text-teal-600 rounded-xl border border-teal-100">
             <QrCode className="w-6 h-6" />
@@ -200,42 +223,103 @@ export default function DashboardAnalyticsPage() {
 
         <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex items-center justify-between">
           <div className="space-y-1">
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Unique Visitors</div>
-            <div className="text-2xl font-black text-slate-900">{analytics?.uniqueVisitors || 0}</div>
-            <div className="text-[11px] text-purple-600 font-semibold flex items-center gap-1">
-              <Users className="w-3 h-3" /> Mobile devices
-            </div>
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Item Views</div>
+            <div className="text-2xl font-black text-slate-900">{analytics?.totalItemViews || 0}</div>
+            {renderMetricTrend(analytics?.itemViewsMetric)}
           </div>
           <div className="p-3 bg-purple-50 text-purple-600 rounded-xl border border-purple-100">
-            <Smartphone className="w-6 h-6" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex items-center justify-between">
-          <div className="space-y-1">
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Item Views</div>
-            <div className="text-2xl font-black text-slate-900">{analytics?.totalItemViews || 0}</div>
-            <div className="text-[11px] text-amber-600 font-semibold flex items-center gap-1">
-              <Eye className="w-3 h-3" /> Catalog clicks
-            </div>
-          </div>
-          <div className="p-3 bg-amber-50 text-amber-600 rounded-xl border border-amber-100">
             <Eye className="w-6 h-6" />
           </div>
         </div>
 
         <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex items-center justify-between">
           <div className="space-y-1">
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Top Searches</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Searches</div>
             <div className="text-2xl font-black text-slate-900">{analytics?.topSearches.length || 0}</div>
-            <div className="text-[11px] text-blue-600 font-semibold flex items-center gap-1">
-              <Search className="w-3 h-3" /> Unique keywords
-            </div>
+            {renderMetricTrend(analytics?.searchesMetric)}
           </div>
-          <div className="p-3 bg-blue-50 text-blue-600 rounded-xl border border-blue-100">
+          <div className="p-3 bg-amber-50 text-amber-600 rounded-xl border border-amber-100">
             <Search className="w-6 h-6" />
           </div>
         </div>
+
+        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex items-center justify-between">
+          <div className="space-y-1">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Zero-Result Searches</div>
+            <div className="text-2xl font-black text-slate-900">{analytics?.zeroResultSearches.length || 0}</div>
+            <div className="text-[11px] text-amber-600 font-semibold">Expansion opportunities</div>
+          </div>
+          <div className="p-3 bg-amber-500/10 text-amber-700 rounded-xl border border-amber-500/20">
+            <AlertTriangle className="w-6 h-6" />
+          </div>
+        </div>
+      </div>
+
+      {/* TRAFFIC TREND CHART SECTION */}
+      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+          <div>
+            <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <TrendingUp className="w-5 h-5 text-indigo-600" /> Traffic & Engagement Trends
+            </h3>
+            <p className="text-xs text-slate-500">
+              Daily recorded QR scans and catalog item views over the selected period.
+            </p>
+          </div>
+        </div>
+
+        {!hasActivity ? (
+          <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
+            <div className="w-12 h-12 rounded-full bg-slate-200/80 text-slate-500 flex items-center justify-center mx-auto">
+              <BarChart3 className="w-6 h-6" />
+            </div>
+            <div className="space-y-1 max-w-sm mx-auto">
+              <h4 className="text-sm font-extrabold text-slate-900">No catalog activity yet</h4>
+              <p className="text-xs text-slate-500 leading-relaxed">
+                Your analytics traffic trend will appear here as soon as customers scan your QR code and browse your catalog.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-3 pt-2">
+            <div className="h-44 flex items-end justify-between gap-1.5 pt-6 pb-2 px-2 border-b border-slate-100 overflow-x-auto no-scrollbar">
+              {(analytics?.dailyTrends || []).map((t, idx) => {
+                const maxVal = Math.max(...(analytics?.dailyTrends || []).map((item) => Math.max(item.scans, item.views)), 1);
+                const scanHeight = Math.max(Math.round((t.scans / maxVal) * 100), 6);
+                const viewHeight = Math.max(Math.round((t.views / maxVal) * 100), 6);
+
+                return (
+                  <div key={t.date + idx} className="flex-1 min-w-[24px] flex flex-col items-center gap-1 group">
+                    <div className="w-full flex items-end justify-center gap-1 h-32">
+                      <div 
+                        className="w-2.5 bg-teal-500 rounded-t-md transition-all duration-300 group-hover:bg-teal-400"
+                        style={{ height: `${t.scans > 0 ? scanHeight : 4}%` }}
+                        title={`${t.date}: ${t.scans} Scans`}
+                      />
+                      <div 
+                        className="w-2.5 bg-indigo-500 rounded-t-md transition-all duration-300 group-hover:bg-indigo-400"
+                        style={{ height: `${t.views > 0 ? viewHeight : 4}%` }}
+                        title={`${t.date}: ${t.views} Views`}
+                      />
+                    </div>
+                    <span className="text-[9px] font-semibold text-slate-400 group-hover:text-slate-800 truncate">
+                      {t.date}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="flex items-center justify-center gap-6 text-xs font-bold pt-1">
+              <div className="flex items-center gap-2 text-slate-700">
+                <span className="w-3 h-3 rounded-full bg-teal-500" /> QR Scans
+              </div>
+              <div className="flex items-center gap-2 text-slate-700">
+                <span className="w-3 h-3 rounded-full bg-indigo-500" /> Item Views
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Main Insights Panels */}
@@ -328,7 +412,7 @@ export default function DashboardAnalyticsPage() {
                 <AlertTriangle className="w-4 h-4 text-amber-600" /> Zero-Result Searches (Menu Expansion Ideas)
               </div>
               <p className="text-[11px] text-amber-700 leading-relaxed">
-                Items customers searched for that yielded 0 matches in your catalog:
+                Customers searched for these keywords but your catalog yielded 0 matching items:
               </p>
               {!analytics?.zeroResultSearches || analytics.zeroResultSearches.length === 0 ? (
                 <div className="text-xs text-amber-800 font-medium italic">
@@ -358,7 +442,7 @@ export default function DashboardAnalyticsPage() {
       {/* Device Breakdown Section */}
       <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
         <h3 className="text-base font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
-          <Smartphone className="w-5 h-5 text-blue-600" /> Visitor Mobile Device Distribution
+          <Smartphone className="w-5 h-5 text-blue-600" /> Visitor Device Distribution
         </h3>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
