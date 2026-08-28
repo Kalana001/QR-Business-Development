@@ -147,7 +147,7 @@ export async function getBusinessThemeSettings(businessId: string): Promise<Cata
   const defaultSettings: CatalogThemeSettings = {
     business_id: businessId,
     template_id: 'minimal-clean',
-    background_style: 'pure-canvas',
+    background_style: 'clean-premium',
     primary_color: CATALOG_TEMPLATES['minimal-clean'].defaultColors.primary,
     secondary_color: CATALOG_TEMPLATES['minimal-clean'].defaultColors.secondary,
     accent_color: CATALOG_TEMPLATES['minimal-clean'].defaultColors.accent,

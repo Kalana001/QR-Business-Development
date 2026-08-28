@@ -9,7 +9,7 @@ import { UpgradeModal } from '@/components/ui/UpgradeModal';
 import { createClient } from '@/lib/supabase/client';
 import { Business, Category, CatalogItem } from '@/lib/types';
 import { CATALOG_TEMPLATES, TemplateId, CatalogTemplate, CatalogThemeSettings, getBusinessThemeSettings, saveBusinessThemeSettings } from '@/lib/templates';
-import { BACKGROUND_STYLES, BACKGROUND_CATEGORIES, BackgroundStyleId, BackgroundCategory, RECOMMENDED_BACKGROUNDS_BY_BIZ_TYPE, normalizeBackgroundStyleId } from '@/lib/backgrounds';
+import { BACKGROUND_STYLES, BackgroundStyleId, RECOMMENDED_BACKGROUNDS_BY_BIZ_TYPE, normalizeBackgroundStyleId } from '@/lib/backgrounds';
 import { CatalogRenderer } from '@/components/catalog/CatalogRenderer';
 import { BackgroundRenderer } from '@/components/catalog/BackgroundRenderer';
 
@@ -22,7 +22,6 @@ export default function DashboardCatalogDesignPage() {
   const [saving, setSaving] = useState(false);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [filterType, setFilterType] = useState<string>('all');
-  const [activeBgCategory, setActiveBgCategory] = useState<BackgroundCategory>('minimal');
 
   // Preview & Customization State
   const [previewTemplateId, setPreviewTemplateId] = useState<TemplateId | null>(null);
@@ -160,7 +159,7 @@ export default function DashboardCatalogDesignPage() {
     const success = await saveBusinessThemeSettings(newSettings);
     if (success) {
       setThemeSettings(newSettings);
-      setSaveSuccessMsg(`Applied "${bgMeta.name}" atmosphere style to your catalog!`);
+      setSaveSuccessMsg(`Applied "${bgMeta.name}" atmosphere style!`);
       setTimeout(() => setSaveSuccessMsg(null), 3000);
     }
     setSaving(false);
@@ -173,7 +172,6 @@ export default function DashboardCatalogDesignPage() {
   });
 
   const backgroundKeys = Object.keys(BACKGROUND_STYLES) as BackgroundStyleId[];
-  const categoryBackgroundKeys = backgroundKeys.filter((id) => BACKGROUND_STYLES[id].category === activeBgCategory);
   const recommendedBgs = RECOMMENDED_BACKGROUNDS_BY_BIZ_TYPE[business.business_type] || RECOMMENDED_BACKGROUNDS_BY_BIZ_TYPE.general;
 
   const currentTemplateId = themeSettings?.template_id || 'minimal-clean';
@@ -191,7 +189,7 @@ export default function DashboardCatalogDesignPage() {
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Customize your catalog layout template and subtle background style for your customers.
+            Customize your catalog layout template and subtle background atmosphere for your customers.
           </p>
         </div>
 
@@ -379,7 +377,7 @@ export default function DashboardCatalogDesignPage() {
         </div>
       </div>
 
-      {/* SECTION 2: CATEGORIZED BACKGROUND STYLE SYSTEM */}
+      {/* SECTION 2: PREMIUM BACKGROUND STYLE SYSTEM */}
       <div className="space-y-6 pt-8 border-t border-slate-200">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
@@ -387,31 +385,17 @@ export default function DashboardCatalogDesignPage() {
               <Layers className="w-5 h-5 text-teal-600" /> Background Style
             </h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Choose the atmosphere of your catalog without changing its layout.
+              Choose the atmosphere behind your catalog. Your selected catalog template remains unchanged.
             </p>
           </div>
-
-          {/* Background Category Tabs */}
-          <div className="flex items-center gap-1 bg-slate-200/80 p-1 rounded-2xl border border-slate-300/60 shrink-0 overflow-x-auto no-scrollbar">
-            {BACKGROUND_CATEGORIES.map((cat) => (
-              <button
-                key={cat.id}
-                onClick={() => setActiveBgCategory(cat.id)}
-                className={`px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider whitespace-nowrap transition-all ${
-                  activeBgCategory === cat.id
-                    ? 'bg-slate-900 text-white shadow-sm'
-                    : 'text-slate-600 hover:text-slate-900'
-                }`}
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
+          <span className="text-xs font-bold text-teal-800 bg-teal-50 px-3 py-1 rounded-full border border-teal-200 self-start sm:self-auto">
+            Recommended for <span className="capitalize">{business.business_type}</span>
+          </span>
         </div>
 
-        {/* 15 Background Style Cards Grid (Mini-Catalog Preview Cards) */}
+        {/* 12 Background Style Visual Preview Cards Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-5">
-          {categoryBackgroundKeys.map((bgId) => {
+          {backgroundKeys.map((bgId) => {
             const bg = BACKGROUND_STYLES[bgId];
             const isActive = currentBgId === bg.id;
             const isRecommended = recommendedBgs.includes(bg.id);
@@ -427,7 +411,7 @@ export default function DashboardCatalogDesignPage() {
                 }`}
               >
                 <div className="space-y-3">
-                  {/* Rich Mini-Catalog Preview Box */}
+                  {/* Visual Preview Box Rendering Actual Live Background Effect */}
                   <div className={`h-40 rounded-2xl p-3 bg-gradient-to-br ${bg.previewGradient} relative overflow-hidden border border-slate-200/50 flex flex-col justify-between shadow-inner`}>
                     <BackgroundRenderer styleId={bg.id} headerOnly={false} />
 
@@ -444,7 +428,7 @@ export default function DashboardCatalogDesignPage() {
 
                       {isRecommended ? (
                         <span className="px-2 py-0.5 rounded-full bg-emerald-600 text-white text-[8px] font-black uppercase tracking-wider shadow-xs flex items-center gap-1">
-                          <Star className="w-2.5 h-2.5 fill-white" /> Recommended
+                          <CheckCircle2 className="w-2.5 h-2.5 fill-white text-emerald-600" /> Recommended
                         </span>
                       ) : bg.isPremium ? (
                         <span className="px-2 py-0.5 rounded-full bg-slate-900/80 backdrop-blur-xs text-amber-300 text-[8px] font-extrabold uppercase tracking-wider">
@@ -454,7 +438,7 @@ export default function DashboardCatalogDesignPage() {
                     </div>
 
                     {/* Mini Product Card Preview */}
-                    <div className="bg-white/90 backdrop-blur-xs p-2.5 rounded-xl border border-white/40 shadow-xs relative z-10 space-y-1">
+                    <div className="bg-white/95 backdrop-blur-xs p-2.5 rounded-xl border border-white/50 shadow-xs relative z-10 space-y-1">
                       <div className="flex items-center justify-between text-[10px] font-extrabold text-slate-900 truncate">
                         <span>{publishedItems[0]?.name || 'Signature Item'}</span>
                         <span className="text-teal-700 font-black">LKR 1,850</span>
@@ -462,9 +446,9 @@ export default function DashboardCatalogDesignPage() {
                       <div className="h-1 w-12 bg-slate-200 rounded-full" />
                     </div>
 
-                    {/* Mini Footer Pill */}
+                    {/* Mini Footer Tag */}
                     <div className="text-[8px] font-extrabold uppercase tracking-widest text-slate-700 bg-white/80 backdrop-blur-xs px-2 py-0.5 rounded-md self-start relative z-10">
-                      {bg.category}
+                      Atmosphere
                     </div>
                   </div>
 
@@ -504,7 +488,7 @@ export default function DashboardCatalogDesignPage() {
               <Smartphone className="w-5 h-5 text-indigo-600" /> Live Interactive Catalog Preview
             </h2>
             <p className="text-xs text-slate-500">
-              Real-time preview showing your template layout combined with your selected background style.
+              Real-time preview showing your template layout combined with your selected background atmosphere.
             </p>
           </div>
           <Button

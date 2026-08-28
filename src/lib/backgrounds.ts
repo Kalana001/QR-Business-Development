@@ -1,125 +1,57 @@
 import { BusinessType } from '@/lib/types';
 
 export type BackgroundStyleId = 
-  // MINIMAL
-  | 'pure-canvas'
-  | 'soft-gradient'
-  | 'editorial-paper'
-  // MODERN
-  | 'aurora-flow'
+  | 'clean-premium'
   | 'liquid-glass'
-  | 'architectural-grid'
-  | 'organic-waves'
-  // LUXURY
+  | 'aurora-mesh'
   | 'luxury-marble'
   | 'obsidian-glow'
-  | 'silk-satin'
-  | 'pearl-mist'
-  | 'noir-gold'
-  // BUSINESS
-  | 'culinary-atelier'
-  | 'coffee-atelier'
-  | 'botanical-shadow';
-
-export type BackgroundCategory = 'minimal' | 'modern' | 'luxury' | 'business';
-
-export interface BackgroundCategoryMeta {
-  id: BackgroundCategory;
-  name: string;
-  description: string;
-}
-
-export const BACKGROUND_CATEGORIES: BackgroundCategoryMeta[] = [
-  { id: 'minimal', name: 'Minimal', description: 'Clean, subtle surfaces for crisp visual focus' },
-  { id: 'modern', name: 'Modern', description: 'Atmospheric light, glass & architectural geometry' },
-  { id: 'luxury', name: 'Luxury', description: 'Fine marble, silk, pearl & obsidian depth' },
-  { id: 'business', name: 'Business', description: 'Culinary, cafe & botanical atelier line-art' },
-];
+  | 'silk-flow'
+  | 'cosmic-luxe'
+  | 'architectural'
+  | 'organic-flow'
+  | 'editorial-paper'
+  | 'soft-cloud'
+  | 'brand-aura';
 
 export interface BackgroundStyle {
   id: BackgroundStyleId;
   name: string;
   description: string;
-  category: BackgroundCategory;
   isPremium?: boolean;
   previewGradient: string;
   previewAccent: string;
 }
 
 export const BACKGROUND_STYLES: Record<BackgroundStyleId, BackgroundStyle> = {
-  // MINIMAL
-  'pure-canvas': {
-    id: 'pure-canvas',
-    name: 'Pure Canvas',
-    description: 'Premium clean surface with subtle depth and almost invisible texture. Crisp & professional.',
-    category: 'minimal',
+  'clean-premium': {
+    id: 'clean-premium',
+    name: 'Clean Premium',
+    description: 'Refined luxury minimal background with subtle radial lighting & editorial depth.',
     isPremium: false,
-    previewGradient: 'from-slate-100 to-slate-200',
+    previewGradient: 'from-slate-100 via-slate-50 to-slate-200',
     previewAccent: '#0F172A',
-  },
-  'soft-gradient': {
-    id: 'soft-gradient',
-    name: 'Soft Gradient',
-    description: 'Elegant multi-layer gradient adapting dynamically to your business theme color.',
-    category: 'minimal',
-    isPremium: false,
-    previewGradient: 'from-sky-100 via-indigo-100 to-purple-100',
-    previewAccent: '#6366F1',
-  },
-  'editorial-paper': {
-    id: 'editorial-paper',
-    name: 'Editorial Paper',
-    description: 'Premium editorial paper surface with fine grain & thin line details.',
-    category: 'minimal',
-    isPremium: true,
-    previewGradient: 'from-orange-50/70 via-amber-50 to-stone-100',
-    previewAccent: '#7C2D12',
-  },
-
-  // MODERN
-  'aurora-flow': {
-    id: 'aurora-flow',
-    name: 'Aurora Flow',
-    description: 'Layered atmospheric aurora waves with soft brand-colored ambient light.',
-    category: 'modern',
-    isPremium: true,
-    previewGradient: 'from-slate-950 via-indigo-950 to-purple-950',
-    previewAccent: '#A855F7',
   },
   'liquid-glass': {
     id: 'liquid-glass',
     name: 'Liquid Glass',
-    description: 'Soft translucent glass-like forms floating over the background.',
-    category: 'modern',
+    description: 'Frosted glass layers, smooth translucent blobs & soft radial highlights.',
     isPremium: true,
     previewGradient: 'from-cyan-950 via-slate-900 to-sky-950',
     previewAccent: '#38BDF8',
   },
-  'architectural-grid': {
-    id: 'architectural-grid',
-    name: 'Architectural Grid',
-    description: 'Sophisticated architectural geometry with perspective lines & depth.',
-    category: 'modern',
+  'aurora-mesh': {
+    id: 'aurora-mesh',
+    name: 'Aurora Mesh',
+    description: 'Subtle animated multi-point mesh gradient with soft brand-colored lighting.',
     isPremium: true,
-    previewGradient: 'from-slate-900 via-zinc-900 to-slate-950',
-    previewAccent: '#94A3B8',
+    previewGradient: 'from-slate-950 via-indigo-950 to-purple-950',
+    previewAccent: '#A855F7',
   },
-  'organic-waves': {
-    id: 'organic-waves',
-    name: 'Organic Waves',
-    description: 'Elegant large curved overlapping translucent organic layers.',
-    category: 'modern',
-    isPremium: true,
-    previewGradient: 'from-teal-950 via-slate-900 to-emerald-950',
-    previewAccent: '#2DD4BF',
-  },
-
-  // LUXURY
   'luxury-marble': {
     id: 'luxury-marble',
     name: 'Luxury Marble',
-    description: 'Elegant marble-inspired surface with restrained metallic champagne veins.',
-    category: 'luxury',
+    description: 'Sophisticated marble-inspired surface with restrained champagne metallic veins.',
     isPremium: true,
     previewGradient: 'from-stone-900 via-zinc-900 to-stone-950',
     previewAccent: '#D97706',
@@ -127,96 +59,104 @@ export const BACKGROUND_STYLES: Record<BackgroundStyleId, BackgroundStyle> = {
   'obsidian-glow': {
     id: 'obsidian-glow',
     name: 'Obsidian Glow',
-    description: 'Deep charcoal base with soft radial ambient glow.',
-    category: 'luxury',
+    description: 'Deep charcoal/black base with soft atmospheric glow & translucent dark glass.',
     isPremium: true,
     previewGradient: 'from-black via-zinc-950 to-neutral-950',
     previewAccent: '#F59E0B',
   },
-  'silk-satin': {
-    id: 'silk-satin',
-    name: 'Silk & Satin',
-    description: 'Smooth flowing fabric-inspired surface with satin highlights.',
-    category: 'luxury',
+  'silk-flow': {
+    id: 'silk-flow',
+    name: 'Silk Flow',
+    description: 'Smooth flowing fabric-inspired surface with satin highlights & elegant depth.',
     isPremium: true,
     previewGradient: 'from-rose-950 via-slate-950 to-purple-950',
     previewAccent: '#FB7185',
   },
-  'pearl-mist': {
-    id: 'pearl-mist',
-    name: 'Pearl Mist',
-    description: 'Soft luminous ivory/pearl surface with delicate luminous gradients.',
-    category: 'luxury',
+  'cosmic-luxe': {
+    id: 'cosmic-luxe',
+    name: 'Cosmic Luxe',
+    description: 'Deep gradient base with soft glowing orbs & luxury technology ambient depth.',
     isPremium: true,
-    previewGradient: 'from-amber-50/80 via-rose-50/50 to-slate-100',
-    previewAccent: '#E11D48',
+    previewGradient: 'from-indigo-950 via-slate-950 to-blue-950',
+    previewAccent: '#6366F1',
   },
-  'noir-gold': {
-    id: 'noir-gold',
-    name: 'Noir Gold',
-    description: 'Deep charcoal base with thin gold geometric lines & ambient glow.',
-    category: 'luxury',
+  'architectural': {
+    id: 'architectural',
+    name: 'Architectural',
+    description: 'Geometric perspective planes, translucent surfaces & thin architectural lines.',
     isPremium: true,
-    previewGradient: 'from-zinc-950 via-black to-stone-950',
-    previewAccent: '#EAB308',
+    previewGradient: 'from-slate-900 via-zinc-900 to-slate-950',
+    previewAccent: '#94A3B8',
   },
-
-  // BUSINESS
-  'culinary-atelier': {
-    id: 'culinary-atelier',
-    name: 'Culinary Atelier',
-    description: 'Sophisticated culinary plate outlines, utensils & chef line-art.',
-    category: 'business',
+  'organic-flow': {
+    id: 'organic-flow',
+    name: 'Organic Flow',
+    description: 'Smooth organic forms, natural curves & translucent gradient layers.',
     isPremium: true,
-    previewGradient: 'from-orange-950/90 via-amber-950 to-stone-950',
-    previewAccent: '#F97316',
+    previewGradient: 'from-teal-950 via-slate-900 to-emerald-950',
+    previewAccent: '#2DD4BF',
   },
-  'coffee-atelier': {
-    id: 'coffee-atelier',
-    name: 'Coffee Atelier',
-    description: 'Coffee bean silhouettes & warm editorial cafe texture.',
-    category: 'business',
+  'editorial-paper': {
+    id: 'editorial-paper',
+    name: 'Editorial Paper',
+    description: 'Tactile paper texture, fine grain & magazine-inspired decorative lines.',
     isPremium: true,
-    previewGradient: 'from-amber-950 via-stone-950 to-neutral-950',
-    previewAccent: '#D97706',
+    previewGradient: 'from-orange-50/80 via-amber-50 to-stone-100',
+    previewAccent: '#7C2D12',
   },
-  'botanical-shadow': {
-    id: 'botanical-shadow',
-    name: 'Botanical Shadow',
-    description: 'Elegant oversized blurred leaf shadows & botanical line-art.',
-    category: 'business',
+  'soft-cloud': {
+    id: 'soft-cloud',
+    name: 'Soft Cloud',
+    description: 'Bright white/cream base with blurred light layers & cloud-like gradients.',
+    isPremium: false,
+    previewGradient: 'from-amber-50/90 via-sky-50/60 to-slate-100',
+    previewAccent: '#3B82F6',
+  },
+  'brand-aura': {
+    id: 'brand-aura',
+    name: 'Brand Aura',
+    description: 'Dynamic softened mesh gradient derived intelligently from your theme color.',
     isPremium: true,
-    previewGradient: 'from-emerald-950 via-teal-950 to-slate-950',
-    previewAccent: '#10B981',
+    previewGradient: 'from-purple-900 via-indigo-950 to-slate-950',
+    previewAccent: '#8B5CF6',
   },
 };
 
 /**
- * Safe normalization function mapping legacy or null/invalid background IDs cleanly to pure-canvas
+ * Safe normalization function mapping legacy, null, or unknown background IDs cleanly to clean-premium
  */
 export function normalizeBackgroundStyleId(rawId?: string | null): BackgroundStyleId {
-  if (!rawId) return 'pure-canvas';
+  if (!rawId) return 'clean-premium';
   if (rawId in BACKGROUND_STYLES) return rawId as BackgroundStyleId;
 
-  // Legacy mappings
+  // Legacy mappings from previous iterations to clean-premium or closest match
   const legacyMap: Record<string, BackgroundStyleId> = {
-    'clean': 'pure-canvas',
-    'paper-editorial': 'editorial-paper',
-    'food-restaurant': 'culinary-atelier',
-    'cafe-coffee': 'coffee-atelier',
-    'botanical': 'botanical-shadow',
+    'clean': 'clean-premium',
+    'pure-canvas': 'clean-premium',
+    'soft-gradient': 'brand-aura',
+    'subtle-pattern': 'architectural',
+    'food-restaurant': 'organic-flow',
     'jewelry-luxury': 'luxury-marble',
+    'botanical': 'organic-flow',
+    'botanical-shadow': 'organic-flow',
+    'cafe-coffee': 'editorial-paper',
+    'coffee-atelier': 'editorial-paper',
+    'culinary-atelier': 'organic-flow',
+    'modern-geometric': 'architectural',
     'elegant-texture': 'obsidian-glow',
-    'subtle-pattern': 'architectural-grid',
-    'modern-geometric': 'aurora-flow',
+    'paper-editorial': 'editorial-paper',
+    'aurora-flow': 'aurora-mesh',
+    'silk-satin': 'silk-flow',
+    'pearl-mist': 'soft-cloud',
+    'noir-gold': 'obsidian-glow',
   };
 
-  return legacyMap[rawId] || 'pure-canvas';
+  return legacyMap[rawId] || 'clean-premium';
 }
 
 export const RECOMMENDED_BACKGROUNDS_BY_BIZ_TYPE: Record<BusinessType, BackgroundStyleId[]> = {
-  restaurant: ['pure-canvas', 'culinary-atelier', 'coffee-atelier', 'organic-waves', 'soft-gradient'],
-  salon: ['pure-canvas', 'botanical-shadow', 'pearl-mist', 'soft-gradient', 'organic-waves', 'silk-satin'],
-  bookshop: ['pure-canvas', 'editorial-paper', 'architectural-grid', 'organic-waves'],
-  general: ['pure-canvas', 'soft-gradient', 'aurora-flow', 'liquid-glass', 'architectural-grid'],
+  restaurant: ['clean-premium', 'liquid-glass', 'aurora-mesh', 'organic-flow', 'soft-cloud'],
+  salon: ['organic-flow', 'liquid-glass', 'soft-cloud', 'aurora-mesh', 'silk-flow'],
+  bookshop: ['editorial-paper', 'clean-premium', 'architectural', 'soft-cloud', 'liquid-glass'],
+  general: ['clean-premium', 'liquid-glass', 'brand-aura', 'architectural', 'aurora-mesh'],
 };
