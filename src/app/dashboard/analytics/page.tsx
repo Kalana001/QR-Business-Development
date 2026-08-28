@@ -284,10 +284,10 @@ export default function DashboardAnalyticsPage() {
           </div>
         ) : (
           <div className="space-y-4 pt-2">
-            {/* Interactive Bar Chart Viewport */}
-            <div className="relative h-64 pt-8 pb-3 px-3 border-b border-slate-100 bg-slate-50/50 rounded-2xl border border-slate-200/80 overflow-x-auto no-scrollbar flex items-end justify-between gap-2">
+            {/* Interactive Bar Chart Viewport with Generous Headroom for Popovers */}
+            <div className="relative h-72 pt-16 pb-3 px-3 border-b border-slate-100 bg-slate-50/50 rounded-2xl border border-slate-200/80 overflow-x-auto no-scrollbar flex items-end justify-between gap-2">
               {/* Subtle Horizontal Gridlines */}
-              <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 opacity-40" aria-hidden="true">
+              <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 pt-16 opacity-40" aria-hidden="true">
                 <div className="w-full border-b border-dashed border-slate-300" />
                 <div className="w-full border-b border-dashed border-slate-300" />
                 <div className="w-full border-b border-dashed border-slate-300" />
@@ -313,14 +313,14 @@ export default function DashboardAnalyticsPage() {
                       isActive ? 'bg-white shadow-md ring-2 ring-indigo-500 scale-105' : 'hover:bg-white/80 hover:shadow-xs'
                     }`}
                   >
-                    {/* Floating Interactive Popover Tooltip */}
+                    {/* Floating Interactive Popover Tooltip (Positioned in Headroom) */}
                     {isActive && (
-                      <div className="absolute -top-14 left-1/2 -translate-x-1/2 z-30 bg-slate-900 text-white px-3 py-1.5 rounded-xl shadow-xl border border-slate-700 text-center whitespace-nowrap animate-fade-in pointer-events-none">
+                      <div className="absolute -top-12 left-1/2 -translate-x-1/2 z-30 bg-slate-900 text-white px-3.5 py-1.5 rounded-xl shadow-2xl border border-slate-700 text-center whitespace-nowrap animate-fade-in pointer-events-none">
                         <div className="text-[10px] font-extrabold text-indigo-300">{t.date}</div>
                         <div className="text-[11px] font-bold flex items-center justify-center gap-2 mt-0.5">
-                          <span className="text-teal-400">{t.scans} Scans</span>
+                          <span className="text-teal-400 font-extrabold">{t.scans} Scans</span>
                           <span className="text-slate-500">•</span>
-                          <span className="text-indigo-400">{t.views} Views</span>
+                          <span className="text-indigo-400 font-extrabold">{t.views} Views</span>
                         </div>
                         {/* Down Arrow Tip */}
                         <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-900 rotate-45 border-r border-b border-slate-700" />
