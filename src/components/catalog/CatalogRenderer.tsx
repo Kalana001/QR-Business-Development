@@ -83,19 +83,18 @@ export function CatalogRenderer({
   };
 
   return (
-    <BackgroundRenderer
-      styleId={backgroundStyleId}
-      primaryColor={primaryColor}
-      accentColor={accentColor}
-      isDarkTemplate={isDarkTemplate}
+    <div 
       className="min-h-screen text-slate-900 flex justify-center selection:bg-slate-900 selection:text-white transition-colors duration-300"
+      style={{ backgroundColor: bgColor }}
     >
-      {/* Viewport Container */}
-      <div 
+      {/* Mobile Viewport Container with Integrated Background Style */}
+      <BackgroundRenderer
+        styleId={backgroundStyleId}
+        primaryColor={primaryColor}
+        accentColor={accentColor}
+        isDarkTemplate={isDarkTemplate}
         className="w-full max-w-md min-h-screen border-x shadow-2xl flex flex-col justify-between relative overflow-hidden"
-        style={{ backgroundColor: cardBgColor, borderColor: 'rgba(226, 232, 240, 0.2)' }}
       >
-        
         {/* Header / Brand Banner with subtle depth */}
         <header
           className="relative px-5 pt-8 pb-6 overflow-hidden shadow-md"
@@ -430,7 +429,7 @@ export function CatalogRenderer({
         <footer className="p-4 text-center text-[11px] border-t space-y-1" style={{ borderColor: 'rgba(226, 232, 240, 0.15)', color: subtextColor }}>
           <p>© {new Date().getFullYear()} {business.name}. Powered by QR Business Studio.</p>
         </footer>
-      </div>
-    </BackgroundRenderer>
+      </BackgroundRenderer>
+    </div>
   );
 }

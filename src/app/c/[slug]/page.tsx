@@ -139,6 +139,7 @@ export default function PublicCustomerCatalogPage({
       themeSettings={themeSettings || {
         business_id: business.id,
         template_id: 'minimal-clean',
+        background_style: 'clean',
         primary_color: business.theme_color || '#0F172A',
         secondary_color: '#1E293B',
         accent_color: '#0F172A',
