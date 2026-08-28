@@ -17,6 +17,8 @@ export default function DashboardAnalyticsPage() {
   const [daysFilter, setDaysFilter] = useState<number>(30);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
+  const [hoveredTrendIndex, setHoveredTrendIndex] = useState<number | null>(null);
+  const [selectedTrendIndex, setSelectedTrendIndex] = useState<number | null>(null);
 
   useEffect(() => {
     async function loadData() {
@@ -281,28 +283,127 @@ export default function DashboardAnalyticsPage() {
             </div>
           </div>
         ) : (
-          <div className="space-y-3 pt-2">
-            <div className="h-44 flex items-end justify-between gap-1.5 pt-6 pb-2 px-2 border-b border-slate-100 overflow-x-auto no-scrollbar">
+          <div className="space-y-4 pt-2">
+            {/* Interactive Selected Day Details Banner */}
+            {(() => {
+              const activeTrendIndex = selectedTrendIndex !== null ? selectedTrendIndex : hoveredTrendIndex;
+              const activeIdx = activeTrendIndex !== null ? activeTrendIndex : (analytics?.dailyTrends ? analytics.dailyTrends.length - 1 : null);
+              const activeItem = activeIdx !== null && analytics?.dailyTrends ? analytics.dailyTrends[activeIdx] : null;
+
+              if (!activeItem) return null;
+
+              const totalEngagements = activeItem.scans + activeItem.views;
+
+              return (
+                <div className="p-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white rounded-2xl shadow-lg border border-indigo-500/20 flex flex-wrap items-center justify-between gap-4 animate-fade-in">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-indigo-500/20 rounded-xl border border-indigo-400/30 text-indigo-300">
+                      <Calendar className="w-5 h-5" />
+                    </div>
+                    <div>
+                      <div className="text-[10px] uppercase font-bold tracking-wider text-indigo-300">Selected Date Details</div>
+                      <div className="text-sm font-black text-white">{activeItem.date}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-6">
+                    <div className="text-right">
+                      <div className="text-[10px] font-bold text-teal-400 uppercase tracking-wider flex items-center justify-end gap-1">
+                        <QrCode className="w-3 h-3" /> QR Scans
+                      </div>
+                      <div className="text-lg font-black text-white">{activeItem.scans}</div>
+                    </div>
+
+                    <div className="h-8 w-px bg-white/10" />
+
+                    <div className="text-right">
+                      <div className="text-[10px] font-bold text-indigo-400 uppercase tracking-wider flex items-center justify-end gap-1">
+                        <Eye className="w-3 h-3" /> Item Views
+                      </div>
+                      <div className="text-lg font-black text-white">{activeItem.views}</div>
+                    </div>
+
+                    <div className="h-8 w-px bg-white/10" />
+
+                    <div className="text-right">
+                      <div className="text-[10px] font-bold text-amber-400 uppercase tracking-wider flex items-center justify-end gap-1">
+                        <TrendingUp className="w-3 h-3" /> Total Activity
+                      </div>
+                      <div className="text-lg font-black text-amber-300">{totalEngagements}</div>
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Interactive Bar Chart Viewport */}
+            <div className="relative h-64 pt-8 pb-3 px-3 border-b border-slate-100 bg-slate-50/50 rounded-2xl border border-slate-200/80 overflow-x-auto no-scrollbar flex items-end justify-between gap-2">
+              {/* Subtle Horizontal Gridlines */}
+              <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 opacity-40" aria-hidden="true">
+                <div className="w-full border-b border-dashed border-slate-300" />
+                <div className="w-full border-b border-dashed border-slate-300" />
+                <div className="w-full border-b border-dashed border-slate-300" />
+                <div className="w-full border-b border-dashed border-slate-300" />
+              </div>
+
               {(analytics?.dailyTrends || []).map((t, idx) => {
                 const maxVal = Math.max(...(analytics?.dailyTrends || []).map((item) => Math.max(item.scans, item.views)), 1);
-                const scanHeight = Math.max(Math.round((t.scans / maxVal) * 100), 6);
-                const viewHeight = Math.max(Math.round((t.views / maxVal) * 100), 6);
+                const scanHeight = Math.max(Math.round((t.scans / maxVal) * 100), 8);
+                const viewHeight = Math.max(Math.round((t.views / maxVal) * 100), 8);
+
+                const isSelected = selectedTrendIndex === idx;
+                const isHovered = hoveredTrendIndex === idx;
+                const isActive = isSelected || (selectedTrendIndex === null && isHovered);
 
                 return (
-                  <div key={t.date + idx} className="flex-1 min-w-[24px] flex flex-col items-center gap-1 group">
-                    <div className="w-full flex items-end justify-center gap-1 h-32">
-                      <div 
-                        className="w-2.5 bg-teal-500 rounded-t-md transition-all duration-300 group-hover:bg-teal-400"
-                        style={{ height: `${t.scans > 0 ? scanHeight : 4}%` }}
-                        title={`${t.date}: ${t.scans} Scans`}
+                  <div
+                    key={t.date + idx}
+                    onMouseEnter={() => setHoveredTrendIndex(idx)}
+                    onMouseLeave={() => setHoveredTrendIndex(null)}
+                    onClick={() => setSelectedTrendIndex(idx)}
+                    className={`flex-1 min-w-[32px] flex flex-col items-center gap-2 group cursor-pointer relative z-10 transition-all duration-200 p-1 rounded-xl ${
+                      isActive ? 'bg-white shadow-md ring-2 ring-indigo-500 scale-105' : 'hover:bg-white/80 hover:shadow-xs'
+                    }`}
+                  >
+                    {/* Floating Interactive Popover Tooltip */}
+                    {isActive && (
+                      <div className="absolute -top-14 left-1/2 -translate-x-1/2 z-30 bg-slate-900 text-white px-3 py-1.5 rounded-xl shadow-xl border border-slate-700 text-center whitespace-nowrap animate-fade-in pointer-events-none">
+                        <div className="text-[10px] font-extrabold text-indigo-300">{t.date}</div>
+                        <div className="text-[11px] font-bold flex items-center justify-center gap-2 mt-0.5">
+                          <span className="text-teal-400">{t.scans} Scans</span>
+                          <span className="text-slate-500">•</span>
+                          <span className="text-indigo-400">{t.views} Views</span>
+                        </div>
+                        {/* Down Arrow Tip */}
+                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-900 rotate-45 border-r border-b border-slate-700" />
+                      </div>
+                    )}
+
+                    <div className="w-full flex items-end justify-center gap-1.5 h-44">
+                      {/* QR Scans Bar */}
+                      <div
+                        className={`w-3.5 rounded-t-lg transition-all duration-300 shadow-xs ${
+                          isActive
+                            ? 'bg-gradient-to-t from-teal-600 via-teal-500 to-teal-400 ring-1 ring-teal-300'
+                            : 'bg-gradient-to-t from-teal-500 to-teal-400/80 group-hover:from-teal-600 group-hover:to-teal-400'
+                        }`}
+                        style={{ height: `${t.scans > 0 ? scanHeight : 6}%` }}
                       />
-                      <div 
-                        className="w-2.5 bg-indigo-500 rounded-t-md transition-all duration-300 group-hover:bg-indigo-400"
-                        style={{ height: `${t.views > 0 ? viewHeight : 4}%` }}
-                        title={`${t.date}: ${t.views} Views`}
+
+                      {/* Item Views Bar */}
+                      <div
+                        className={`w-3.5 rounded-t-lg transition-all duration-300 shadow-xs ${
+                          isActive
+                            ? 'bg-gradient-to-t from-indigo-600 via-indigo-500 to-indigo-400 ring-1 ring-indigo-300'
+                            : 'bg-gradient-to-t from-indigo-500 to-indigo-400/80 group-hover:from-indigo-600 group-hover:to-indigo-400'
+                        }`}
+                        style={{ height: `${t.views > 0 ? viewHeight : 6}%` }}
                       />
                     </div>
-                    <span className="text-[9px] font-semibold text-slate-400 group-hover:text-slate-800 truncate">
+
+                    <span className={`text-[10px] font-bold truncate transition-colors ${
+                      isActive ? 'text-indigo-900 font-extrabold' : 'text-slate-500 group-hover:text-slate-900'
+                    }`}>
                       {t.date}
                     </span>
                   </div>
@@ -310,13 +411,18 @@ export default function DashboardAnalyticsPage() {
               })}
             </div>
 
-            <div className="flex items-center justify-center gap-6 text-xs font-bold pt-1">
-              <div className="flex items-center gap-2 text-slate-700">
-                <span className="w-3 h-3 rounded-full bg-teal-500" /> QR Scans
+            <div className="flex items-center justify-between text-xs font-bold pt-1 px-2 text-slate-600">
+              <div className="flex items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <span className="w-3.5 h-3.5 rounded-md bg-gradient-to-t from-teal-600 to-teal-400 shadow-xs" /> QR Scans
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="w-3.5 h-3.5 rounded-md bg-gradient-to-t from-indigo-600 to-indigo-400 shadow-xs" /> Item Views
+                </div>
               </div>
-              <div className="flex items-center gap-2 text-slate-700">
-                <span className="w-3 h-3 rounded-full bg-indigo-500" /> Item Views
-              </div>
+              <span className="text-[11px] text-slate-400 font-medium italic hidden sm:inline">
+                💡 Hover or click any column to inspect daily metrics.
+              </span>
             </div>
           </div>
         )}
