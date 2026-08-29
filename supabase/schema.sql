@@ -769,6 +769,43 @@ CREATE TRIGGER tr_enforce_category_quota
 -- ANALYTICS TABLES & SECURITY POLICIES
 -- ============================================================================
 
+-- Helper Function: Validate business_id exists in public.businesses
+CREATE OR REPLACE FUNCTION public.is_valid_business_id(b_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  RETURN b_id IS NOT NULL AND EXISTS (
+    SELECT 1 FROM public.businesses WHERE id = b_id
+  );
+END;
+$$;
+
+-- Helper Function: Validate item_id belongs to the business_id in public.catalog_items
+CREATE OR REPLACE FUNCTION public.is_valid_catalog_item_for_business(b_id UUID, i_id UUID)
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, pg_temp
+AS $$
+BEGIN
+  IF b_id IS NULL THEN
+    RETURN FALSE;
+  END IF;
+  IF i_id IS NULL THEN
+    RETURN TRUE; -- Allow general item view events without specific item_id
+  END IF;
+  RETURN EXISTS (
+    SELECT 1 FROM public.catalog_items WHERE id = i_id AND business_id = b_id
+  );
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.is_valid_business_id(UUID) TO public, anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.is_valid_catalog_item_for_business(UUID, UUID) TO public, anon, authenticated;
+
 CREATE TABLE IF NOT EXISTS public.analytics_qr_scans (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   business_id UUID NOT NULL REFERENCES public.businesses(id) ON DELETE CASCADE,
@@ -806,53 +843,60 @@ ALTER TABLE public.analytics_qr_scans ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.analytics_item_views ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.analytics_search_logs ENABLE ROW LEVEL SECURITY;
 
-DO $$ 
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE tablename = 'analytics_qr_scans' AND policyname = 'Public visitors log QR scans'
-  ) THEN
-    CREATE POLICY "Public visitors log QR scans" ON public.analytics_qr_scans
-      FOR INSERT WITH CHECK (true);
-  END IF;
+DROP POLICY IF EXISTS "Public visitors log QR scans" ON public.analytics_qr_scans;
+DROP POLICY IF EXISTS "Public visitors log item views" ON public.analytics_item_views;
+DROP POLICY IF EXISTS "Public visitors log search queries" ON public.analytics_search_logs;
+DROP POLICY IF EXISTS "Business members view QR scans" ON public.analytics_qr_scans;
+DROP POLICY IF EXISTS "Business members view item views" ON public.analytics_item_views;
+DROP POLICY IF EXISTS "Business members view search logs" ON public.analytics_search_logs;
+DROP POLICY IF EXISTS "Hardened public visitors log QR scans" ON public.analytics_qr_scans;
+DROP POLICY IF EXISTS "Hardened public visitors log item views" ON public.analytics_item_views;
+DROP POLICY IF EXISTS "Hardened public visitors log search queries" ON public.analytics_search_logs;
+DROP POLICY IF EXISTS "Hardened business members view QR scans" ON public.analytics_qr_scans;
+DROP POLICY IF EXISTS "Hardened business members view item views" ON public.analytics_item_views;
+DROP POLICY IF EXISTS "Hardened business members view search logs" ON public.analytics_search_logs;
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE tablename = 'analytics_item_views' AND policyname = 'Public visitors log item views'
-  ) THEN
-    CREATE POLICY "Public visitors log item views" ON public.analytics_item_views
-      FOR INSERT WITH CHECK (true);
-  END IF;
+CREATE POLICY "Hardened public visitors log QR scans"
+  ON public.analytics_qr_scans
+  FOR INSERT
+  WITH CHECK (
+    public.is_valid_business_id(business_id) AND
+    (device_type IS NULL OR length(device_type) <= 50) AND
+    (user_agent IS NULL OR length(user_agent) <= 500)
+  );
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE tablename = 'analytics_search_logs' AND policyname = 'Public visitors log search queries'
-  ) THEN
-    CREATE POLICY "Public visitors log search queries" ON public.analytics_search_logs
-      FOR INSERT WITH CHECK (true);
-  END IF;
-END $$;
+CREATE POLICY "Hardened public visitors log item views"
+  ON public.analytics_item_views
+  FOR INSERT
+  WITH CHECK (
+    public.is_valid_business_id(business_id) AND
+    public.is_valid_catalog_item_for_business(business_id, item_id) AND
+    length(trim(item_name)) > 0 AND length(item_name) <= 250
+  );
 
-DO $$ 
-BEGIN
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE tablename = 'analytics_qr_scans' AND policyname = 'Business members view QR scans'
-  ) THEN
-    CREATE POLICY "Business members view QR scans" ON public.analytics_qr_scans
-      FOR SELECT USING (public.is_business_member(business_id) OR public.is_super_admin());
-  END IF;
+CREATE POLICY "Hardened public visitors log search queries"
+  ON public.analytics_search_logs
+  FOR INSERT
+  WITH CHECK (
+    public.is_valid_business_id(business_id) AND
+    length(trim(query_text)) > 0 AND length(query_text) <= 250 AND
+    results_count >= 0 AND results_count <= 10000
+  );
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE tablename = 'analytics_item_views' AND policyname = 'Business members view item views'
-  ) THEN
-    CREATE POLICY "Business members view item views" ON public.analytics_item_views
-      FOR SELECT USING (public.is_business_member(business_id) OR public.is_super_admin());
-  END IF;
+CREATE POLICY "Hardened business members view QR scans"
+  ON public.analytics_qr_scans
+  FOR SELECT
+  USING (public.is_business_member(business_id) OR public.is_super_admin());
 
-  IF NOT EXISTS (
-    SELECT 1 FROM pg_policies WHERE tablename = 'analytics_search_logs' AND policyname = 'Business members view search logs'
-  ) THEN
-    CREATE POLICY "Business members view search logs" ON public.analytics_search_logs
-      FOR SELECT USING (public.is_business_member(business_id) OR public.is_super_admin());
-  END IF;
-END $$;
+CREATE POLICY "Hardened business members view item views"
+  ON public.analytics_item_views
+  FOR SELECT
+  USING (public.is_business_member(business_id) OR public.is_super_admin());
+
+CREATE POLICY "Hardened business members view search logs"
+  ON public.analytics_search_logs
+  FOR SELECT
+  USING (public.is_business_member(business_id) OR public.is_super_admin());
 
 -- Notify PostgREST API to reload schema cache
 NOTIFY pgrst, 'reload schema';
