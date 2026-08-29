@@ -3,13 +3,13 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { 
-  Building2, Search, Filter, ShieldCheck, CheckCircle2, AlertCircle, Calendar, Crown, ExternalLink, RefreshCw, Zap, DollarSign, BarChart3, QrCode, Eye, Smartphone, TrendingUp, Users, AlertTriangle 
+  Building2, Search, Filter, ShieldCheck, CheckCircle2, AlertCircle, Calendar, Crown, ExternalLink, RefreshCw, Zap, DollarSign, BarChart3, QrCode, Eye, Smartphone, TrendingUp, Users, AlertTriangle, ArrowRight, BarChart2, Sparkles 
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { createClient } from '@/lib/supabase/client';
-import { Business, SubscriptionPlan, SubscriptionStatus, SUBSCRIPTION_PLANS_META } from '@/lib/types';
+import { Business, SubscriptionPlan, SubscriptionStatus, SUBSCRIPTION_PLANS_META, BillingInterval, calculatePackageDiscount } from '@/lib/types';
 import { getGlobalPlatformAnalytics, getAnalyticsSummary, GlobalAnalyticsSummary, AnalyticsSummary } from '@/lib/analytics';
 import { slugify } from '@/lib/utils';
 
@@ -43,7 +43,8 @@ export default function SuperAdminDashboardPage() {
 
   // Modal Form Fields
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan>('pro');
-  const [startDateStr, setStartDateStr] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [selectedBillingInterval, setSelectedBillingInterval] = useState<BillingInterval>('monthly');
+  const [startDateStr, setStartDateStr] = useState<string>('');
   const [adminSlug, setAdminSlug] = useState<string>('');
 
   useEffect(() => {
@@ -52,62 +53,50 @@ export default function SuperAdminDashboardPage() {
 
   async function loadMasterDirectory() {
     setLoading(true);
-    const supabase = createClient();
-
-    // Fetch all businesses
-    const { data: bizData, error: bizError } = await supabase
-      .from('businesses')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (bizError) {
-      console.error('Admin fetch error:', bizError);
-      setLoading(false);
-      return;
-    }
-
-    // Fetch items & categories counts for metrics
-    const { data: itemsData } = await supabase.from('catalog_items').select('id, business_id');
-    const { data: catData } = await supabase.from('categories').select('id, business_id');
-    const { data: profilesData } = await supabase.from('profiles').select('id, full_name');
-    const { data: authUser } = await supabase.auth.getUser();
-
-    // Query platform scans
-    let scansCount = 0;
     try {
-      const { count } = await supabase.from('analytics_qr_scans').select('*', { count: 'exact', head: true });
-      if (count !== null) scansCount = count;
-    } catch (e) {
-      // fallback
-    }
-    setTotalScansCount(scansCount);
-
-    const enriched = (bizData || []).map((b) => {
-      const itemsCount = (itemsData || []).filter((i) => i.business_id === b.id).length;
-      const catCount = (catData || []).filter((c) => c.business_id === b.id).length;
-      const profile = (profilesData || []).find((p) => p.id === b.owner_id);
+      const supabase = createClient();
       
-      const isSuperAdminOwner = (b.name && b.name.toLowerCase().includes('master super admin')) || 
-        (profile?.full_name && profile.full_name.toLowerCase().includes('super admin')) ||
-        (authUser.user?.id === b.owner_id);
+      const { data: bizData, error: bizErr } = await supabase
+        .from('businesses')
+        .select('*')
+        .order('created_at', { ascending: false });
 
-      return {
+      if (bizErr) throw bizErr;
+
+      const { data: itemData } = await supabase.from('catalog_items').select('business_id');
+      const { data: catData } = await supabase.from('categories').select('business_id');
+      const { data: scanData } = await supabase.from('analytics_qr_scans').select('id');
+      
+      if (scanData) {
+        setTotalScansCount(scanData.length);
+      }
+
+      const itemsPerBiz: Record<string, number> = {};
+      (itemData || []).forEach((i) => {
+        itemsPerBiz[i.business_id] = (itemsPerBiz[i.business_id] || 0) + 1;
+      });
+
+      const catsPerBiz: Record<string, number> = {};
+      (catData || []).forEach((c) => {
+        catsPerBiz[c.business_id] = (catsPerBiz[c.business_id] || 0) + 1;
+      });
+
+      const mapped: BusinessWithMetrics[] = (bizData || []).map((b) => ({
         ...b,
-        item_count: itemsCount,
-        category_count: catCount,
-        owner_email: profile?.full_name || 'Owner',
-        is_super_admin_owner: isSuperAdminOwner,
-      };
-    });
+        item_count: itemsPerBiz[b.id] || 0,
+        category_count: catsPerBiz[b.id] || 0,
+        is_super_admin_owner: b.slug === 'bella-vista-bistro' || b.name?.toLowerCase().includes('super admin'),
+      }));
 
-    setBusinesses(enriched);
+      setBusinesses(mapped);
 
-    // Fetch Global Platform Analytics
-    const globalData = await getGlobalPlatformAnalytics(enriched);
-    setGlobalAnalytics(globalData);
-    setTotalScansCount(globalData.totalPlatformScans);
-
-    setLoading(false);
+      const globalStats = await getGlobalPlatformAnalytics(mapped);
+      setGlobalAnalytics(globalStats);
+    } catch (err) {
+      console.error('Error loading Super Admin master directory:', err);
+    } finally {
+      setLoading(false);
+    }
   }
 
   const handleInspectAnalytics = async (biz: BusinessWithMetrics) => {
@@ -123,6 +112,7 @@ export default function SuperAdminDashboardPage() {
     if (biz.is_super_admin_owner) return;
     setSelectedBiz(biz);
     setSelectedPlan(biz.subscription_plan || 'pro');
+    setSelectedBillingInterval(biz.billing_interval || 'monthly');
     setAdminSlug(biz.slug || '');
     
     const today = new Date().toISOString().split('T')[0];
@@ -144,9 +134,13 @@ export default function SuperAdminDashboardPage() {
       const planMeta = SUBSCRIPTION_PLANS_META[selectedPlan];
       const startDate = new Date(startDateStr);
       
-      // Automatically set end date to +1 Month from Start Date
+      // Calculate End Date: +1 Year for annual, +1 Month for monthly
       const endDate = new Date(startDate);
-      endDate.setMonth(endDate.getMonth() + 1);
+      if (selectedBillingInterval === 'annual') {
+        endDate.setFullYear(endDate.getFullYear() + 1);
+      } else {
+        endDate.setMonth(endDate.getMonth() + 1);
+      }
 
       const supabase = createClient();
       
@@ -156,6 +150,7 @@ export default function SuperAdminDashboardPage() {
         p_plan: selectedPlan,
         p_start_date: startDate.toISOString(),
         p_end_date: endDate.toISOString(),
+        p_billing_interval: selectedBillingInterval,
       });
 
       if (error) throw error;
@@ -170,7 +165,7 @@ export default function SuperAdminDashboardPage() {
         if (slugErr) throw slugErr;
       }
 
-      setSuccessMsg(`Successfully updated subscription & URL slug for ${selectedBiz.name}! Valid until ${endDate.toLocaleDateString()}`);
+      setSuccessMsg(`Successfully updated subscription (${selectedPlan.toUpperCase()} - ${selectedBillingInterval.toUpperCase()}) & URL slug for ${selectedBiz.name}! Valid until ${endDate.toLocaleDateString()}`);
       
       // Reload directory
       await loadMasterDirectory();
@@ -213,7 +208,17 @@ export default function SuperAdminDashboardPage() {
   const proAccounts = customerBusinesses.filter((b) => b.subscription_plan === 'pro' && !getDaysRemaining(b.subscription_end_date).isExpired).length;
   const enterpriseAccounts = customerBusinesses.filter((b) => (b.subscription_plan === 'enterprise' || (b.subscription_plan as string) === 'business_plus') && !getDaysRemaining(b.subscription_end_date).isExpired).length;
   const freeAccounts = customerBusinesses.filter((b) => b.subscription_plan === 'free' || !b.subscription_plan).length;
-  const estimatedMrr = (proAccounts * 2000) + (enterpriseAccounts * 3500);
+  const estimatedMrr = customerBusinesses.reduce((acc, b) => {
+    if (getDaysRemaining(b.subscription_end_date).isExpired) return acc;
+    if (b.subscription_plan === 'pro') {
+      return acc + (b.billing_interval === 'annual' ? Math.round(21000 / 12) : 2000);
+    }
+    if (b.subscription_plan === 'enterprise' || (b.subscription_plan as string) === 'business_plus') {
+      return acc + (b.billing_interval === 'annual' ? Math.round(36000 / 12) : 3500);
+    }
+    return acc;
+  }, 0);
+
   const monthlyRevenue = (globalAnalytics?.totalPlatformRevenue && globalAnalytics.totalPlatformRevenue > 0) 
     ? globalAnalytics.totalPlatformRevenue 
     : estimatedMrr;
@@ -228,24 +233,24 @@ export default function SuperAdminDashboardPage() {
           </div>
           <h1 className="text-2xl font-extrabold text-white">Super Admin Directory</h1>
           <p className="text-xs text-slate-400">
-            Manage registered customer businesses, approve monthly subscriptions, and inspect live catalogs.
+            Platform control center. Manage customer business URL slugs, approve subscriptions, and inspect real-time tenant analytics.
           </p>
         </div>
 
-        <Button onClick={loadMasterDirectory} variant="outline" size="sm" className="gap-2 border-slate-700 bg-slate-800 text-slate-200 hover:bg-slate-700">
-          <RefreshCw className="w-3.5 h-3.5" /> Refresh Data
+        <Button onClick={loadMasterDirectory} variant="outline" size="sm" className="gap-2 border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 w-fit">
+          <RefreshCw className="w-3.5 h-3.5" /> Refresh Directory
         </Button>
       </div>
 
-      {/* Overview Analytics Cards */}
+      {/* Analytics & Revenue Summary Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-slate-900 p-5 rounded-2xl border border-slate-800 shadow-sm flex items-center justify-between">
           <div>
-            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Customer Revenue</div>
+            <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Platform Revenue</div>
             <div className="text-2xl font-extrabold text-teal-400 mt-1">
               LKR {monthlyRevenue.toLocaleString()}
             </div>
-            <div className="text-[11px] text-slate-500 mt-1">Estimated MRR</div>
+            <div className="text-[11px] text-slate-500 mt-1">Estimated MRR (Monthly + Annualized)</div>
           </div>
           <div className="p-3 bg-teal-500/10 text-teal-400 rounded-xl">
             <DollarSign className="w-6 h-6" />
@@ -267,7 +272,7 @@ export default function SuperAdminDashboardPage() {
           <div>
             <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Pro Growth Accounts</div>
             <div className="text-2xl font-extrabold text-teal-400 mt-1">{proAccounts}</div>
-            <div className="text-[11px] text-slate-500 mt-1">LKR 2,000 / month</div>
+            <div className="text-[11px] text-slate-500 mt-1">LKR 2,000/mo or 21,000/yr</div>
           </div>
           <div className="p-3 bg-amber-500/10 text-amber-400 rounded-xl">
             <Zap className="w-6 h-6" />
@@ -278,7 +283,7 @@ export default function SuperAdminDashboardPage() {
           <div>
             <div className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Business Plus Accounts</div>
             <div className="text-2xl font-extrabold text-purple-400 mt-1">{enterpriseAccounts}</div>
-            <div className="text-[11px] text-slate-500 mt-1">LKR 3,500 / month</div>
+            <div className="text-[11px] text-slate-500 mt-1">LKR 3,500/mo or 36,000/yr</div>
           </div>
           <div className="p-3 bg-purple-500/10 text-purple-400 rounded-xl">
             <Crown className="w-6 h-6" />
@@ -468,7 +473,9 @@ export default function SuperAdminDashboardPage() {
                               {biz.subscription_plan === 'enterprise_gift'
                                 ? '🎁 VIP Complimentary Gift'
                                 : planMeta.priceLKR > 0
-                                ? `LKR ${planMeta.priceLKR.toLocaleString()}/mo`
+                                ? biz.billing_interval === 'annual'
+                                  ? `LKR ${planMeta.priceAnnualLKR.toLocaleString()}/yr (Annual)`
+                                  : `LKR ${planMeta.priceLKR.toLocaleString()}/mo (Monthly)`
                                 : 'Free Forever'}
                             </div>
                           </>
@@ -596,6 +603,8 @@ export default function SuperAdminDashboardPage() {
               {(['free', 'pro', 'enterprise', 'enterprise_gift'] as SubscriptionPlan[]).map((planKey) => {
                 const plan = SUBSCRIPTION_PLANS_META[planKey];
                 const isSelected = selectedPlan === planKey;
+                const isAnnual = selectedBillingInterval === 'annual';
+                const price = isAnnual ? plan.priceAnnualLKR : plan.priceLKR;
 
                 return (
                   <button
@@ -613,8 +622,8 @@ export default function SuperAdminDashboardPage() {
                       <div className="text-xs text-purple-700 font-extrabold mt-1">
                         {planKey === 'enterprise_gift'
                           ? '🎁 Free VIP Gift'
-                          : plan.priceLKR > 0
-                          ? `LKR ${plan.priceLKR.toLocaleString()}/mo`
+                          : price > 0
+                          ? `LKR ${price.toLocaleString()}/${isAnnual ? 'yr' : 'mo'}`
                           : 'Free Forever'}
                       </div>
                     </div>
@@ -626,6 +635,69 @@ export default function SuperAdminDashboardPage() {
               })}
             </div>
           </div>
+
+          {/* Select Billing Interval */}
+          <div className="space-y-2 pt-2">
+            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+              Select Billing Interval
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setSelectedBillingInterval('monthly')}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                  selectedBillingInterval === 'monthly'
+                    ? 'border-purple-600 bg-purple-50 text-slate-900 font-extrabold shadow-sm'
+                    : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 font-medium'
+                }`}
+              >
+                <div className="text-xs font-extrabold">Monthly Billing</div>
+                <div className="text-[11px] text-slate-500 mt-0.5">Duration: 1 month</div>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setSelectedBillingInterval('annual')}
+                className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
+                  selectedBillingInterval === 'annual'
+                    ? 'border-purple-600 bg-purple-50 text-slate-900 font-extrabold shadow-sm'
+                    : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300 font-medium'
+                }`}
+              >
+                <div className="text-xs font-extrabold flex items-center gap-1.5">
+                  <span>Annual Billing</span>
+                  <span className="px-1.5 py-0.2 rounded-full text-[9px] font-black uppercase bg-emerald-600 text-white">
+                    SAVE
+                  </span>
+                </div>
+                <div className="text-[11px] text-slate-500 mt-0.5">Duration: 12 months</div>
+              </button>
+            </div>
+          </div>
+
+          {/* Price & Duration Confirmation Summary */}
+          {selectedPlan !== 'free' && selectedPlan !== 'enterprise_gift' && (
+            <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl flex items-center justify-between text-xs">
+              <div className="space-y-0.5">
+                <div className="font-extrabold text-purple-950">
+                  Approved Package: {SUBSCRIPTION_PLANS_META[selectedPlan].name} ({selectedBillingInterval === 'annual' ? 'Annual' : 'Monthly'})
+                </div>
+                <div className="text-[11px] text-purple-800">
+                  {selectedBillingInterval === 'annual' 
+                    ? `Save ${calculatePackageDiscount(SUBSCRIPTION_PLANS_META[selectedPlan].priceLKR, SUBSCRIPTION_PLANS_META[selectedPlan].priceAnnualLKR).formattedDiscount} • LKR ${calculatePackageDiscount(SUBSCRIPTION_PLANS_META[selectedPlan].priceLKR, SUBSCRIPTION_PLANS_META[selectedPlan].priceAnnualLKR).monthlyEquivalent.toLocaleString()}/mo eq.`
+                    : 'Standard monthly recurring plan'}
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm font-black text-purple-900">
+                  LKR {(selectedBillingInterval === 'annual' ? SUBSCRIPTION_PLANS_META[selectedPlan].priceAnnualLKR : SUBSCRIPTION_PLANS_META[selectedPlan].priceLKR).toLocaleString()}
+                </div>
+                <div className="text-[10px] text-purple-700 font-bold">
+                  {selectedBillingInterval === 'annual' ? '12 Months' : '1 Month'}
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Start / Payment Date Picker */}
           <div className="space-y-1">
@@ -639,7 +711,7 @@ export default function SuperAdminDashboardPage() {
               required
             />
             <p className="text-[11px] text-slate-500 mt-1">
-              Validity will be automatically extended for <strong>1 month</strong> from this start date.
+              Validity will be automatically extended for <strong>{selectedBillingInterval === 'annual' ? '12 months (1 year)' : '1 month'}</strong> from this start date.
             </p>
           </div>
 

@@ -2,6 +2,7 @@ export type BusinessType = 'restaurant' | 'bookshop' | 'salon' | 'general';
 export type UserRole = 'owner' | 'staff';
 export type SubscriptionPlan = 'free' | 'pro' | 'enterprise' | 'enterprise_gift';
 export type SubscriptionStatus = 'active' | 'expired';
+export type BillingInterval = 'monthly' | 'annual';
 
 export interface Profile {
   id: string;
@@ -29,6 +30,7 @@ export interface Business {
   
   // Subscription fields (NULL max_items or max_categories = Unlimited)
   subscription_plan?: SubscriptionPlan;
+  billing_interval?: BillingInterval;
   subscription_status?: SubscriptionStatus;
   subscription_start_date?: string | null;
   subscription_end_date?: string | null;
@@ -88,6 +90,7 @@ export interface SubscriptionPlanMeta {
   id: SubscriptionPlan;
   name: string;
   priceLKR: number;
+  priceAnnualLKR: number;
   maxItems: number | null;
   maxCategories: number | null;
   badge: string;
@@ -100,6 +103,7 @@ export const SUBSCRIPTION_PLANS_META: Record<SubscriptionPlan, SubscriptionPlanM
     id: 'free',
     name: 'Starter Free',
     priceLKR: 0,
+    priceAnnualLKR: 0,
     maxItems: 10,
     maxCategories: 5,
     badge: 'Free Forever',
@@ -115,6 +119,7 @@ export const SUBSCRIPTION_PLANS_META: Record<SubscriptionPlan, SubscriptionPlanM
     id: 'pro',
     name: 'Pro Growth',
     priceLKR: 2000,
+    priceAnnualLKR: 21000,
     maxItems: 150,
     maxCategories: 20,
     badge: 'Popular',
@@ -131,6 +136,7 @@ export const SUBSCRIPTION_PLANS_META: Record<SubscriptionPlan, SubscriptionPlanM
     id: 'enterprise',
     name: 'Business Plus',
     priceLKR: 3500,
+    priceAnnualLKR: 36000,
     maxItems: null, // NULL = Unlimited
     maxCategories: null, // NULL = Unlimited
     badge: 'Best Value',
@@ -147,6 +153,7 @@ export const SUBSCRIPTION_PLANS_META: Record<SubscriptionPlan, SubscriptionPlanM
     id: 'enterprise_gift',
     name: 'Business Plus (VIP Gift)',
     priceLKR: 0,
+    priceAnnualLKR: 0,
     maxItems: null,
     maxCategories: null,
     badge: '🎁 VIP Gift',
@@ -161,6 +168,36 @@ export const SUBSCRIPTION_PLANS_META: Record<SubscriptionPlan, SubscriptionPlanM
     ],
   },
 };
+
+/**
+ * Dynamically calculate package annual discount percentage, savings, & monthly equivalent
+ */
+export function calculatePackageDiscount(monthlyPrice: number, annualPrice: number) {
+  if (monthlyPrice <= 0 || annualPrice <= 0) {
+    return {
+      discountPercent: 0,
+      formattedDiscount: '0%',
+      monthlyEquivalent: 0,
+      originalAnnualized: 0,
+      savingsLKR: 0,
+    };
+  }
+  const originalAnnualized = monthlyPrice * 12;
+  const savingsLKR = originalAnnualized - annualPrice;
+  const rawDiscount = (savingsLKR / originalAnnualized) * 100;
+  
+  // Format rounded dynamically: 12.5% for Pro, 14.3% for Business Plus
+  const roundedDiscount = Math.round(rawDiscount * 10) / 10;
+  const monthlyEquivalent = Math.round(annualPrice / 12);
+
+  return {
+    discountPercent: roundedDiscount,
+    formattedDiscount: `${roundedDiscount}%`,
+    monthlyEquivalent,
+    originalAnnualized,
+    savingsLKR,
+  };
+}
 
 export const BUSINESS_TYPES_META: Record<BusinessType, {
   label: string;

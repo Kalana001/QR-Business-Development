@@ -57,6 +57,7 @@ CREATE TABLE IF NOT EXISTS public.businesses (
   
   -- Subscription & Limit System Fields (Protected from non-admin updates)
   subscription_plan TEXT NOT NULL DEFAULT 'free' CHECK (subscription_plan IN ('free', 'pro', 'enterprise')),
+  billing_interval TEXT NOT NULL DEFAULT 'monthly' CHECK (billing_interval IN ('monthly', 'annual')),
   subscription_status TEXT NOT NULL DEFAULT 'active' CHECK (subscription_status IN ('active', 'expired')),
   subscription_start_date TIMESTAMPTZ DEFAULT NOW(),
   subscription_end_date TIMESTAMPTZ, -- NULL for perpetual Free plan
@@ -68,6 +69,7 @@ CREATE TABLE IF NOT EXISTS public.businesses (
 );
 
 ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS billing_interval TEXT NOT NULL DEFAULT 'monthly';
 
 -- Safely convert existing fake 999999 limits to NULL for Business Plus (Enterprise)
 ALTER TABLE public.businesses ALTER COLUMN max_items DROP NOT NULL;
@@ -459,7 +461,8 @@ CREATE OR REPLACE FUNCTION public.admin_update_subscription(
   p_business_id UUID,
   p_plan TEXT,
   p_start_date TIMESTAMPTZ,
-  p_end_date TIMESTAMPTZ
+  p_end_date TIMESTAMPTZ,
+  p_billing_interval TEXT DEFAULT 'monthly'
 )
 RETURNS public.businesses
 LANGUAGE plpgsql
@@ -471,33 +474,48 @@ DECLARE
   v_max_categories INT;
   v_result public.businesses;
   v_amount NUMERIC(10,2);
+  v_interval TEXT;
 BEGIN
   -- 1. Enforce Super Admin Check
   IF NOT public.is_super_admin() THEN
     RAISE EXCEPTION 'Access Denied: Super Admin privileges required.' USING ERRCODE = '42501';
   END IF;
 
-  -- 2. Validate Subscription Plan (Reject invalid plans - FIX #7)
+  -- 2. Sanitize and Validate Billing Interval
+  v_interval := COALESCE(LOWER(TRIM(p_billing_interval)), 'monthly');
+  IF v_interval NOT IN ('monthly', 'annual') THEN
+    v_interval := 'monthly';
+  END IF;
+
+  -- 3. Validate Subscription Plan (Reject invalid plans)
   IF p_plan NOT IN ('free', 'pro', 'enterprise', 'enterprise_gift') THEN
     RAISE EXCEPTION 'Invalid subscription plan: %. Plan must be free, pro, enterprise, or enterprise_gift.', p_plan USING ERRCODE = '22023';
   END IF;
 
-  -- 3. Validate Date Range for Paid Plans (FIX #7)
+  -- 4. Validate Date Range for Paid Plans
   IF p_plan IN ('pro', 'enterprise', 'enterprise_gift') THEN
     IF p_end_date IS NULL OR p_end_date <= p_start_date THEN
       RAISE EXCEPTION 'Invalid date range: end_date must be later than start_date.' USING ERRCODE = '22023';
     END IF;
   END IF;
 
-  -- 4. Calculate Internal Limits and Pricing Amount
+  -- 5. Calculate Authoritative Internal Limits and Pricing Amount
   IF p_plan = 'pro' THEN
     v_max_items := 150;
     v_max_categories := 20;
-    v_amount := 2000.00;
+    IF v_interval = 'annual' THEN
+      v_amount := 21000.00;
+    ELSE
+      v_amount := 2000.00;
+    END IF;
   ELSIF p_plan = 'enterprise' THEN
     v_max_items := NULL; -- NULL means Unlimited (Business Plus)
     v_max_categories := NULL; -- NULL means Unlimited (Business Plus)
-    v_amount := 3500.00;
+    IF v_interval = 'annual' THEN
+      v_amount := 36000.00;
+    ELSE
+      v_amount := 3500.00;
+    END IF;
   ELSIF p_plan = 'enterprise_gift' THEN
     v_max_items := NULL; -- NULL means Unlimited (VIP Gift)
     v_max_categories := NULL; -- NULL means Unlimited (VIP Gift)
@@ -511,6 +529,7 @@ BEGIN
   UPDATE public.businesses
   SET 
     subscription_plan = p_plan,
+    billing_interval = v_interval,
     subscription_status = 'active',
     subscription_start_date = p_start_date,
     subscription_end_date = CASE WHEN p_plan = 'free' THEN NULL ELSE p_end_date END,
@@ -520,19 +539,20 @@ BEGIN
   WHERE id = p_business_id
   RETURNING * INTO v_result;
 
-  -- 5. Record Payment Entry
+  -- 6. Record Payment Entry with Billing Interval
   INSERT INTO public.subscription_payments (
-    business_id, plan, amount, payment_reference, start_date, end_date, approved_by
+    business_id, plan, billing_interval, amount, payment_reference, start_date, end_date, approved_by
   ) VALUES (
-    p_business_id, p_plan, v_amount, 'Super Admin Manual Approval', p_start_date, p_end_date, auth.uid()
+    p_business_id, p_plan, v_interval, v_amount, 'Super Admin Manual Approval', p_start_date, p_end_date, auth.uid()
   );
 
-  -- 6. Log Admin Audit Action
+  -- 7. Log Admin Audit Action
   INSERT INTO public.admin_audit_logs (
     admin_user_id, business_id, action, details
   ) VALUES (
     auth.uid(), p_business_id, 'subscription_approved', jsonb_build_object(
       'plan', p_plan,
+      'billing_interval', v_interval,
       'start_date', p_start_date,
       'end_date', p_end_date,
       'amount', v_amount

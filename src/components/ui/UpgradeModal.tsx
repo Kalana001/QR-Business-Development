@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Crown, CheckCircle2, Zap, Phone, MessageSquare, ExternalLink } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
-import { SUBSCRIPTION_PLANS_META, SubscriptionPlan } from '@/lib/types';
+import { SUBSCRIPTION_PLANS_META, SubscriptionPlan, BillingInterval, calculatePackageDiscount } from '@/lib/types';
 import { createClient } from '@/lib/supabase/client';
 
 interface UpgradeModalProps {
@@ -22,6 +22,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
 }) => {
   const plans = [SUBSCRIPTION_PLANS_META.pro, SUBSCRIPTION_PLANS_META.enterprise];
   const [bizName, setBizName] = useState<string>(initialBusinessName || '');
+  const [billingInterval, setBillingInterval] = useState<BillingInterval>('annual');
 
   useEffect(() => {
     if (initialBusinessName) {
@@ -78,12 +79,45 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
           </div>
         </div>
 
+        {/* Monthly | Annual Billing Switch Selector */}
+        <div className="flex justify-center">
+          <div className="p-1 bg-slate-100 border border-slate-200 rounded-2xl inline-flex items-center gap-1">
+            <button
+              type="button"
+              onClick={() => setBillingInterval('monthly')}
+              className={`px-5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                billingInterval === 'monthly'
+                  ? 'bg-white text-slate-900 shadow-sm border border-slate-200'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Monthly Billing
+            </button>
+            <button
+              type="button"
+              onClick={() => setBillingInterval('annual')}
+              className={`px-5 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer ${
+                billingInterval === 'annual'
+                  ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-slate-950 shadow-md'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <span>Annual Billing</span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-950 text-teal-300">
+                SAVE UP TO 14.3%
+              </span>
+            </button>
+          </div>
+        </div>
+
         {/* Pricing Cards Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {plans.map((plan) => {
-            const messageText = bizName
-              ? `Hello Admin, I want to upgrade my business "${bizName}" catalog to ${plan.name} (LKR ${plan.priceLKR}/mo).`
-              : `Hello Admin, I want to upgrade my business catalog to ${plan.name} (LKR ${plan.priceLKR}/mo).`;
+            const isAnnual = billingInterval === 'annual';
+            const price = isAnnual ? plan.priceAnnualLKR : plan.priceLKR;
+            const discount = calculatePackageDiscount(plan.priceLKR, plan.priceAnnualLKR);
+
+            const messageText = `Business:\n${bizName || 'My Business'}\n\nRequested Plan:\n${plan.name}\n\nBilling:\n${isAnnual ? 'Annual' : 'Monthly'}\n\nAmount:\nLKR ${price.toLocaleString()}\n\nDuration:\n${isAnnual ? '12 months' : '1 month'}`;
 
             return (
               <div
@@ -95,7 +129,12 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
                 }`}
               >
                 {/* Badge */}
-                <div className="absolute top-4 right-4">
+                <div className="absolute top-4 right-4 flex items-center gap-1.5">
+                  {isAnnual && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500 text-slate-950">
+                      Save {discount.formattedDiscount}
+                    </span>
+                  )}
                   <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-extrabold uppercase tracking-wider ${
                     plan.id === 'pro'
                       ? 'bg-teal-500 text-slate-950'
@@ -114,12 +153,24 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
                   </p>
 
                   <div className="pt-2">
-                    <span className={`text-3xl font-extrabold ${plan.id === 'pro' ? 'text-slate-900' : 'text-white'}`}>
-                      LKR {plan.priceLKR.toLocaleString()}
-                    </span>
-                    <span className={`text-xs ${plan.id === 'pro' ? 'text-slate-500' : 'text-slate-400'}`}>
-                      {' '}/ month
-                    </span>
+                    <div className="flex items-baseline gap-2">
+                      <span className={`text-3xl font-extrabold ${plan.id === 'pro' ? 'text-slate-900' : 'text-white'}`}>
+                        LKR {price.toLocaleString()}
+                      </span>
+                      <span className={`text-xs ${plan.id === 'pro' ? 'text-slate-500' : 'text-slate-400'}`}>
+                        / {isAnnual ? 'year' : 'month'}
+                      </span>
+                      {isAnnual && (
+                        <span className="text-xs text-slate-400 line-through">
+                          LKR {discount.originalAnnualized.toLocaleString()}
+                        </span>
+                      )}
+                    </div>
+                    {isAnnual && (
+                      <div className={`text-xs font-bold mt-1 ${plan.id === 'pro' ? 'text-teal-700' : 'text-teal-400'}`}>
+                        Equivalent to LKR {discount.monthlyEquivalent.toLocaleString()}/month
+                      </div>
+                    )}
                   </div>
 
                   <div className="pt-3 border-t border-slate-200/20 space-y-2">
@@ -149,7 +200,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
                         : 'bg-white hover:bg-slate-100 text-slate-950'
                     }`}
                   >
-                    <MessageSquare className="w-4 h-4" /> Request Activation
+                    <MessageSquare className="w-4 h-4" /> Request Activation ({isAnnual ? 'Annual' : 'Monthly'})
                   </a>
                 </div>
               </div>
@@ -163,7 +214,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
             <Crown className="w-4 h-4 text-amber-500" /> Subscription Payment & Approval Process
           </div>
           <p>
-            After selecting your package, submit payment via bank transfer or direct contact. Your Super Admin will activate your subscription for 1 full month upon payment verification.
+            After selecting your package and interval, submit payment via bank transfer or direct contact. Your Super Admin will activate your subscription for 1 month or 12 months upon payment verification.
           </p>
         </div>
       </div>

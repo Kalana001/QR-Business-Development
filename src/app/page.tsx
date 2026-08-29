@@ -1,8 +1,17 @@
+'use client';
+
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { QrCode, Store, Utensils, BookOpen, Scissors, ArrowRight, ShieldCheck, Smartphone, CheckCircle } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
+import { BillingInterval, calculatePackageDiscount } from '@/lib/types';
 
 export default function LandingPage() {
+  const [billingInterval, setBillingInterval] = useState<BillingInterval>('annual');
+
+  const proDiscount = calculatePackageDiscount(2000, 21000);
+  const bizPlusDiscount = calculatePackageDiscount(3500, 36000);
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col justify-between selection:bg-teal-500 selection:text-white">
       {/* Navigation Header */}
@@ -25,8 +34,8 @@ export default function LandingPage() {
               </Button>
             </Link>
             <Link href="/signup">
-              <Button className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold border-none">
-                Start Free Trial
+              <Button className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold border-none">
+                Get Started
               </Button>
             </Link>
           </div>
@@ -34,72 +43,73 @@ export default function LandingPage() {
       </header>
 
       {/* Hero Section */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24 flex-1 flex flex-col justify-center">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-16 sm:py-24 space-y-20 flex-1">
         <div className="text-center space-y-6 max-w-3xl mx-auto">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-400 text-xs font-semibold uppercase tracking-wider">
-            <Sparkles className="w-3.5 h-3.5" /> Next-Gen Mobile Catalogs
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-300 text-xs font-semibold uppercase tracking-wider">
+            <ShieldCheck className="w-4 h-4 text-teal-400" />
+            <span>Digital QR Catalog Platform</span>
           </div>
 
-          <h1 className="text-4xl sm:text-6xl font-extrabold text-white tracking-tight leading-tight">
-            Turn your menu or products into an <span className="text-teal-400">instant QR experience</span>
+          <h1 className="text-4xl sm:text-6xl font-black text-white tracking-tight leading-tight">
+            Transform Your Physical Menu Into an <span className="text-transparent bg-clip-text bg-gradient-to-r from-teal-400 via-emerald-400 to-indigo-400">Interactive QR Catalog</span>
           </h1>
 
-          <p className="text-lg sm:text-xl text-slate-400 font-normal leading-relaxed">
-            Zero app downloads. Zero registration required for your customers. Multi-tenant SaaS platform built for Restaurants, Bookshops, Salons, and Retailers.
+          <p className="text-slate-400 text-base sm:text-lg max-w-2xl mx-auto leading-relaxed">
+            Create beautiful mobile digital catalogs for your restaurant, bookshop, salon, or retail business. Print tabletop QR flyers & receive customer queries instantly.
           </p>
 
-          <div className="pt-4 flex flex-col sm:flex-row items-center justify-center gap-4">
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
             <Link href="/signup" className="w-full sm:w-auto">
-              <Button size="lg" className="w-full sm:w-auto bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold text-base py-3 px-8 gap-2 border-none">
-                Create Business Catalog <ArrowRight className="w-5 h-5" />
+              <Button size="lg" className="w-full bg-teal-500 hover:bg-teal-400 text-slate-950 font-extrabold border-none px-8 py-3.5 text-base gap-2">
+                Create Free Catalog Now <ArrowRight className="w-5 h-5" />
               </Button>
             </Link>
-            <Link href="/login" className="w-full sm:w-auto">
-              <Button size="lg" variant="outline" className="w-full sm:w-auto border-slate-700 bg-slate-900 text-slate-200 hover:bg-slate-800">
-                Go to Business Dashboard
+            <a href="#pricing" className="w-full sm:w-auto">
+              <Button variant="outline" size="lg" className="w-full border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800 py-3.5 text-base">
+                View Packages & Pricing
               </Button>
-            </Link>
+            </a>
           </div>
         </div>
 
-        {/* Feature Grid / Business Types */}
-        <div className="mt-20 grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="p-6 bg-slate-900/60 border border-slate-800 rounded-2xl hover:border-teal-500/40 transition-colors">
-            <div className="p-3 bg-rose-500/10 text-rose-400 rounded-xl w-fit mb-4">
+        {/* Business Type Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="p-6 bg-slate-900/60 border border-slate-800 rounded-2xl space-y-3 hover:border-teal-500/40 transition-all group">
+            <div className="p-3 bg-slate-800 text-teal-400 rounded-xl w-fit group-hover:bg-teal-500 group-hover:text-slate-950 transition-all">
               <Utensils className="w-6 h-6" />
             </div>
-            <h3 className="text-lg font-bold text-white mb-2">Restaurant & Café</h3>
-            <p className="text-sm text-slate-400">
-              Food & drink items, dietary badges (Vegan, Spicy), prices, and availability toggles.
+            <h3 className="text-lg font-bold text-white">Restaurants & Cafés</h3>
+            <p className="text-xs text-slate-400">
+              Digital food & beverage menus with dietary badges, prices, and instant category filters.
             </p>
           </div>
 
-          <div className="p-6 bg-slate-900/60 border border-slate-800 rounded-2xl hover:border-teal-500/40 transition-colors">
-            <div className="p-3 bg-teal-500/10 text-teal-400 rounded-xl w-fit mb-4">
+          <div className="p-6 bg-slate-900/60 border border-slate-800 rounded-2xl space-y-3 hover:border-teal-500/40 transition-all group">
+            <div className="p-3 bg-slate-800 text-teal-400 rounded-xl w-fit group-hover:bg-teal-500 group-hover:text-slate-950 transition-all">
               <BookOpen className="w-6 h-6" />
             </div>
-            <h3 className="text-lg font-bold text-white mb-2">Bookshop</h3>
-            <p className="text-sm text-slate-400">
-              Display Author, ISBN, price, and real-time stock status (&quot;Out of Stock&quot; indicator).
+            <h3 className="text-lg font-bold text-white">Bookshops & Publishers</h3>
+            <p className="text-xs text-slate-400">
+              Showcase book listings with author names, ISBN numbers, stock status, and cover art.
             </p>
           </div>
 
-          <div className="p-6 bg-slate-900/60 border border-slate-800 rounded-2xl hover:border-teal-500/40 transition-colors">
-            <div className="p-3 bg-purple-500/10 text-purple-400 rounded-xl w-fit mb-4">
+          <div className="p-6 bg-slate-900/60 border border-slate-800 rounded-2xl space-y-3 hover:border-teal-500/40 transition-all group">
+            <div className="p-3 bg-slate-800 text-teal-400 rounded-xl w-fit group-hover:bg-teal-500 group-hover:text-slate-950 transition-all">
               <Scissors className="w-6 h-6" />
             </div>
-            <h3 className="text-lg font-bold text-white mb-2">Salon & Barber</h3>
-            <p className="text-sm text-slate-400">
-              List services, treatment descriptions, pricing, and duration in minutes.
+            <h3 className="text-lg font-bold text-white">Salons & Spas</h3>
+            <p className="text-xs text-slate-400">
+              Display service menus, treatment durations, and styling options for appointments.
             </p>
           </div>
 
-          <div className="p-6 bg-slate-900/60 border border-slate-800 rounded-2xl hover:border-teal-500/40 transition-colors">
-            <div className="p-3 bg-amber-500/10 text-amber-400 rounded-xl w-fit mb-4">
+          <div className="p-6 bg-slate-900/60 border border-slate-800 rounded-2xl space-y-3 hover:border-teal-500/40 transition-all group">
+            <div className="p-3 bg-slate-800 text-teal-400 rounded-xl w-fit group-hover:bg-teal-500 group-hover:text-slate-950 transition-all">
               <Store className="w-6 h-6" />
             </div>
-            <h3 className="text-lg font-bold text-white mb-2">General Business</h3>
-            <p className="text-sm text-slate-400">
+            <h3 className="text-lg font-bold text-white">General Business</h3>
+            <p className="text-xs text-slate-400">
               Flexible multi-category product catalog with custom pricing and instant contact.
             </p>
           </div>
@@ -107,7 +117,7 @@ export default function LandingPage() {
 
         {/* Pricing Packages Section */}
         <section id="pricing" className="mt-24 scroll-mt-20">
-          <div className="text-center space-y-3 max-w-2xl mx-auto mb-12">
+          <div className="text-center space-y-3 max-w-2xl mx-auto mb-10">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-400 text-xs font-semibold uppercase tracking-wider">
               Flexible Pricing
             </div>
@@ -117,6 +127,37 @@ export default function LandingPage() {
             <p className="text-slate-400 text-sm sm:text-base">
               Start for free today. Upgrade anytime as your catalog and customer base grow.
             </p>
+
+            {/* Monthly | Annual Billing Switch */}
+            <div className="pt-6 flex justify-center">
+              <div className="p-1 bg-slate-900 border border-slate-800 rounded-2xl inline-flex items-center gap-1 shadow-inner">
+                <button
+                  type="button"
+                  onClick={() => setBillingInterval('monthly')}
+                  className={`px-5 py-2 rounded-xl text-xs font-extrabold transition-all cursor-pointer ${
+                    billingInterval === 'monthly'
+                      ? 'bg-slate-800 text-white shadow-sm'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  Monthly Billing
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setBillingInterval('annual')}
+                  className={`px-5 py-2 rounded-xl text-xs font-extrabold flex items-center gap-2 transition-all cursor-pointer ${
+                    billingInterval === 'annual'
+                      ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-slate-950 shadow-md'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                >
+                  <span>Annual Billing</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-slate-950 text-teal-300">
+                    SAVE UP TO 14.3%
+                  </span>
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-stretch">
@@ -175,23 +216,43 @@ export default function LandingPage() {
 
             {/* Pro Growth - Highlighted */}
             <div className="p-8 bg-gradient-to-b from-slate-900/90 via-slate-900 to-slate-950 border-2 border-teal-500 rounded-3xl flex flex-col justify-between shadow-xl shadow-teal-950/30 relative">
-              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-0.5 rounded-full bg-teal-500 text-slate-950 text-[11px] font-extrabold uppercase tracking-wider">
-                Most Popular
+              <div className="absolute -top-3.5 left-1/2 -translate-x-1/2 px-4 py-0.5 rounded-full bg-teal-500 text-slate-950 text-[11px] font-extrabold uppercase tracking-wider flex items-center gap-1">
+                <Sparkles className="w-3 h-3" /> Most Popular
               </div>
               <div className="space-y-6">
                 <div className="flex items-center justify-between">
                   <span className="text-xs font-extrabold uppercase tracking-wider px-3 py-1 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">
                     Pro Growth
                   </span>
+                  {billingInterval === 'annual' && (
+                    <span className="px-2.5 py-0.5 rounded-full bg-teal-500 text-slate-950 font-black text-[10px] uppercase">
+                      Save {proDiscount.formattedDiscount}
+                    </span>
+                  )}
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-white">Pro Growth</h3>
                   <p className="text-xs text-slate-400 mt-1">Ideal for cafés, bookshops, and salons with expanding catalogs.</p>
                 </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-extrabold text-white">LKR 2,000</span>
-                  <span className="text-slate-400 text-xs font-medium">/ month</span>
-                </div>
+
+                {billingInterval === 'annual' ? (
+                  <div className="space-y-1">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-4xl font-extrabold text-white">LKR 21,000</span>
+                      <span className="text-slate-400 text-xs font-medium">/ year</span>
+                      <span className="text-xs text-slate-500 line-through">LKR {proDiscount.originalAnnualized.toLocaleString()}</span>
+                    </div>
+                    <p className="text-xs text-teal-400 font-bold">
+                      Equivalent to LKR {proDiscount.monthlyEquivalent.toLocaleString()}/month
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-extrabold text-white">LKR 2,000</span>
+                    <span className="text-slate-400 text-xs font-medium">/ month</span>
+                  </div>
+                )}
+
                 <ul className="space-y-3 text-xs text-slate-200 pt-4 border-t border-slate-800">
                   <li className="flex items-start gap-2.5">
                     <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">
@@ -242,15 +303,34 @@ export default function LandingPage() {
                   <span className="text-xs font-extrabold uppercase tracking-wider px-3 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
                     Best Value
                   </span>
+                  {billingInterval === 'annual' && (
+                    <span className="px-2.5 py-0.5 rounded-full bg-purple-500 text-white font-black text-[10px] uppercase">
+                      Save {bizPlusDiscount.formattedDiscount}
+                    </span>
+                  )}
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-white">Business Plus</h3>
                   <p className="text-xs text-slate-400 mt-1">Built for large restaurants, retail stores, and multi-category shops.</p>
                 </div>
-                <div className="flex items-baseline gap-1">
-                  <span className="text-4xl font-extrabold text-white">LKR 3,500</span>
-                  <span className="text-slate-400 text-xs font-medium">/ month</span>
-                </div>
+
+                {billingInterval === 'annual' ? (
+                  <div className="space-y-1">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-4xl font-extrabold text-white">LKR 36,000</span>
+                      <span className="text-slate-400 text-xs font-medium">/ year</span>
+                      <span className="text-xs text-slate-500 line-through">LKR {bizPlusDiscount.originalAnnualized.toLocaleString()}</span>
+                    </div>
+                    <p className="text-xs text-purple-300 font-bold">
+                      Equivalent to LKR {bizPlusDiscount.monthlyEquivalent.toLocaleString()}/month
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-extrabold text-white">LKR 3,500</span>
+                    <span className="text-slate-400 text-xs font-medium">/ month</span>
+                  </div>
+                )}
                 <ul className="space-y-3 text-xs text-slate-300 pt-4 border-t border-slate-800/80">
                   <li className="flex items-start gap-2.5">
                     <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">
