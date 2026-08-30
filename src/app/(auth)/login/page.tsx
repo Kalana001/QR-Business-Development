@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, Suspense } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { QrCode, ArrowRight, AlertCircle } from 'lucide-react';
+import { QrCode, ArrowRight, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { createClient } from '@/lib/supabase/client';
@@ -20,6 +20,16 @@ function LoginFormContent() {
   const [resetLoading, setResetLoading] = useState(false);
   const [resetMsg, setResetMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(errorParam || null);
+  const [cooldown, setCooldown] = useState(0);
+  const [hasSentReset, setHasSentReset] = useState(false);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => {
+      setCooldown((prev) => (prev > 0 ? prev - 1 : 0));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -57,6 +67,8 @@ function LoginFormContent() {
   };
 
   const handleForgotPassword = async () => {
+    if (resetLoading || cooldown > 0) return;
+
     if (!email || !email.includes('@')) {
       setError('Please enter a valid email address first to reset your password.');
       return;
@@ -72,9 +84,23 @@ function LoginFormContent() {
         redirectTo: `${origin}/auth/callback?next=/reset-password`,
       });
       if (resetErr) throw resetErr;
-      setResetMsg(`Password reset link sent to ${email.trim()}. Please check your email inbox.`);
+
+      setHasSentReset(true);
+      setResetMsg(`Password reset link sent to ${email.trim()}. Check your email and use the most recent password reset email. For security, previous reset links may no longer work.`);
+      setCooldown(60);
     } catch (err: any) {
-      setError(err.message || 'Failed to send password reset email.');
+      const errMsg = err?.message || '';
+      if (
+        errMsg.toLowerCase().includes('rate limit') ||
+        errMsg.toLowerCase().includes('rate_limit') ||
+        errMsg.toLowerCase().includes('too many requests')
+      ) {
+        setError(
+          'Please wait before requesting another reset email. Check your inbox and spam folder first. If you still haven\'t received the email, try again later.'
+        );
+      } else {
+        setError(errMsg || 'Failed to send password reset email.');
+      }
     } finally {
       setResetLoading(false);
     }
@@ -96,8 +122,14 @@ function LoginFormContent() {
         </div>
 
         {resetMsg && (
-          <div className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-lg flex items-center gap-2 text-emerald-400 text-xs font-semibold">
-            <span>{resetMsg}</span>
+          <div className="p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-lg space-y-1 text-emerald-400 text-xs">
+            <div className="flex items-center gap-1.5 font-bold text-sm">
+              <CheckCircle2 className="w-4 h-4 shrink-0" />
+              <span>Reset link sent</span>
+            </div>
+            <p className="text-[11px] font-normal leading-relaxed text-emerald-300/90">
+              {resetMsg}
+            </p>
           </div>
         )}
 
@@ -133,10 +165,17 @@ function LoginFormContent() {
               <button
                 type="button"
                 onClick={handleForgotPassword}
-                disabled={resetLoading}
-                className="text-[11px] font-semibold text-teal-400 hover:underline cursor-pointer disabled:opacity-50"
+                disabled={resetLoading || cooldown > 0}
+                aria-disabled={resetLoading || cooldown > 0}
+                className="text-[11px] font-semibold text-teal-400 hover:underline cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {resetLoading ? 'Sending Reset Email...' : 'Forgot password?'}
+                {resetLoading
+                  ? 'Sending Reset Email...'
+                  : cooldown > 0
+                  ? `Resend available in ${cooldown}s`
+                  : hasSentReset
+                  ? 'Resend Reset Link'
+                  : 'Forgot password?'}
               </button>
             </div>
           </div>
