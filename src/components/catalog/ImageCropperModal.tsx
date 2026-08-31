@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import Cropper, { Area } from 'react-easy-crop';
 import { ZoomIn, ZoomOut, RefreshCw, Check, X, Crop } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
@@ -26,6 +26,15 @@ export const ImageCropperModal: React.FC<ImageCropperModalProps> = ({
   const [zoom, setZoom] = useState<number>(1);
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
   const [processing, setProcessing] = useState<boolean>(false);
+
+  // Reset cropper state whenever a new image is loaded or modal opens
+  useEffect(() => {
+    if (isOpen) {
+      setCrop({ x: 0, y: 0 });
+      setZoom(1);
+      setCroppedAreaPixels(null);
+    }
+  }, [imageSrc, isOpen]);
 
   const onCropCompleteCallback = useCallback((_: Area, croppedPixels: Area) => {
     setCroppedAreaPixels(croppedPixels);

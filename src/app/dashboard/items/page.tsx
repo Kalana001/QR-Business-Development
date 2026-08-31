@@ -350,6 +350,10 @@ export default function DashboardItemsPage() {
       }
 
       setIsModalOpen(false);
+      setSelectedOriginalFile(null);
+      setCroppedBlob(null);
+      setCropperSourceUrl(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
       await loadData();
     } catch (err: any) {
       let msg = err.message || 'Error saving item.';
@@ -359,6 +363,10 @@ export default function DashboardItemsPage() {
       setFormError(msg);
     } finally {
       setSubmitting(false);
+      setSelectedOriginalFile(null);
+      setCroppedBlob(null);
+      setCropperSourceUrl(null);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
