@@ -291,7 +291,7 @@ WITH ranked_items AS (
 )
 SELECT 
   id, business_id, category_id, name, display_order, author, isbn, duration, badges,
-  description, price, quantity, is_available, is_featured, image_url,
+  description, price, quantity, is_available, is_featured, image_url, variations,
   external_source, external_product_id, last_synced_at, created_at, updated_at
 FROM ranked_items
 WHERE effective_max_items IS NULL OR item_rank <= effective_max_items;

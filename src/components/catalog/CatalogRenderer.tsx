@@ -5,7 +5,7 @@ import {
   Search, Phone, Mail, MapPin, Globe, Star, Clock, CheckCircle2, AlertCircle, X, ChevronRight, Store, BookOpen, Scissors, Utensils 
 } from 'lucide-react';
 import { CategoryPlaceholder } from '@/components/placeholders/CategoryPlaceholder';
-import { Business, CatalogItem, Category, BUSINESS_TYPES_META } from '@/lib/types';
+import { Business, CatalogItem, Category, BUSINESS_TYPES_META, ItemVariation } from '@/lib/types';
 import { formatCurrency, formatDuration, getContrastTextColor } from '@/lib/utils';
 import { CatalogThemeSettings, CATALOG_TEMPLATES, TemplateId } from '@/lib/templates';
 import { BackgroundRenderer } from '@/components/catalog/BackgroundRenderer';
@@ -32,6 +32,7 @@ export function CatalogRenderer({
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedItem, setSelectedItem] = useState<CatalogItem | null>(null);
+  const [selectedVariation, setSelectedVariation] = useState<ItemVariation | null>(null);
   const [isLightboxOpen, setIsLightboxOpen] = useState<boolean>(false);
 
   const templateId = (themeSettings?.template_id || 'minimal-clean') as TemplateId;
@@ -65,10 +66,12 @@ export function CatalogRenderer({
 
   // Filter items
   const filteredItems = publishedItems.filter((item) => {
+    const q = searchQuery.toLowerCase().trim();
     const matchesSearch =
-      item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (item.author && item.author.toLowerCase().includes(searchQuery.toLowerCase()));
+      item.name.toLowerCase().includes(q) ||
+      (item.description && item.description.toLowerCase().includes(q)) ||
+      (item.author && item.author.toLowerCase().includes(q)) ||
+      (item.variations && item.variations.some((v) => v.name.toLowerCase().includes(q)));
     const matchesCat = activeCategory === 'all' || item.category_id === activeCategory;
     return matchesSearch && matchesCat;
   });
@@ -77,6 +80,11 @@ export function CatalogRenderer({
 
   const handleItemClick = (item: CatalogItem) => {
     setSelectedItem(item);
+    if (item.variations && item.variations.length > 0) {
+      setSelectedVariation(item.variations[0]);
+    } else {
+      setSelectedVariation(null);
+    }
     if (onSelectItem) onSelectItem(item);
   };
 
@@ -300,8 +308,15 @@ export function CatalogRenderer({
                     </div>
                     <div className="p-3 space-y-1">
                       <h4 className="text-xs font-bold line-clamp-1" style={{ color: textColor }}>{item.name}</h4>
-                      <p className="text-xs font-extrabold" style={{ color: accentColor }}>
-                        {formatCurrency(item.price, business.currency)}
+                      <p className="text-xs font-extrabold flex items-center gap-1" style={{ color: accentColor }}>
+                        {item.variations && item.variations.length > 0 ? (
+                          <>
+                            <span className="text-[9px] opacity-75 uppercase">From</span>
+                            <span>{formatCurrency(Math.min(...item.variations.map((v) => v.price)), business.currency)}</span>
+                          </>
+                        ) : (
+                          formatCurrency(item.price, business.currency)
+                        )}
                       </p>
                     </div>
                   </div>
@@ -376,8 +391,18 @@ export function CatalogRenderer({
                       </div>
 
                       {/* Price */}
-                      <div className="text-sm font-black pt-1" style={{ color: accentColor }}>
-                        {formatCurrency(item.price, business.currency)}
+                      <div className="text-sm font-black pt-1 flex items-center gap-1.5 flex-wrap" style={{ color: accentColor }}>
+                        {item.variations && item.variations.length > 0 ? (
+                          <>
+                            <span className="text-[10px] opacity-75 font-semibold uppercase">From</span>
+                            <span>{formatCurrency(Math.min(...item.variations.map((v) => v.price)), business.currency)}</span>
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-400 border border-teal-500/20">
+                              {item.variations.length} Options
+                            </span>
+                          </>
+                        ) : (
+                          formatCurrency(item.price, business.currency)
+                        )}
                       </div>
                     </div>
 
@@ -447,12 +472,60 @@ export function CatalogRenderer({
                     <p className="text-xs text-slate-300 leading-relaxed">{selectedItem.description}</p>
                   )}
 
+                  {/* Variations / Options Selector */}
+                  {selectedItem.variations && selectedItem.variations.length > 0 && (
+                    <div className="space-y-2 pt-2 border-t border-slate-800">
+                      <label className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block">
+                        Select Option / Size
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedItem.variations.map((v, vIdx) => {
+                          const isSelected = selectedVariation?.name === v.name;
+                          return (
+                            <button
+                              key={vIdx}
+                              type="button"
+                              onClick={() => setSelectedVariation(v)}
+                              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all border cursor-pointer ${
+                                isSelected
+                                  ? 'bg-amber-400 text-slate-950 border-amber-400 shadow-md scale-[1.02]'
+                                  : 'bg-slate-800 text-slate-200 border-slate-700 hover:border-slate-500'
+                              }`}
+                            >
+                              {v.name} — {formatCurrency(v.price, business.currency)}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
                   <div className="flex items-center justify-between pt-2 border-t border-slate-800">
-                    <div className="text-xs text-slate-400 uppercase font-semibold">Price</div>
+                    <div className="text-xs text-slate-400 uppercase font-semibold">
+                      {selectedVariation ? `Price (${selectedVariation.name})` : 'Price'}
+                    </div>
                     <div className="text-xl font-black text-amber-400">
-                      {formatCurrency(selectedItem.price, business.currency)}
+                      {formatCurrency(selectedVariation ? selectedVariation.price : selectedItem.price, business.currency)}
                     </div>
                   </div>
+
+                  {/* Order via WhatsApp */}
+                  {business.phone && (
+                    <a
+                      href={`https://wa.me/${business.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
+                        `Hello! I would like to order: ${selectedItem.name}${
+                          selectedVariation
+                            ? ` (${selectedVariation.name} - ${formatCurrency(selectedVariation.price, business.currency)})`
+                            : ` (${formatCurrency(selectedItem.price, business.currency)})`
+                        }`
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-md"
+                    >
+                      <Phone className="w-4 h-4" /> Order via WhatsApp
+                    </a>
+                  )}
 
                   <button
                     onClick={() => setSelectedItem(null)}

@@ -13,7 +13,7 @@ import { BulkImportModal } from '@/components/catalog/BulkImportModal';
 import { ImageCropperModal } from '@/components/catalog/ImageCropperModal';
 import { CategoryPlaceholder } from '@/components/placeholders/CategoryPlaceholder';
 import { createClient } from '@/lib/supabase/client';
-import { Business, CatalogItem, Category, BUSINESS_TYPES_META, SUBSCRIPTION_PLANS_META } from '@/lib/types';
+import { Business, CatalogItem, Category, BUSINESS_TYPES_META, SUBSCRIPTION_PLANS_META, ItemVariation } from '@/lib/types';
 import { formatCurrency, formatDuration } from '@/lib/utils';
 import { validateImageFile, uploadItemImages, uploadItemImage, deleteItemImagesByUrl, deleteStorageFileByUrl, getOriginalImageUrl } from '@/lib/storage';
 
@@ -70,6 +70,33 @@ export default function DashboardItemsPage() {
   const [duration, setDuration] = useState('');
   const [badgeInput, setBadgeInput] = useState('');
   const [badges, setBadges] = useState<string[]>([]);
+
+  // Item Variations / Options State (Portion sizes, editions, variants)
+  const [hasVariations, setHasVariations] = useState(false);
+  const [variationsList, setVariationsList] = useState<ItemVariation[]>([]);
+
+  const handleAddVariationRow = () => {
+    setVariationsList([...variationsList, { name: '', price: 0, is_available: true }]);
+  };
+
+  const handleUpdateVariationRow = (index: number, field: 'name' | 'price', val: string) => {
+    const updated = [...variationsList];
+    if (field === 'name') {
+      updated[index].name = val;
+    } else {
+      const num = parseFloat(val);
+      updated[index].price = isNaN(num) ? 0 : num;
+    }
+    setVariationsList(updated);
+  };
+
+  const handleRemoveVariationRow = (index: number) => {
+    const updated = variationsList.filter((_, i) => i !== index);
+    setVariationsList(updated);
+    if (updated.length === 0) {
+      setHasVariations(false);
+    }
+  };
 
   useEffect(() => {
     loadData();
@@ -211,6 +238,8 @@ export default function DashboardItemsPage() {
     setQuantity('');
     setDuration('');
     setBadges([]);
+    setHasVariations(false);
+    setVariationsList([]);
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -235,6 +264,11 @@ export default function DashboardItemsPage() {
     setQuantity(item.quantity !== null && item.quantity !== undefined ? item.quantity.toString() : '');
     setDuration(item.duration ? item.duration.toString() : '');
     setBadges(item.badges || []);
+
+    const itemVars = item.variations && Array.isArray(item.variations) ? item.variations : [];
+    setHasVariations(itemVars.length > 0);
+    setVariationsList(itemVars);
+
     setFormError(null);
     setIsModalOpen(true);
   };
@@ -252,11 +286,35 @@ export default function DashboardItemsPage() {
     setSubmitting(true);
     setFormError(null);
 
-    const numericPrice = parseFloat(price);
+    // Validate variations if enabled
+    const validVars: ItemVariation[] = [];
+    if (hasVariations) {
+      variationsList.forEach((v) => {
+        if (v.name.trim() !== '') {
+          validVars.push({
+            name: v.name.trim(),
+            price: typeof v.price === 'number' && !isNaN(v.price) && v.price >= 0 ? v.price : 0,
+            is_available: v.is_available !== false,
+          });
+        }
+      });
+
+      if (validVars.length === 0) {
+        setFormError('Please add at least one valid variation name and price, or disable variations.');
+        setSubmitting(false);
+        return;
+      }
+    }
+
+    let numericPrice = parseFloat(price);
     if (isNaN(numericPrice) || numericPrice < 0) {
-      setFormError('Please enter a valid price.');
-      setSubmitting(false);
-      return;
+      if (hasVariations && validVars.length > 0) {
+        numericPrice = Math.min(...validVars.map((v) => v.price));
+      } else {
+        setFormError('Please enter a valid price.');
+        setSubmitting(false);
+        return;
+      }
     }
 
     let finalImageUrl: string | null = imageUrl || null;
@@ -275,6 +333,7 @@ export default function DashboardItemsPage() {
       quantity: quantity ? parseInt(quantity, 10) : null,
       duration: duration ? parseInt(duration, 10) : null,
       badges: badges.length > 0 ? badges : [],
+      variations: hasVariations ? validVars : [],
       updated_at: new Date().toISOString(),
     };
 
@@ -687,8 +746,18 @@ export default function DashboardItemsPage() {
                         <p className="text-xs font-medium text-teal-700 mt-0.5">by {item.author}</p>
                       )}
                     </div>
-                    <div className="text-base font-extrabold text-slate-900 shrink-0">
-                      {formatCurrency(item.price, business?.currency)}
+                    <div className="text-base font-extrabold text-slate-900 shrink-0 text-right">
+                      {item.variations && item.variations.length > 0 ? (
+                        <div>
+                          <span className="text-[10px] text-slate-500 font-semibold block uppercase tracking-wider">From</span>
+                          <span>{formatCurrency(Math.min(...item.variations.map((v) => v.price)), business?.currency)}</span>
+                          <span className="text-[10px] text-teal-700 bg-teal-50 px-1.5 py-0.5 rounded border border-teal-200 block mt-0.5 font-bold">
+                            {item.variations.length} Options
+                          </span>
+                        </div>
+                      ) : (
+                        formatCurrency(item.price, business?.currency)
+                      )}
                     </div>
                   </div>
 
@@ -908,15 +977,84 @@ export default function DashboardItemsPage() {
             </div>
           )}
 
+          {/* Item Variations / Options Section */}
+          <div className="space-y-3 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                  Item Variations / Options
+                </label>
+                <p className="text-[11px] text-slate-500">
+                  Portion sizes (Small, Large), book editions, service tiers, or item sizes with custom prices.
+                </p>
+              </div>
+              <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                <input
+                  type="checkbox"
+                  checked={hasVariations}
+                  onChange={(e) => {
+                    setHasVariations(e.target.checked);
+                    if (e.target.checked && variationsList.length === 0) {
+                      setVariationsList([{ name: '', price: 0, is_available: true }]);
+                    }
+                  }}
+                  className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500"
+                />
+                <span className="text-xs font-bold text-teal-700">Enable Variations</span>
+              </label>
+            </div>
+
+            {hasVariations && (
+              <div className="space-y-2 pt-2 border-t border-slate-200">
+                {variationsList.map((v, idx) => (
+                  <div key={idx} className="flex items-center gap-2">
+                    <Input
+                      placeholder="Option Name (e.g. Small, Large, 1st Edition)"
+                      value={v.name}
+                      onChange={(e) => handleUpdateVariationRow(idx, 'name', e.target.value)}
+                      className="text-xs bg-white flex-1"
+                    />
+                    <div className="w-32 shrink-0">
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="Price"
+                        value={v.price === 0 ? '' : v.price.toString()}
+                        onChange={(e) => handleUpdateVariationRow(idx, 'price', e.target.value)}
+                        className="text-xs bg-white"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveVariationRow(idx)}
+                      className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg shrink-0"
+                      title="Remove Option"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+
+                <button
+                  type="button"
+                  onClick={handleAddVariationRow}
+                  className="px-3 py-1.5 bg-white border border-slate-300 hover:border-teal-500 text-teal-700 font-bold text-xs rounded-lg flex items-center gap-1 mt-2 cursor-pointer"
+                >
+                  + Add Option
+                </button>
+              </div>
+            )}
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <Input
-              label={`Selling Price (${business?.currency || 'LKR'})`}
+              label={`Base Selling Price (${business?.currency || 'LKR'})`}
               type="number"
               step="0.01"
-              placeholder="0.00"
+              placeholder={hasVariations ? 'Auto-calculated from lowest option' : '0.00'}
               value={price}
               onChange={(e) => setPrice(e.target.value)}
-              required
+              required={!hasVariations}
             />
 
             {bMeta.fields.quantity && (

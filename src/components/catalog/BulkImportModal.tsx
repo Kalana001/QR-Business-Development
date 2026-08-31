@@ -9,7 +9,7 @@ import {
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { createClient } from '@/lib/supabase/client';
-import { Business, CatalogItem, Category, SUBSCRIPTION_PLANS_META } from '@/lib/types';
+import { Business, CatalogItem, Category, SUBSCRIPTION_PLANS_META, ItemVariation } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 
 interface BulkImportModalProps {
@@ -33,6 +33,7 @@ export interface ParsedImportRow {
   isbn: string | null;
   duration: number | null;
   badges: string[];
+  variations: ItemVariation[];
   quantity: number | null;
   is_available: boolean;
   is_featured: boolean;
@@ -103,6 +104,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
           isbn: '9780743273565',
           duration: '',
           badges: 'Bestseller',
+          variations: 'Paperback: 1500 | Hardcover: 2800',
           quantity: '50',
           is_available: 'TRUE',
           is_featured: 'TRUE',
@@ -117,6 +119,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
           isbn: '9780735211292',
           duration: '',
           badges: 'Popular',
+          variations: '1st Edition: 2200 | Collector Edition: 4500',
           quantity: '30',
           is_available: 'TRUE',
           is_featured: 'FALSE',
@@ -134,6 +137,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
           isbn: '',
           duration: '45',
           badges: 'Popular',
+          variations: 'Basic: 3500 | VIP Treatment: 5500',
           quantity: '',
           is_available: 'TRUE',
           is_featured: 'TRUE',
@@ -148,6 +152,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
           isbn: '',
           duration: '60',
           badges: 'Premium',
+          variations: '',
           quantity: '',
           is_available: 'TRUE',
           is_featured: 'FALSE',
@@ -157,14 +162,15 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
     } else if (bType === 'restaurant') {
       return [
         {
-          name: 'Truffle Mushroom Pasta',
+          name: 'Special Mix Fried Rice',
           category: 'Mains',
-          price: '2400.00',
-          description: 'Creamy truffle sauce with wild mushrooms and parmesan',
+          price: '1800.00',
+          description: 'Wok-tossed basmati rice with prawns, chicken, and egg',
           author: '',
           isbn: '',
           duration: '',
-          badges: 'Chef Special,Vegetarian',
+          badges: 'Popular',
+          variations: 'Small: 1000 | Large: 1500 | Extreme Large: 2500',
           quantity: '',
           is_available: 'TRUE',
           is_featured: 'TRUE',
@@ -179,6 +185,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
           isbn: '',
           duration: '',
           badges: 'Vegetarian',
+          variations: 'Medium 10 inch: 1850 | Large 14 inch: 2800',
           quantity: '',
           is_available: 'TRUE',
           is_featured: 'FALSE',
@@ -196,6 +203,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
           isbn: '',
           duration: '',
           badges: 'Top Rated',
+          variations: 'Standard: 12500 | Pro Wireless: 18500',
           quantity: '15',
           is_available: 'TRUE',
           is_featured: 'TRUE',
@@ -210,6 +218,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
           isbn: '',
           duration: '',
           badges: '',
+          variations: 'Small: 2500 | Medium: 2500 | Large: 2700 | XL: 2900',
           quantity: '100',
           is_available: 'TRUE',
           is_featured: 'FALSE',
@@ -368,6 +377,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
       const rawIsbn = getVal('isbn') || getVal('barcode');
       const rawDuration = getVal('duration') || getVal('time') || getVal('minutes');
       const rawBadges = getVal('badges') || getVal('tags') || getVal('badge');
+      const rawVariationsStr = getVal('variations') || getVal('options') || getVal('sizes') || getVal('variation');
       const rawQuantity = getVal('quantity') || getVal('qty') || getVal('stock');
       const rawIsAvailable = getVal('is_available') || getVal('available') || getVal('in_stock');
       const rawIsFeatured = getVal('is_featured') || getVal('featured') || getVal('highlight');
@@ -378,19 +388,42 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
         errors.push('Missing item name');
       }
 
-      // 2. Price Check
+      // 2. Variations Parsing
+      const parsedVariations: ItemVariation[] = [];
+      if (rawVariationsStr) {
+        const segments = rawVariationsStr.split('|');
+        segments.forEach((seg) => {
+          const parts = seg.split(':');
+          if (parts.length >= 2) {
+            const vName = parts[0].trim();
+            const cleanedVPrice = parts[1].replace(/[^0-9.]/g, '').trim();
+            const vPrice = parseFloat(cleanedVPrice);
+            if (vName && !isNaN(vPrice) && vPrice >= 0) {
+              parsedVariations.push({ name: vName, price: vPrice, is_available: true });
+            }
+          }
+        });
+      }
+
+      // 3. Price Check (Fallback to lowest variation price if base price is empty)
       let numericPrice = 0;
-      if (!rawPrice) {
+      if (!rawPrice && parsedVariations.length > 0) {
+        numericPrice = Math.min(...parsedVariations.map((v) => v.price));
+      } else if (!rawPrice) {
         errors.push('Missing item price');
       } else {
         const cleanedPrice = rawPrice.replace(/[^0-9.]/g, '');
         numericPrice = parseFloat(cleanedPrice);
         if (isNaN(numericPrice) || numericPrice < 0) {
-          errors.push(`Invalid price format: "${rawPrice}"`);
+          if (parsedVariations.length > 0) {
+            numericPrice = Math.min(...parsedVariations.map((v) => v.price));
+          } else {
+            errors.push(`Invalid price format: "${rawPrice}"`);
+          }
         }
       }
 
-      // 3. Category Check
+      // 4. Category Check
       let categoryId: string | null = null;
       let isNewCategory = false;
       if (rawCategory) {
@@ -403,7 +436,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
         }
       }
 
-      // 4. Duplicate Check
+      // 5. Duplicate Check
       let isDuplicate = false;
       if (rawName) {
         const lowerName = rawName.toLowerCase().trim();
@@ -417,7 +450,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
         fileNamesSeen.add(lowerName);
       }
 
-      // 5. Booleans & Integers
+      // 6. Booleans & Integers
       const is_available = rawIsAvailable === '' ? true : !['false', '0', 'no', 'n'].includes(rawIsAvailable.toLowerCase());
       const is_featured = ['true', '1', 'yes', 'y'].includes(rawIsFeatured.toLowerCase());
       const parsedQuantity = rawQuantity ? parseInt(rawQuantity, 10) : null;
@@ -442,6 +475,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
         isbn: rawIsbn || null,
         duration: isNaN(parsedDuration as number) ? null : parsedDuration,
         badges: parsedBadges,
+        variations: parsedVariations,
         quantity: isNaN(parsedQuantity as number) ? null : parsedQuantity,
         is_available,
         is_featured,
@@ -529,6 +563,7 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
           isbn: r.isbn,
           duration: r.duration,
           badges: r.badges,
+          variations: r.variations.length > 0 ? r.variations : [],
           quantity: r.quantity,
           is_available: r.is_available,
           is_featured: r.is_featured,

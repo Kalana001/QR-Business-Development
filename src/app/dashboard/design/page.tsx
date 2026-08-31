@@ -50,8 +50,43 @@ export default function DashboardCatalogDesignPage() {
           { id: 'c2', business_id: demoBiz.id, name: 'Fried Rice & Mains', description: 'Wok-tossed rice', display_order: 2, created_at: '' },
         ]);
         setPublishedItems([
-          { id: 'i1', business_id: demoBiz.id, category_id: 'c1', name: 'Chicken Kottu (Full)', description: 'Classic shredded roti with spiced chicken, eggs, and fresh vegetables.', price: 1450, is_available: true, is_featured: true, image_url: null, badges: ['Chef Special', 'Spicy'], created_at: '', updated_at: '' },
-          { id: 'i2', business_id: demoBiz.id, category_id: 'c2', name: 'Special Mix Fried Rice', description: 'Basmati rice with prawns, chicken, eggs, and signature chili paste.', price: 1850, is_available: true, is_featured: true, image_url: null, badges: ['Popular'], created_at: '', updated_at: '' },
+          {
+            id: 'i1',
+            business_id: demoBiz.id,
+            category_id: 'c1',
+            name: 'Chicken Kottu',
+            description: 'Classic shredded roti with spiced chicken, eggs, and fresh vegetables.',
+            price: 1000,
+            variations: [
+              { name: 'Small', price: 1000, is_available: true },
+              { name: 'Large', price: 1450, is_available: true },
+              { name: 'Extreme Large', price: 2200, is_available: true },
+            ],
+            is_available: true,
+            is_featured: true,
+            image_url: null,
+            badges: ['Chef Special', 'Spicy'],
+            created_at: '',
+            updated_at: '',
+          },
+          {
+            id: 'i2',
+            business_id: demoBiz.id,
+            category_id: 'c2',
+            name: 'Special Mix Fried Rice',
+            description: 'Basmati rice with prawns, chicken, eggs, and signature chili paste.',
+            price: 1200,
+            variations: [
+              { name: 'Regular', price: 1200, is_available: true },
+              { name: 'Jumbo Family', price: 2400, is_available: true },
+            ],
+            is_available: true,
+            is_featured: true,
+            image_url: null,
+            badges: ['Popular'],
+            created_at: '',
+            updated_at: '',
+          },
         ]);
         const settings = await getBusinessThemeSettings(demoBiz.id);
         setThemeSettings(settings);

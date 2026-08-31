@@ -58,6 +58,12 @@ export interface Category {
   created_at: string;
 }
 
+export interface ItemVariation {
+  name: string;
+  price: number;
+  is_available?: boolean;
+}
+
 export interface CatalogItem {
   id: string;
   business_id: string;
@@ -70,6 +76,7 @@ export interface CatalogItem {
   isbn?: string | null;         // Bookshop
   duration?: number | null;     // Salon (minutes)
   badges?: string[] | null;     // Restaurant (e.g. ["Vegan", "Spicy"])
+  variations?: ItemVariation[] | null; // Item Options (e.g. Portion sizes, editions, variants)
   
   description: string | null;
   price: number;
