@@ -10,6 +10,7 @@ import { formatCurrency, formatDuration, getContrastTextColor } from '@/lib/util
 import { CatalogThemeSettings, CATALOG_TEMPLATES, TemplateId } from '@/lib/templates';
 import { BackgroundRenderer } from '@/components/catalog/BackgroundRenderer';
 import { normalizeBackgroundStyleId } from '@/lib/backgrounds';
+import { getOriginalImageUrl } from '@/lib/storage';
 
 interface CatalogRendererProps {
   business: Business;
@@ -31,6 +32,7 @@ export function CatalogRenderer({
   const [activeCategory, setActiveCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState<string>('');
   const [selectedItem, setSelectedItem] = useState<CatalogItem | null>(null);
+  const [isLightboxOpen, setIsLightboxOpen] = useState<boolean>(false);
 
   const templateId = (themeSettings?.template_id || 'minimal-clean') as TemplateId;
   const templateMeta = CATALOG_TEMPLATES[templateId] || CATALOG_TEMPLATES['minimal-clean'];
@@ -384,50 +386,94 @@ export function CatalogRenderer({
         </main>
 
         {/* Item Details Popup Modal */}
-        {selectedItem && (
-          <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-fade-in">
-            <div className="w-full max-w-md bg-slate-900 border border-slate-800 text-white rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl space-y-4">
-              <div className="relative h-56 w-full bg-slate-800 flex items-center justify-center">
-                {selectedItem.image_url ? (
-                  <img src={selectedItem.image_url} alt={selectedItem.name} className="w-full h-full object-cover" />
-                ) : (
-                  <CategoryPlaceholder businessType={business.business_type} itemName={selectedItem.name} />
-                )}
-                <button
-                  onClick={() => setSelectedItem(null)}
-                  className="absolute top-3 right-3 p-2 bg-slate-950/70 text-white rounded-full hover:bg-slate-950 transition-colors"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+        {selectedItem && (() => {
+          const originalImageUrl = getOriginalImageUrl(selectedItem.image_url);
+          const displayImageSrc = originalImageUrl || selectedItem.image_url;
 
-              <div className="p-6 space-y-4">
-                <div className="space-y-1">
-                  <h3 className="text-lg font-bold text-white">{selectedItem.name}</h3>
-                  {selectedItem.author && <p className="text-xs text-teal-400 font-semibold">by {selectedItem.author}</p>}
+          return (
+            <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-fade-in">
+              <div className="w-full max-w-md bg-slate-900 border border-slate-800 text-white rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+                {/* Large Uncropped Product Image with Object-Contain */}
+                <div className="relative h-64 sm:h-72 w-full bg-slate-950 flex items-center justify-center overflow-hidden group cursor-pointer" onClick={() => setIsLightboxOpen(true)}>
+                  {displayImageSrc ? (
+                    <>
+                      <img
+                        src={displayImageSrc}
+                        alt={selectedItem.name}
+                        className="w-full h-full object-contain p-2"
+                        onError={(e) => {
+                          // Fallback to image_url if original fails
+                          if (selectedItem.image_url && e.currentTarget.src !== selectedItem.image_url) {
+                            e.currentTarget.src = selectedItem.image_url;
+                          }
+                        }}
+                      />
+                      <div className="absolute bottom-2 right-2 px-2 py-1 bg-slate-900/80 text-white text-[10px] font-bold rounded-md opacity-80 group-hover:opacity-100 transition-opacity">
+                        Tap for Fullscreen 🔍
+                      </div>
+                    </>
+                  ) : (
+                    <CategoryPlaceholder businessType={business.business_type} itemName={selectedItem.name} />
+                  )}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedItem(null);
+                    }}
+                    className="absolute top-3 right-3 p-2 bg-slate-950/80 text-white rounded-full hover:bg-slate-950 transition-colors z-10"
+                  >
+                    <X className="w-5 h-5" />
+                  </button>
                 </div>
 
-                {selectedItem.description && (
-                  <p className="text-xs text-slate-300 leading-relaxed">{selectedItem.description}</p>
-                )}
-
-                <div className="flex items-center justify-between pt-2 border-t border-slate-800">
-                  <div className="text-xs text-slate-400 uppercase font-semibold">Price</div>
-                  <div className="text-xl font-black text-amber-400">
-                    {formatCurrency(selectedItem.price, business.currency)}
+                <div className="p-6 space-y-4 overflow-y-auto">
+                  <div className="space-y-1">
+                    <h3 className="text-lg font-bold text-white">{selectedItem.name}</h3>
+                    {selectedItem.author && <p className="text-xs text-teal-400 font-semibold">by {selectedItem.author}</p>}
                   </div>
-                </div>
 
-                <button
-                  onClick={() => setSelectedItem(null)}
-                  className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition-colors"
-                >
-                  Close Item Details
-                </button>
+                  {selectedItem.description && (
+                    <p className="text-xs text-slate-300 leading-relaxed">{selectedItem.description}</p>
+                  )}
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+                    <div className="text-xs text-slate-400 uppercase font-semibold">Price</div>
+                    <div className="text-xl font-black text-amber-400">
+                      {formatCurrency(selectedItem.price, business.currency)}
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setSelectedItem(null)}
+                    className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                  >
+                    Close Item Details
+                  </button>
+                </div>
               </div>
+
+              {/* Customer Image Lightbox Modal */}
+              {isLightboxOpen && displayImageSrc && (
+                <div
+                  className="fixed inset-0 z-60 bg-slate-950/95 flex items-center justify-center p-4 cursor-zoom-out animate-fade-in"
+                  onClick={() => setIsLightboxOpen(false)}
+                >
+                  <button
+                    onClick={() => setIsLightboxOpen(false)}
+                    className="absolute top-4 right-4 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                  <img
+                    src={displayImageSrc}
+                    alt={selectedItem.name}
+                    className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                  />
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Footer */}
         <footer className="p-4 text-center text-[11px] border-t space-y-1" style={{ borderColor: 'rgba(226, 232, 240, 0.15)', color: subtextColor }}>

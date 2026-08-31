@@ -3,18 +3,19 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-  Plus, Search, Edit2, Trash2, CheckCircle2, XCircle, Star, Image as ImageIcon, Filter, Upload, AlertCircle, Zap, Crown, Lock, RefreshCw
+  Plus, Search, Edit2, Trash2, CheckCircle2, XCircle, Star, Image as ImageIcon, Filter, Upload, AlertCircle, Zap, Crown, Lock, RefreshCw, Crop
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { UpgradeModal } from '@/components/ui/UpgradeModal';
 import { BulkImportModal } from '@/components/catalog/BulkImportModal';
+import { ImageCropperModal } from '@/components/catalog/ImageCropperModal';
 import { CategoryPlaceholder } from '@/components/placeholders/CategoryPlaceholder';
 import { createClient } from '@/lib/supabase/client';
 import { Business, CatalogItem, Category, BUSINESS_TYPES_META, SUBSCRIPTION_PLANS_META } from '@/lib/types';
 import { formatCurrency, formatDuration } from '@/lib/utils';
-import { validateImageFile, uploadItemImage, deleteStorageFileByUrl } from '@/lib/storage';
+import { validateImageFile, uploadItemImages, uploadItemImage, deleteItemImagesByUrl, deleteStorageFileByUrl, getOriginalImageUrl } from '@/lib/storage';
 
 export default function DashboardItemsPage() {
   const router = useRouter();
@@ -50,12 +51,17 @@ export default function DashboardItemsPage() {
   const [isFeatured, setIsFeatured] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
 
-  // Image Upload State
-  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  // Image Upload & Crop State
+  const [selectedOriginalFile, setSelectedOriginalFile] = useState<File | Blob | null>(null);
+  const [croppedBlob, setCroppedBlob] = useState<Blob | null>(null);
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const [imageFileError, setImageFileError] = useState<string | null>(null);
   const [isDraggingImage, setIsDraggingImage] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Cropper Modal State
+  const [isCropperOpen, setIsCropperOpen] = useState(false);
+  const [cropperSourceUrl, setCropperSourceUrl] = useState<string | null>(null);
 
   // Business-Type specific form fields
   const [author, setAuthor] = useState('');
@@ -119,13 +125,38 @@ export default function DashboardItemsPage() {
     }
 
     setImageFileError(null);
-    setSelectedImageFile(file);
-    const preview = URL.createObjectURL(file);
-    setImagePreviewUrl(preview);
+    setSelectedOriginalFile(file);
+    setCroppedBlob(null);
+
+    const objectUrl = URL.createObjectURL(file);
+    setCropperSourceUrl(objectUrl);
+    setIsCropperOpen(true);
+  };
+
+  const handleReCrop = () => {
+    if (selectedOriginalFile) {
+      const srcUrl = URL.createObjectURL(selectedOriginalFile);
+      setCropperSourceUrl(srcUrl);
+      setIsCropperOpen(true);
+      return;
+    }
+
+    if (imageUrl || imagePreviewUrl) {
+      const currentUrl = imageUrl || imagePreviewUrl || '';
+      const origUrl = getOriginalImageUrl(currentUrl) || currentUrl;
+      setCropperSourceUrl(origUrl);
+      setIsCropperOpen(true);
+    }
+  };
+
+  const handleCropConfirm = (blob: Blob, previewUrl: string) => {
+    setCroppedBlob(blob);
+    setImagePreviewUrl(previewUrl);
   };
 
   const handleRemoveImage = () => {
-    setSelectedImageFile(null);
+    setSelectedOriginalFile(null);
+    setCroppedBlob(null);
     setImagePreviewUrl(null);
     setImageUrl('');
     setImageFileError(null);
@@ -169,7 +200,8 @@ export default function DashboardItemsPage() {
     setIsAvailable(true);
     setIsFeatured(false);
     setImageUrl('');
-    setSelectedImageFile(null);
+    setSelectedOriginalFile(null);
+    setCroppedBlob(null);
     setImagePreviewUrl(null);
     setImageFileError(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -192,7 +224,8 @@ export default function DashboardItemsPage() {
     setIsAvailable(item.is_available);
     setIsFeatured(item.is_featured);
     setImageUrl(item.image_url || '');
-    setSelectedImageFile(null);
+    setSelectedOriginalFile(null);
+    setCroppedBlob(null);
     setImagePreviewUrl(item.image_url || null);
     setImageFileError(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
@@ -253,19 +286,24 @@ export default function DashboardItemsPage() {
         const targetItemId = editingItem.id;
         const oldImageUrl = editingItem.image_url;
 
-        if (selectedImageFile) {
-          // Upload new image
-          const uploadRes = await uploadItemImage(business.id, targetItemId, selectedImageFile);
-          finalImageUrl = uploadRes.publicUrl;
+        if (croppedBlob && selectedOriginalFile) {
+          // Upload new original and cropped catalog image
+          const uploadRes = await uploadItemImages(business.id, targetItemId, selectedOriginalFile, croppedBlob);
+          finalImageUrl = uploadRes.catalogUrl;
 
-          // If old image was stored in business-assets and differs, remove old image
+          // If old image was stored in business-assets and differs, remove old files
           if (oldImageUrl && oldImageUrl !== finalImageUrl) {
-            await deleteStorageFileByUrl(oldImageUrl, business.id);
+            await deleteItemImagesByUrl(oldImageUrl, business.id);
           }
+        } else if (croppedBlob) {
+          // User re-cropped existing original image
+          const dummyOriginal = new Blob();
+          const uploadRes = await uploadItemImages(business.id, targetItemId, dummyOriginal, croppedBlob);
+          finalImageUrl = uploadRes.catalogUrl;
         } else if (!imagePreviewUrl && oldImageUrl) {
           // User explicitly clicked remove image
           finalImageUrl = null;
-          await deleteStorageFileByUrl(oldImageUrl, business.id);
+          await deleteItemImagesByUrl(oldImageUrl, business.id);
         }
 
         const updatePayload = {
@@ -290,11 +328,12 @@ export default function DashboardItemsPage() {
 
         if (insertErr) throw insertErr;
 
-        // 2. If user selected an image file, upload it and set image_url
-        if (selectedImageFile && newInsertedItem?.id) {
+        // 2. If user cropped an image, upload both original and cropped catalog image
+        if (croppedBlob && newInsertedItem?.id) {
           try {
-            const uploadRes = await uploadItemImage(business.id, newInsertedItem.id, selectedImageFile);
-            finalImageUrl = uploadRes.publicUrl;
+            const originalSource = selectedOriginalFile || croppedBlob;
+            const uploadRes = await uploadItemImages(business.id, newInsertedItem.id, originalSource, croppedBlob);
+            finalImageUrl = uploadRes.catalogUrl;
 
             await supabase
               .from('catalog_items')
@@ -329,7 +368,7 @@ export default function DashboardItemsPage() {
       const supabase = createClient();
       const targetItem = items.find((i) => i.id === id);
       if (targetItem?.image_url && business) {
-        await deleteStorageFileByUrl(targetItem.image_url, business.id);
+        await deleteItemImagesByUrl(targetItem.image_url, business.id);
       }
       await supabase.from('catalog_items').delete().eq('id', id);
       setItems(items.filter((i) => i.id !== id));
@@ -897,7 +936,7 @@ export default function DashboardItemsPage() {
           </div>
 
           {/* Item Image Upload & Preview Section */}
-          <div className="space-y-2 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+          <div className="space-y-3 p-4 bg-slate-50 border border-slate-200 rounded-xl">
             <div className="flex items-center justify-between">
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
                 Item Image (Optional)
@@ -915,26 +954,64 @@ export default function DashboardItemsPage() {
             )}
 
             {imagePreviewUrl ? (
-              <div className="relative group rounded-xl overflow-hidden border border-slate-300 bg-slate-900 h-44 flex items-center justify-center">
-                <img
-                  src={imagePreviewUrl}
-                  alt="Selected preview"
-                  className="w-full h-full object-contain"
-                />
-                <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-3">
+              <div className="space-y-2">
+                {/* Current Cropped Catalog Image Preview */}
+                <div className="relative group rounded-xl overflow-hidden border border-slate-300 bg-slate-950 h-44 flex items-center justify-center">
+                  <img
+                    src={imagePreviewUrl}
+                    alt="Cropped catalog preview"
+                    className="w-full h-full object-contain"
+                  />
+                  <div className="absolute top-2 left-2 px-2 py-0.5 bg-slate-900/90 text-white font-bold text-[10px] uppercase rounded-md tracking-wider border border-white/20 backdrop-blur-xs">
+                    Catalog Preview (1:1)
+                  </div>
+                  <div className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-3">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="px-3 py-1.5 bg-white text-slate-900 font-bold text-xs rounded-lg shadow-sm hover:bg-slate-100 flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Upload className="w-3.5 h-3.5" /> Change Image
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleReCrop}
+                      className="px-3 py-1.5 bg-teal-600 text-white font-bold text-xs rounded-lg shadow-sm hover:bg-teal-500 flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Crop className="w-3.5 h-3.5" /> Re-Crop
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRemoveImage}
+                      className="px-3 py-1.5 bg-rose-600 text-white font-bold text-xs rounded-lg shadow-sm hover:bg-rose-500 flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Remove
+                    </button>
+                  </div>
+                </div>
+
+                {/* Visible Action Buttons for Mobile / Touch Accessibility */}
+                <div className="flex flex-wrap items-center justify-center gap-2 pt-1">
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="px-3 py-1.5 bg-white text-slate-900 font-bold text-xs rounded-lg shadow-sm hover:bg-slate-100 flex items-center gap-1.5 cursor-pointer"
+                    className="px-2.5 py-1.5 bg-white border border-slate-300 text-slate-700 font-bold text-xs rounded-lg hover:bg-slate-100 flex items-center gap-1"
                   >
-                    <Upload className="w-3.5 h-3.5" /> Change Image
+                    <Upload className="w-3.5 h-3.5 text-slate-600" /> Change Image
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleReCrop}
+                    className="px-2.5 py-1.5 bg-teal-50 border border-teal-200 text-teal-700 font-bold text-xs rounded-lg hover:bg-teal-100 flex items-center gap-1"
+                  >
+                    <Crop className="w-3.5 h-3.5 text-teal-600" /> Re-Crop
                   </button>
                   <button
                     type="button"
                     onClick={handleRemoveImage}
-                    className="px-3 py-1.5 bg-rose-600 text-white font-bold text-xs rounded-lg shadow-sm hover:bg-rose-500 flex items-center gap-1.5 cursor-pointer"
+                    className="px-2.5 py-1.5 bg-rose-50 border border-rose-200 text-rose-600 font-bold text-xs rounded-lg hover:bg-rose-100 flex items-center gap-1"
                   >
-                    <Trash2 className="w-3.5 h-3.5" /> Remove
+                    <Trash2 className="w-3.5 h-3.5 text-rose-600" /> Remove Image
                   </button>
                 </div>
               </div>
@@ -955,10 +1032,10 @@ export default function DashboardItemsPage() {
                 </div>
                 <div>
                   <p className="text-xs font-bold text-slate-800">
-                    Click to upload <span className="font-normal text-slate-500">or drag and drop</span>
+                    Upload & Crop Image <span className="font-normal text-slate-500">(Click or drag & drop)</span>
                   </p>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    High-quality product images boost customer engagement
+                    Select an image file to open the 1:1 catalog image cropper
                   </p>
                 </div>
               </div>
@@ -990,8 +1067,8 @@ export default function DashboardItemsPage() {
                       setImageUrl(e.target.value);
                       if (e.target.value.trim()) {
                         setImagePreviewUrl(e.target.value.trim());
-                        setSelectedImageFile(null);
-                      } else if (!selectedImageFile) {
+                        setSelectedOriginalFile(null);
+                      } else if (!selectedOriginalFile) {
                         setImagePreviewUrl(null);
                       }
                     }}
@@ -1088,6 +1165,15 @@ export default function DashboardItemsPage() {
           }}
         />
       )}
+
+      {/* Image Cropper Modal */}
+      <ImageCropperModal
+        isOpen={isCropperOpen}
+        onClose={() => setIsCropperOpen(false)}
+        imageSrc={cropperSourceUrl}
+        onCropConfirm={handleCropConfirm}
+        aspectRatio={1}
+      />
     </div>
   );
 }

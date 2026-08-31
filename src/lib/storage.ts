@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/client';
+import { Area } from 'react-easy-crop';
 
 export const ALLOWED_IMAGE_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 export const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -35,11 +36,116 @@ export function validateImageFile(file: File): ImageValidationResult {
 }
 
 /**
+ * Creates an HTML Image element from a source URL or Blob URL.
+ */
+export function createImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    image.addEventListener('load', () => resolve(image));
+    image.addEventListener('error', (error) => reject(error));
+    image.setAttribute('crossOrigin', 'anonymous');
+    image.src = url;
+  });
+}
+
+/**
+ * Crops an image canvas using react-easy-crop pixel crop coordinates.
+ * Returns a Blob of the cropped image area.
+ */
+export async function getCroppedImg(
+  imageSrc: string,
+  pixelCrop: Area,
+  mimeType = 'image/jpeg',
+  maxDimension = 1600,
+  quality = 0.85
+): Promise<Blob> {
+  const image = await createImage(imageSrc);
+  const canvas = document.createElement('canvas');
+  const ctx = canvas.getContext('2d');
+
+  if (!ctx) {
+    throw new Error('No 2d canvas context available');
+  }
+
+  let cropWidth = pixelCrop.width;
+  let cropHeight = pixelCrop.height;
+
+  let targetWidth = cropWidth;
+  let targetHeight = cropHeight;
+
+  if (cropWidth > maxDimension || cropHeight > maxDimension) {
+    if (cropWidth > cropHeight) {
+      targetWidth = maxDimension;
+      targetHeight = Math.round((cropHeight * maxDimension) / cropWidth);
+    } else {
+      targetHeight = maxDimension;
+      targetWidth = Math.round((cropWidth * maxDimension) / cropHeight);
+    }
+  }
+
+  canvas.width = targetWidth;
+  canvas.height = targetHeight;
+
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+
+  ctx.drawImage(
+    image,
+    pixelCrop.x,
+    pixelCrop.y,
+    pixelCrop.width,
+    pixelCrop.height,
+    0,
+    0,
+    targetWidth,
+    targetHeight
+  );
+
+  return new Promise((resolve, reject) => {
+    canvas.toBlob(
+      (blob) => {
+        if (!blob) {
+          reject(new Error('Canvas is empty'));
+          return;
+        }
+        resolve(blob);
+      },
+      mimeType,
+      quality
+    );
+  });
+}
+
+/**
+ * Derive original image storage URL from catalog image URL.
+ * Replaces /{item_id}.ext with /{item_id}-original.ext
+ */
+export function getOriginalImageUrl(url: string | null): string | null {
+  if (!url || typeof url !== 'string') return null;
+
+  if (url.includes(`/${BUCKET_NAME}/`) && url.includes('/items/')) {
+    if (url.includes('-original.')) return url;
+
+    const lastSlash = url.lastIndexOf('/');
+    const folder = url.substring(0, lastSlash + 1);
+    const filename = url.substring(lastSlash + 1);
+
+    const dotIndex = filename.lastIndexOf('.');
+    if (dotIndex !== -1) {
+      const nameWithoutExt = filename.substring(0, dotIndex);
+      const ext = filename.substring(dotIndex);
+      return `${folder}${nameWithoutExt}-original${ext}`;
+    }
+  }
+
+  return url;
+}
+
+/**
  * Resizes and compresses large images client-side before uploading.
  * Max dimension: 1600px on the longest side.
  */
 export async function optimizeImage(file: File, maxDimension = 1600, quality = 0.85): Promise<File> {
-  // If browser environment or image element is available
   if (typeof window === 'undefined') return file;
 
   return new Promise((resolve) => {
@@ -52,7 +158,6 @@ export async function optimizeImage(file: File, maxDimension = 1600, quality = 0
       const width = img.width;
       const height = img.height;
 
-      // If dimensions are within limit and file size is reasonable, keep original
       if (width <= maxDimension && height <= maxDimension && file.size <= 1.5 * 1024 * 1024) {
         return resolve(file);
       }
@@ -107,7 +212,7 @@ export async function optimizeImage(file: File, maxDimension = 1600, quality = 0
 
     img.onerror = () => {
       URL.revokeObjectURL(objectUrl);
-      resolve(file); // Fallback to original if image load fails
+      resolve(file);
     };
 
     img.src = objectUrl;
@@ -116,8 +221,6 @@ export async function optimizeImage(file: File, maxDimension = 1600, quality = 0
 
 /**
  * Helper to extract relative storage path from a full Supabase Public URL.
- * e.g., "https://xyz.supabase.co/storage/v1/object/public/business-assets/BIZ_ID/items/ITEM_ID.jpg"
- * -> "BIZ_ID/items/ITEM_ID.jpg"
  */
 export function extractStoragePathFromUrl(url: string, bucket = BUCKET_NAME): string | null {
   if (!url || typeof url !== 'string') return null;
@@ -129,7 +232,6 @@ export function extractStoragePathFromUrl(url: string, bucket = BUCKET_NAME): st
       return url.substring(index + searchString.length);
     }
 
-    // Alternative pattern if path is bucket relative
     const altSearchString = `/${bucket}/`;
     const altIndex = url.indexOf(altSearchString);
     if (altIndex !== -1) {
@@ -146,8 +248,69 @@ export function extractStoragePathFromUrl(url: string, bucket = BUCKET_NAME): st
 }
 
 /**
- * Uploads an item image to Supabase Storage in path:
- * business-assets/{businessId}/items/{itemId}.{ext}
+ * Uploads original and cropped catalog image to Supabase Storage:
+ * Original: business-assets/{businessId}/items/{itemId}-original.{ext}
+ * Catalog:  business-assets/{businessId}/items/{itemId}.{ext}
+ */
+export async function uploadItemImages(
+  businessId: string,
+  itemId: string,
+  originalFileOrBlob: File | Blob,
+  croppedBlob: Blob
+): Promise<{ catalogUrl: string; originalUrl: string }> {
+  const supabase = createClient();
+
+  let ext = 'jpg';
+  if (originalFileOrBlob instanceof File && originalFileOrBlob.name) {
+    const rawExt = originalFileOrBlob.name.split('.').pop()?.toLowerCase();
+    if (rawExt && ['jpg', 'jpeg', 'png', 'webp'].includes(rawExt)) {
+      ext = rawExt;
+    }
+  } else if (originalFileOrBlob.type === 'image/png') {
+    ext = 'png';
+  } else if (originalFileOrBlob.type === 'image/webp') {
+    ext = 'webp';
+  }
+
+  const catalogPath = `${businessId}/items/${itemId}.${ext}`;
+  const originalPath = `${businessId}/items/${itemId}-original.${ext}`;
+
+  // 1. Upload original file
+  const { error: origErr } = await supabase.storage
+    .from(BUCKET_NAME)
+    .upload(originalPath, originalFileOrBlob, {
+      cacheControl: '3600',
+      upsert: true,
+    });
+
+  if (origErr) {
+    console.warn('Original image storage upload warning:', origErr);
+  }
+
+  // 2. Upload cropped catalog image
+  const { error: cropErr } = await supabase.storage
+    .from(BUCKET_NAME)
+    .upload(catalogPath, croppedBlob, {
+      cacheControl: '3600',
+      upsert: true,
+    });
+
+  if (cropErr) {
+    console.error('Cropped catalog image storage upload error:', cropErr);
+    throw new Error(cropErr.message || 'Failed to upload catalog image to storage.');
+  }
+
+  const { data: catalogData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(catalogPath);
+  const { data: originalData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(originalPath);
+
+  return {
+    catalogUrl: catalogData.publicUrl,
+    originalUrl: originalData?.publicUrl || catalogData.publicUrl,
+  };
+}
+
+/**
+ * Upload single item image (fallback)
  */
 export async function uploadItemImage(
   businessId: string,
@@ -156,21 +319,16 @@ export async function uploadItemImage(
 ): Promise<{ publicUrl: string; storagePath: string }> {
   const supabase = createClient();
 
-  // Validate
   const validation = validateImageFile(file);
   if (!validation.valid) {
     throw new Error(validation.error || 'Invalid image file.');
   }
 
-  // Optimize
   const fileToUpload = await optimizeImage(file);
-
-  // Extract extension
   const extension = file.name.split('.').pop()?.toLowerCase() || 'jpg';
   const cleanExt = ['jpg', 'jpeg', 'png', 'webp'].includes(extension) ? extension : 'jpg';
   const storagePath = `${businessId}/items/${itemId}.${cleanExt}`;
 
-  // Upload to Supabase Storage bucket
   const { error: uploadError } = await supabase.storage
     .from(BUCKET_NAME)
     .upload(storagePath, fileToUpload, {
@@ -183,7 +341,6 @@ export async function uploadItemImage(
     throw new Error(uploadError.message || 'Failed to upload image to storage.');
   }
 
-  // Retrieve public URL
   const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(storagePath);
 
   if (!data?.publicUrl) {
@@ -197,28 +354,39 @@ export async function uploadItemImage(
 }
 
 /**
- * Safely deletes a file from Supabase Storage if it belongs to the given businessId.
+ * Safely deletes both catalog and original files from Supabase Storage for a given businessId.
  */
 export async function deleteStorageFileByUrl(url: string, businessId: string): Promise<boolean> {
   const storagePath = extractStoragePathFromUrl(url);
   if (!storagePath) return false;
 
-  // Strict tenant isolation safety check: Ensure storagePath starts with businessId/
   if (!storagePath.startsWith(`${businessId}/`)) {
     console.warn(`Tenant isolation warning: Refusing to delete storage file '${storagePath}' not belonging to business '${businessId}'.`);
     return false;
   }
 
+  const pathsToDelete = [storagePath];
+
+  if (!storagePath.includes('-original.')) {
+    const dotIdx = storagePath.lastIndexOf('.');
+    if (dotIdx !== -1) {
+      const origPath = `${storagePath.substring(0, dotIdx)}-original${storagePath.substring(dotIdx)}`;
+      pathsToDelete.push(origPath);
+    }
+  }
+
   try {
     const supabase = createClient();
-    const { error } = await supabase.storage.from(BUCKET_NAME).remove([storagePath]);
+    const { error } = await supabase.storage.from(BUCKET_NAME).remove(pathsToDelete);
     if (error) {
-      console.error('Error deleting storage file:', error);
+      console.error('Error deleting storage files:', error);
       return false;
     }
     return true;
   } catch (err) {
-    console.error('Failed to delete storage file:', err);
+    console.error('Failed to delete storage files:', err);
     return false;
   }
 }
+
+export const deleteItemImagesByUrl = deleteStorageFileByUrl;
