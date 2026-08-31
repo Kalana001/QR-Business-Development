@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
   Plus, Search, Edit2, Trash2, CheckCircle2, XCircle, Star, Image as ImageIcon, Filter, Upload, AlertCircle, Zap, Crown, Lock, RefreshCw
@@ -14,6 +14,7 @@ import { CategoryPlaceholder } from '@/components/placeholders/CategoryPlacehold
 import { createClient } from '@/lib/supabase/client';
 import { Business, CatalogItem, Category, BUSINESS_TYPES_META, SUBSCRIPTION_PLANS_META } from '@/lib/types';
 import { formatCurrency, formatDuration } from '@/lib/utils';
+import { validateImageFile, uploadItemImage, deleteStorageFileByUrl } from '@/lib/storage';
 
 export default function DashboardItemsPage() {
   const router = useRouter();
@@ -48,6 +49,13 @@ export default function DashboardItemsPage() {
   const [isAvailable, setIsAvailable] = useState(true);
   const [isFeatured, setIsFeatured] = useState(false);
   const [imageUrl, setImageUrl] = useState('');
+
+  // Image Upload State
+  const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
+  const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
+  const [imageFileError, setImageFileError] = useState<string | null>(null);
+  const [isDraggingImage, setIsDraggingImage] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Business-Type specific form fields
   const [author, setAuthor] = useState('');
@@ -102,6 +110,51 @@ export default function DashboardItemsPage() {
   const isUnlimited = isSuperAdmin || (!isExpired && (rawMaxItems === null || rawMaxItems === undefined || currentPlanKey === 'enterprise'));
   const maxAllowedItems = isUnlimited ? Infinity : (isExpired ? 10 : (rawMaxItems ?? 10));
 
+  const handleImageFileSelect = (file: File | null) => {
+    if (!file) return;
+    const validation = validateImageFile(file);
+    if (!validation.valid) {
+      setImageFileError(validation.error || 'Invalid image file.');
+      return;
+    }
+
+    setImageFileError(null);
+    setSelectedImageFile(file);
+    const preview = URL.createObjectURL(file);
+    setImagePreviewUrl(preview);
+  };
+
+  const handleRemoveImage = () => {
+    setSelectedImageFile(null);
+    setImagePreviewUrl(null);
+    setImageUrl('');
+    setImageFileError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingImage(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingImage(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDraggingImage(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleImageFileSelect(e.dataTransfer.files[0]);
+    }
+  };
+
   const openAddModal = () => {
     if (!editingItem && !isUnlimited && items.length >= maxAllowedItems) {
       setIsUpgradeModalOpen(true);
@@ -116,6 +169,11 @@ export default function DashboardItemsPage() {
     setIsAvailable(true);
     setIsFeatured(false);
     setImageUrl('');
+    setSelectedImageFile(null);
+    setImagePreviewUrl(null);
+    setImageFileError(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+
     setAuthor('');
     setIsbn('');
     setQuantity('');
@@ -134,6 +192,11 @@ export default function DashboardItemsPage() {
     setIsAvailable(item.is_available);
     setIsFeatured(item.is_featured);
     setImageUrl(item.image_url || '');
+    setSelectedImageFile(null);
+    setImagePreviewUrl(item.image_url || null);
+    setImageFileError(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+
     setAuthor(item.author || '');
     setIsbn(item.isbn || '');
     setQuantity(item.quantity !== null && item.quantity !== undefined ? item.quantity.toString() : '');
@@ -163,6 +226,8 @@ export default function DashboardItemsPage() {
       return;
     }
 
+    let finalImageUrl: string | null = imageUrl || null;
+
     const itemDataPayload = {
       business_id: business.id,
       category_id: categoryId || null,
@@ -171,7 +236,7 @@ export default function DashboardItemsPage() {
       description: description || null,
       is_available: isAvailable,
       is_featured: isFeatured,
-      image_url: imageUrl || null,
+      image_url: finalImageUrl,
       author: author || null,
       isbn: isbn || null,
       quantity: quantity ? parseInt(quantity, 10) : null,
@@ -184,18 +249,65 @@ export default function DashboardItemsPage() {
       const supabase = createClient();
 
       if (editingItem) {
-        // Update
+        // --- EDIT EXISTING ITEM ---
+        const targetItemId = editingItem.id;
+        const oldImageUrl = editingItem.image_url;
+
+        if (selectedImageFile) {
+          // Upload new image
+          const uploadRes = await uploadItemImage(business.id, targetItemId, selectedImageFile);
+          finalImageUrl = uploadRes.publicUrl;
+
+          // If old image was stored in business-assets and differs, remove old image
+          if (oldImageUrl && oldImageUrl !== finalImageUrl) {
+            await deleteStorageFileByUrl(oldImageUrl, business.id);
+          }
+        } else if (!imagePreviewUrl && oldImageUrl) {
+          // User explicitly clicked remove image
+          finalImageUrl = null;
+          await deleteStorageFileByUrl(oldImageUrl, business.id);
+        }
+
+        const updatePayload = {
+          ...itemDataPayload,
+          image_url: finalImageUrl,
+        };
+
         const { error } = await supabase
           .from('catalog_items')
-          .update(itemDataPayload)
-          .eq('id', editingItem.id);
+          .update(updatePayload)
+          .eq('id', targetItemId);
+
         if (error) throw error;
       } else {
-        // Insert
-        const { error } = await supabase
+        // --- INSERT NEW ITEM ---
+        // 1. Insert DB record first using existing logic
+        const { data: newInsertedItem, error: insertErr } = await supabase
           .from('catalog_items')
-          .insert(itemDataPayload);
-        if (error) throw error;
+          .insert(itemDataPayload)
+          .select()
+          .single();
+
+        if (insertErr) throw insertErr;
+
+        // 2. If user selected an image file, upload it and set image_url
+        if (selectedImageFile && newInsertedItem?.id) {
+          try {
+            const uploadRes = await uploadItemImage(business.id, newInsertedItem.id, selectedImageFile);
+            finalImageUrl = uploadRes.publicUrl;
+
+            await supabase
+              .from('catalog_items')
+              .update({ image_url: finalImageUrl })
+              .eq('id', newInsertedItem.id);
+          } catch (uploadErr: any) {
+            console.error('Image upload failed after item creation:', uploadErr);
+            setFormError(`Item created successfully, but image upload failed: ${uploadErr.message || 'Storage error'}. You can edit the item to retry uploading.`);
+            await loadData();
+            setSubmitting(false);
+            return;
+          }
+        }
       }
 
       setIsModalOpen(false);
@@ -215,6 +327,10 @@ export default function DashboardItemsPage() {
     if (!confirm('Are you sure you want to delete this item?')) return;
     try {
       const supabase = createClient();
+      const targetItem = items.find((i) => i.id === id);
+      if (targetItem?.image_url && business) {
+        await deleteStorageFileByUrl(targetItem.image_url, business.id);
+      }
       await supabase.from('catalog_items').delete().eq('id', id);
       setItems(items.filter((i) => i.id !== id));
     } catch (err: any) {
@@ -780,13 +896,111 @@ export default function DashboardItemsPage() {
             />
           </div>
 
-          <Input
-            label="Image URL (Optional)"
-            placeholder="https://example.com/image.jpg"
-            value={imageUrl}
-            onChange={(e) => setImageUrl(e.target.value)}
-            helperText="If no image is provided, a visual category fallback illustration will be displayed."
-          />
+          {/* Item Image Upload & Preview Section */}
+          <div className="space-y-2 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                Item Image (Optional)
+              </label>
+              <span className="text-[11px] text-slate-500 font-medium">
+                JPG, PNG, WEBP (Max 5 MB)
+              </span>
+            </div>
+
+            {imageFileError && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-600 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{imageFileError}</span>
+              </div>
+            )}
+
+            {imagePreviewUrl ? (
+              <div className="relative group rounded-xl overflow-hidden border border-slate-300 bg-slate-900 h-44 flex items-center justify-center">
+                <img
+                  src={imagePreviewUrl}
+                  alt="Selected preview"
+                  className="w-full h-full object-contain"
+                />
+                <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-3">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-3 py-1.5 bg-white text-slate-900 font-bold text-xs rounded-lg shadow-sm hover:bg-slate-100 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Upload className="w-3.5 h-3.5" /> Change Image
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRemoveImage}
+                    className="px-3 py-1.5 bg-rose-600 text-white font-bold text-xs rounded-lg shadow-sm hover:bg-rose-500 flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" /> Remove
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => fileInputRef.current?.click()}
+                className={`border-2 border-dashed rounded-xl p-5 text-center transition-colors cursor-pointer flex flex-col items-center justify-center space-y-2 ${
+                  isDraggingImage
+                    ? 'border-teal-500 bg-teal-50/50 text-teal-700'
+                    : 'border-slate-300 hover:border-teal-500 hover:bg-slate-100/50 text-slate-600'
+                }`}
+              >
+                <div className="p-3 bg-white border border-slate-200 rounded-full shadow-xs text-teal-600">
+                  <ImageIcon className="w-6 h-6" />
+                </div>
+                <div>
+                  <p className="text-xs font-bold text-slate-800">
+                    Click to upload <span className="font-normal text-slate-500">or drag and drop</span>
+                  </p>
+                  <p className="text-[11px] text-slate-500 mt-0.5">
+                    High-quality product images boost customer engagement
+                  </p>
+                </div>
+              </div>
+            )}
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,image/webp"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  handleImageFileSelect(e.target.files[0]);
+                }
+              }}
+            />
+
+            {/* Optional Manual URL Link Expansion */}
+            <div className="pt-1">
+              <details className="text-[11px] text-slate-500 cursor-pointer">
+                <summary className="font-semibold text-slate-600 hover:text-slate-900 select-none">
+                  Or enter image URL manually
+                </summary>
+                <div className="pt-2">
+                  <Input
+                    placeholder="https://example.com/image.jpg"
+                    value={imageUrl}
+                    onChange={(e) => {
+                      setImageUrl(e.target.value);
+                      if (e.target.value.trim()) {
+                        setImagePreviewUrl(e.target.value.trim());
+                        setSelectedImageFile(null);
+                      } else if (!selectedImageFile) {
+                        setImagePreviewUrl(null);
+                      }
+                    }}
+                    className="text-xs"
+                  />
+                </div>
+              </details>
+            </div>
+          </div>
 
           <div className="flex items-center justify-between pt-2">
             <label className="flex items-center gap-2 cursor-pointer">
