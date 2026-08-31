@@ -1,13 +1,15 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
-import { Settings, Store, Save, CheckCircle2, AlertCircle, Utensils, BookOpen, Scissors, Link as LinkIcon, RefreshCw, Lock, MessageSquare } from 'lucide-react';
+import { Settings, Store, Save, CheckCircle2, AlertCircle, Utensils, BookOpen, Scissors, Link as LinkIcon, RefreshCw, Lock, MessageSquare, Image as ImageIcon, Upload, Trash2, Crop } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { createClient } from '@/lib/supabase/client';
 import { Business, BusinessType, BUSINESS_TYPES_META } from '@/lib/types';
 import { slugify } from '@/lib/utils';
+import { ImageCropperModal } from '@/components/catalog/ImageCropperModal';
+import { validateImageFile, uploadBusinessLogo, uploadBusinessBanner, deleteBusinessLogo, deleteBusinessBanner, getOriginalImageUrl } from '@/lib/storage';
 
 export default function DashboardBusinessSettingsPage() {
   const router = useRouter();
@@ -29,6 +31,25 @@ export default function DashboardBusinessSettingsPage() {
   const [currency, setCurrency] = useState('LKR');
   const [themeColor, setThemeColor] = useState('#0F172A');
   const [logoUrl, setLogoUrl] = useState('');
+  const [bannerUrl, setBannerUrl] = useState('');
+
+  // Logo Cropper State (1:1 Aspect Ratio)
+  const [selectedLogoFile, setSelectedLogoFile] = useState<File | null>(null);
+  const [croppedLogoBlob, setCroppedLogoBlob] = useState<Blob | null>(null);
+  const [logoPreviewUrl, setLogoPreviewUrl] = useState<string | null>(null);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const logoInputRef = useRef<HTMLInputElement>(null);
+
+  // Banner Cropper State (3:1 Aspect Ratio)
+  const [selectedBannerFile, setSelectedBannerFile] = useState<File | null>(null);
+  const [croppedBannerBlob, setCroppedBannerBlob] = useState<Blob | null>(null);
+  const [bannerPreviewUrl, setBannerPreviewUrl] = useState<string | null>(null);
+  const [bannerError, setBannerError] = useState<string | null>(null);
+  const bannerInputRef = useRef<HTMLInputElement>(null);
+
+  // Shared Cropper Modal State
+  const [activeCropperMode, setActiveCropperMode] = useState<'logo' | 'banner' | null>(null);
+  const [cropperSourceUrl, setCropperSourceUrl] = useState<string | null>(null);
 
   useEffect(() => {
     loadBusiness();
@@ -71,7 +92,95 @@ export default function DashboardBusinessSettingsPage() {
     setCurrency(b.currency || 'LKR');
     setThemeColor(b.theme_color || '#0F172A');
     setLogoUrl(b.logo_url || '');
+    setLogoPreviewUrl(b.logo_url || null);
+    setBannerUrl(b.banner_url || '');
+    setBannerPreviewUrl(b.banner_url || null);
   }
+
+  // Handle Logo Selection
+  const handleLogoFileSelect = (file: File | null) => {
+    if (!file) return;
+    const val = validateImageFile(file);
+    if (!val.valid) {
+      setLogoError(val.error || 'Invalid logo image.');
+      return;
+    }
+    setLogoError(null);
+    setSelectedLogoFile(file);
+    setCroppedLogoBlob(null);
+    setCropperSourceUrl(URL.createObjectURL(file));
+    setActiveCropperMode('logo');
+  };
+
+  // Handle Banner Selection
+  const handleBannerFileSelect = (file: File | null) => {
+    if (!file) return;
+    const val = validateImageFile(file);
+    if (!val.valid) {
+      setBannerError(val.error || 'Invalid header banner image.');
+      return;
+    }
+    setBannerError(null);
+    setSelectedBannerFile(file);
+    setCroppedBannerBlob(null);
+    setCropperSourceUrl(URL.createObjectURL(file));
+    setActiveCropperMode('banner');
+  };
+
+  const handleReCropLogo = () => {
+    if (selectedLogoFile) {
+      setCropperSourceUrl(URL.createObjectURL(selectedLogoFile));
+      setActiveCropperMode('logo');
+      return;
+    }
+    if (logoUrl || logoPreviewUrl) {
+      const src = getOriginalImageUrl(logoUrl || logoPreviewUrl) || (logoUrl || logoPreviewUrl || '');
+      setCropperSourceUrl(src);
+      setActiveCropperMode('logo');
+    }
+  };
+
+  const handleReCropBanner = () => {
+    if (selectedBannerFile) {
+      setCropperSourceUrl(URL.createObjectURL(selectedBannerFile));
+      setActiveCropperMode('banner');
+      return;
+    }
+    if (bannerUrl || bannerPreviewUrl) {
+      const src = getOriginalImageUrl(bannerUrl || bannerPreviewUrl) || (bannerUrl || bannerPreviewUrl || '');
+      setCropperSourceUrl(src);
+      setActiveCropperMode('banner');
+    }
+  };
+
+  const handleCropConfirm = (blob: Blob, previewUrl: string) => {
+    if (activeCropperMode === 'logo') {
+      setCroppedLogoBlob(blob);
+      setLogoPreviewUrl(previewUrl);
+    } else if (activeCropperMode === 'banner') {
+      setCroppedBannerBlob(blob);
+      setBannerPreviewUrl(previewUrl);
+    }
+    setActiveCropperMode(null);
+  };
+
+  const handleRemoveLogo = () => {
+    setSelectedLogoFile(null);
+    setCroppedLogoBlob(null);
+    setLogoPreviewUrl(null);
+    setLogoUrl('');
+    setLogoError(null);
+    if (logoInputRef.current) logoInputRef.current.value = '';
+  };
+
+  const handleRemoveBanner = () => {
+    setSelectedBannerFile(null);
+    setCroppedBannerBlob(null);
+    setBannerPreviewUrl(null);
+    setBannerUrl('');
+    setBannerError(null);
+    if (bannerInputRef.current) bannerInputRef.current.value = '';
+  };
 
   // Handle Business Name Change
   const handleNameChange = (newName: string) => {
@@ -85,27 +194,58 @@ export default function DashboardBusinessSettingsPage() {
     setSuccessMsg(null);
     setErrorMsg(null);
 
-    const updatedPayload = {
-      name,
-      slug: business.slug, // Preserve original locked slug
-      business_type: businessType,
-      description: description || null,
-      phone: phone || null,
-      email: email || null,
-      address: address || null,
-      website: website || null,
-      currency,
-      theme_color: themeColor,
-      logo_url: logoUrl || null,
-      updated_at: new Date().toISOString(),
-    };
+    let finalLogoUrl: string | null = logoUrl || null;
+    let finalBannerUrl: string | null = bannerUrl || null;
 
     try {
+      // 1. Upload Logo if newly cropped
+      if (croppedLogoBlob && (selectedLogoFile || logoPreviewUrl)) {
+        const logoSource = selectedLogoFile || croppedLogoBlob;
+        const res = await uploadBusinessLogo(business.id, logoSource, croppedLogoBlob);
+        finalLogoUrl = res.logoUrl;
+      } else if (!logoPreviewUrl && logoUrl) {
+        finalLogoUrl = null;
+        await deleteBusinessLogo(business.id);
+      }
+
+      // 2. Upload Banner if newly cropped
+      if (croppedBannerBlob && (selectedBannerFile || bannerPreviewUrl)) {
+        const bannerSource = selectedBannerFile || croppedBannerBlob;
+        const res = await uploadBusinessBanner(business.id, bannerSource, croppedBannerBlob);
+        finalBannerUrl = res.bannerUrl;
+      } else if (!bannerPreviewUrl && bannerUrl) {
+        finalBannerUrl = null;
+        await deleteBusinessBanner(business.id);
+      }
+
+      const updatedPayload = {
+        name,
+        slug: business.slug, // Preserve original locked slug
+        business_type: businessType,
+        description: description || null,
+        phone: phone || null,
+        email: email || null,
+        address: address || null,
+        website: website || null,
+        currency,
+        theme_color: themeColor,
+        logo_url: finalLogoUrl,
+        banner_url: finalBannerUrl,
+        updated_at: new Date().toISOString(),
+      };
+
       const supabase = createClient();
       const { error } = await supabase.from('businesses').update(updatedPayload).eq('id', business.id);
       if (error) throw error;
+
       setSuccessMsg('Business details successfully updated!');
       setBusiness({ ...business, ...updatedPayload });
+      setLogoUrl(finalLogoUrl || '');
+      setBannerUrl(finalBannerUrl || '');
+      setSelectedLogoFile(null);
+      setCroppedLogoBlob(null);
+      setSelectedBannerFile(null);
+      setCroppedBannerBlob(null);
     } catch (err: any) {
       setErrorMsg(err.message || 'Failed to update settings.');
     } finally {
@@ -294,10 +434,214 @@ export default function DashboardBusinessSettingsPage() {
         </div>
 
         <h2 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 pt-2">
+          Business Profile & Header Images
+        </h2>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Logo / Profile Image Upload Section (1:1) */}
+          <div className="space-y-3 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                Business Logo / Avatar (1:1)
+              </label>
+              <span className="text-[11px] text-slate-500 font-medium">JPG, PNG, WEBP</span>
+            </div>
+
+            {logoError && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-600 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{logoError}</span>
+              </div>
+            )}
+
+            {logoPreviewUrl ? (
+              <div className="space-y-2">
+                <div className="relative group rounded-xl overflow-hidden border border-slate-300 bg-slate-900 h-40 flex items-center justify-center p-3">
+                  <img
+                    src={logoPreviewUrl}
+                    alt="Business Logo Preview"
+                    className="w-28 h-28 object-contain rounded-full border-2 border-white shadow-md bg-white"
+                  />
+                  <div className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-3">
+                    <button
+                      type="button"
+                      onClick={() => logoInputRef.current?.click()}
+                      className="px-3 py-1.5 bg-white text-slate-900 font-bold text-xs rounded-lg shadow-sm hover:bg-slate-100 flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Upload className="w-3.5 h-3.5" /> Change Logo
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleReCropLogo}
+                      className="px-3 py-1.5 bg-teal-600 text-white font-bold text-xs rounded-lg shadow-sm hover:bg-teal-500 flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Crop className="w-3.5 h-3.5" /> Re-Crop
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRemoveLogo}
+                      className="px-3 py-1.5 bg-rose-600 text-white font-bold text-xs rounded-lg shadow-sm hover:bg-rose-500 flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Remove
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center justify-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => logoInputRef.current?.click()}
+                    className="px-2.5 py-1 bg-white border border-slate-300 text-slate-700 font-bold text-xs rounded-lg hover:bg-slate-100 flex items-center gap-1"
+                  >
+                    <Upload className="w-3 h-3 text-slate-600" /> Change
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleReCropLogo}
+                    className="px-2.5 py-1 bg-teal-50 border border-teal-200 text-teal-700 font-bold text-xs rounded-lg hover:bg-teal-100 flex items-center gap-1"
+                  >
+                    <Crop className="w-3 h-3 text-teal-600" /> Re-Crop
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRemoveLogo}
+                    className="px-2.5 py-1 bg-rose-50 border border-rose-200 text-rose-600 font-bold text-xs rounded-lg hover:bg-rose-100 flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3 h-3 text-rose-600" /> Remove
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={() => logoInputRef.current?.click()}
+                className="border-2 border-dashed border-slate-300 hover:border-teal-500 hover:bg-slate-100/50 rounded-xl p-5 text-center transition-colors cursor-pointer flex flex-col items-center justify-center space-y-2 h-40"
+              >
+                <div className="p-3 bg-white border border-slate-200 rounded-full shadow-xs text-teal-600">
+                  <ImageIcon className="w-6 h-6" />
+                </div>
+                <p className="text-xs font-bold text-slate-800">
+                  Upload Logo <span className="font-normal text-slate-500">(1:1 Square)</span>
+                </p>
+              </div>
+            )}
+
+            <input
+              ref={logoInputRef}
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,image/webp"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  handleLogoFileSelect(e.target.files[0]);
+                }
+              }}
+            />
+          </div>
+
+          {/* Header Banner Upload Section (3:1) */}
+          <div className="space-y-3 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                Catalog Header Banner (3:1)
+              </label>
+              <span className="text-[11px] text-slate-500 font-medium">JPG, PNG, WEBP</span>
+            </div>
+
+            {bannerError && (
+              <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-lg text-rose-600 text-xs flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{bannerError}</span>
+              </div>
+            )}
+
+            {bannerPreviewUrl ? (
+              <div className="space-y-2">
+                <div className="relative group rounded-xl overflow-hidden border border-slate-300 bg-slate-900 h-40 flex items-center justify-center">
+                  <img
+                    src={bannerPreviewUrl}
+                    alt="Header Banner Preview"
+                    className="w-full h-full object-cover"
+                  />
+                  <div className="absolute inset-0 bg-slate-950/70 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 p-3">
+                    <button
+                      type="button"
+                      onClick={() => bannerInputRef.current?.click()}
+                      className="px-3 py-1.5 bg-white text-slate-900 font-bold text-xs rounded-lg shadow-sm hover:bg-slate-100 flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Upload className="w-3.5 h-3.5" /> Change Banner
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleReCropBanner}
+                      className="px-3 py-1.5 bg-teal-600 text-white font-bold text-xs rounded-lg shadow-sm hover:bg-teal-500 flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Crop className="w-3.5 h-3.5" /> Re-Crop
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleRemoveBanner}
+                      className="px-3 py-1.5 bg-rose-600 text-white font-bold text-xs rounded-lg shadow-sm hover:bg-rose-500 flex items-center gap-1.5 cursor-pointer"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" /> Remove
+                    </button>
+                  </div>
+                </div>
+                <div className="flex items-center justify-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => bannerInputRef.current?.click()}
+                    className="px-2.5 py-1 bg-white border border-slate-300 text-slate-700 font-bold text-xs rounded-lg hover:bg-slate-100 flex items-center gap-1"
+                  >
+                    <Upload className="w-3 h-3 text-slate-600" /> Change
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleReCropBanner}
+                    className="px-2.5 py-1 bg-teal-50 border border-teal-200 text-teal-700 font-bold text-xs rounded-lg hover:bg-teal-100 flex items-center gap-1"
+                  >
+                    <Crop className="w-3 h-3 text-teal-600" /> Re-Crop
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleRemoveBanner}
+                    className="px-2.5 py-1 bg-rose-50 border border-rose-200 text-rose-600 font-bold text-xs rounded-lg hover:bg-rose-100 flex items-center gap-1"
+                  >
+                    <Trash2 className="w-3 h-3 text-rose-600" /> Remove
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div
+                onClick={() => bannerInputRef.current?.click()}
+                className="border-2 border-dashed border-slate-300 hover:border-teal-500 hover:bg-slate-100/50 rounded-xl p-5 text-center transition-colors cursor-pointer flex flex-col items-center justify-center space-y-2 h-40"
+              >
+                <div className="p-3 bg-white border border-slate-200 rounded-full shadow-xs text-teal-600">
+                  <ImageIcon className="w-6 h-6" />
+                </div>
+                <p className="text-xs font-bold text-slate-800">
+                  Upload Header Cover Banner <span className="font-normal text-slate-500">(3:1 Landscape)</span>
+                </p>
+              </div>
+            )}
+
+            <input
+              ref={bannerInputRef}
+              type="file"
+              accept="image/jpeg,image/jpg,image/png,image/webp"
+              className="hidden"
+              onChange={(e) => {
+                if (e.target.files && e.target.files[0]) {
+                  handleBannerFileSelect(e.target.files[0]);
+                }
+              }}
+            />
+          </div>
+        </div>
+
+        <h2 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 pt-2">
           Localization & Visual Theme
         </h2>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1">
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
               Currency
@@ -336,13 +680,6 @@ export default function DashboardBusinessSettingsPage() {
               />
             </div>
           </div>
-
-          <Input
-            label="Logo Image URL"
-            placeholder="https://example.com/logo.png"
-            value={logoUrl}
-            onChange={(e) => setLogoUrl(e.target.value)}
-          />
         </div>
 
         <div className="pt-4 border-t border-slate-100 flex justify-end">
@@ -351,6 +688,15 @@ export default function DashboardBusinessSettingsPage() {
           </Button>
         </div>
       </form>
+
+      {/* Image Cropper Modal for Logo & Banner */}
+      <ImageCropperModal
+        isOpen={activeCropperMode !== null}
+        onClose={() => setActiveCropperMode(null)}
+        imageSrc={cropperSourceUrl}
+        onCropConfirm={handleCropConfirm}
+        aspectRatio={activeCropperMode === 'banner' ? 3 / 1 : 1}
+      />
     </div>
   );
 }

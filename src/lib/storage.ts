@@ -11,6 +11,20 @@ export interface ImageValidationResult {
 }
 
 /**
+ * Appends a cache-busting timestamp parameter to a URL.
+ */
+export function addCacheBustParam(url: string | null): string | null {
+  if (!url || typeof url !== 'string') return null;
+  // If URL already has a query string timestamp, replace or return it
+  const timestamp = Date.now();
+  if (url.includes('?')) {
+    const cleanUrl = url.split('?')[0];
+    return `${cleanUrl}?t=${timestamp}`;
+  }
+  return `${url}?t=${timestamp}`;
+}
+
+/**
  * Validates file format and size for item images.
  */
 export function validateImageFile(file: File): ImageValidationResult {
@@ -126,15 +140,18 @@ export function getOriginalImageUrl(url: string | null): string | null {
   if (url.includes(`/${BUCKET_NAME}/`) && url.includes('/items/')) {
     if (url.includes('-original.')) return url;
 
-    const lastSlash = url.lastIndexOf('/');
-    const folder = url.substring(0, lastSlash + 1);
-    const filename = url.substring(lastSlash + 1);
+    // Preserve query parameters if present
+    const [baseUrl, query] = url.split('?');
+    const lastSlash = baseUrl.lastIndexOf('/');
+    const folder = baseUrl.substring(0, lastSlash + 1);
+    const filename = baseUrl.substring(lastSlash + 1);
 
     const dotIndex = filename.lastIndexOf('.');
     if (dotIndex !== -1) {
       const nameWithoutExt = filename.substring(0, dotIndex);
       const ext = filename.substring(dotIndex);
-      return `${folder}${nameWithoutExt}-original${ext}`;
+      const resUrl = `${folder}${nameWithoutExt}-original${ext}`;
+      return query ? `${resUrl}?${query}` : resUrl;
     }
   }
 
@@ -226,19 +243,18 @@ export function extractStoragePathFromUrl(url: string, bucket = BUCKET_NAME): st
   if (!url || typeof url !== 'string') return null;
 
   try {
+    const cleanUrl = url.split('?')[0];
     const searchString = `/storage/v1/object/public/${bucket}/`;
-    const index = url.indexOf(searchString);
+    const index = cleanUrl.indexOf(searchString);
     if (index !== -1) {
-      return url.substring(index + searchString.length);
+      return cleanUrl.substring(index + searchString.length);
     }
 
     const altSearchString = `/${bucket}/`;
-    const altIndex = url.indexOf(altSearchString);
+    const altIndex = cleanUrl.indexOf(altSearchString);
     if (altIndex !== -1) {
-      const extracted = url.substring(altIndex + altSearchString.length);
-      if (extracted.includes('/items/')) {
-        return extracted;
-      }
+      const extracted = cleanUrl.substring(altIndex + altSearchString.length);
+      return extracted;
     }
   } catch (e) {
     console.error('Error parsing storage URL:', e);
@@ -303,9 +319,10 @@ export async function uploadItemImages(
   const { data: catalogData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(catalogPath);
   const { data: originalData } = supabase.storage.from(BUCKET_NAME).getPublicUrl(originalPath);
 
+  const timestamp = Date.now();
   return {
-    catalogUrl: catalogData.publicUrl,
-    originalUrl: originalData?.publicUrl || catalogData.publicUrl,
+    catalogUrl: `${catalogData.publicUrl}?t=${timestamp}`,
+    originalUrl: `${originalData?.publicUrl || catalogData.publicUrl}?t=${timestamp}`,
   };
 }
 
@@ -348,9 +365,113 @@ export async function uploadItemImage(
   }
 
   return {
-    publicUrl: data.publicUrl,
+    publicUrl: `${data.publicUrl}?t=${Date.now()}`,
     storagePath,
   };
+}
+
+/**
+ * Upload Business Profile Logo (1:1 aspect ratio)
+ * Paths: business-assets/{businessId}/logo.{ext} and business-assets/{businessId}/logo-original.{ext}
+ */
+export async function uploadBusinessLogo(
+  businessId: string,
+  originalFileOrBlob: File | Blob,
+  croppedBlob: Blob
+): Promise<{ logoUrl: string }> {
+  const supabase = createClient();
+
+  let ext = 'png';
+  if (originalFileOrBlob instanceof File && originalFileOrBlob.name) {
+    const rawExt = originalFileOrBlob.name.split('.').pop()?.toLowerCase();
+    if (rawExt && ['jpg', 'jpeg', 'png', 'webp'].includes(rawExt)) {
+      ext = rawExt;
+    }
+  }
+
+  const logoPath = `${businessId}/logo.${ext}`;
+  const originalPath = `${businessId}/logo-original.${ext}`;
+
+  await supabase.storage.from(BUCKET_NAME).upload(originalPath, originalFileOrBlob, { cacheControl: '3600', upsert: true });
+
+  const { error: cropErr } = await supabase.storage.from(BUCKET_NAME).upload(logoPath, croppedBlob, { cacheControl: '3600', upsert: true });
+  if (cropErr) {
+    throw new Error(cropErr.message || 'Failed to upload logo image.');
+  }
+
+  const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(logoPath);
+  return {
+    logoUrl: `${data.publicUrl}?t=${Date.now()}`,
+  };
+}
+
+/**
+ * Upload Business Header Banner (3:1 aspect ratio)
+ * Paths: business-assets/{businessId}/banner.{ext} and business-assets/{businessId}/banner-original.{ext}
+ */
+export async function uploadBusinessBanner(
+  businessId: string,
+  originalFileOrBlob: File | Blob,
+  croppedBlob: Blob
+): Promise<{ bannerUrl: string }> {
+  const supabase = createClient();
+
+  let ext = 'jpg';
+  if (originalFileOrBlob instanceof File && originalFileOrBlob.name) {
+    const rawExt = originalFileOrBlob.name.split('.').pop()?.toLowerCase();
+    if (rawExt && ['jpg', 'jpeg', 'png', 'webp'].includes(rawExt)) {
+      ext = rawExt;
+    }
+  }
+
+  const bannerPath = `${businessId}/banner.${ext}`;
+  const originalPath = `${businessId}/banner-original.${ext}`;
+
+  await supabase.storage.from(BUCKET_NAME).upload(originalPath, originalFileOrBlob, { cacheControl: '3600', upsert: true });
+
+  const { error: cropErr } = await supabase.storage.from(BUCKET_NAME).upload(bannerPath, croppedBlob, { cacheControl: '3600', upsert: true });
+  if (cropErr) {
+    throw new Error(cropErr.message || 'Failed to upload header banner image.');
+  }
+
+  const { data } = supabase.storage.from(BUCKET_NAME).getPublicUrl(bannerPath);
+  return {
+    bannerUrl: `${data.publicUrl}?t=${Date.now()}`,
+  };
+}
+
+/**
+ * Safely deletes business logo files from Supabase Storage
+ */
+export async function deleteBusinessLogo(businessId: string): Promise<boolean> {
+  try {
+    const supabase = createClient();
+    const paths = [
+      `${businessId}/logo.jpg`, `${businessId}/logo.png`, `${businessId}/logo.webp`,
+      `${businessId}/logo-original.jpg`, `${businessId}/logo-original.png`, `${businessId}/logo-original.webp`
+    ];
+    await supabase.storage.from(BUCKET_NAME).remove(paths);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Safely deletes business header banner files from Supabase Storage
+ */
+export async function deleteBusinessBanner(businessId: string): Promise<boolean> {
+  try {
+    const supabase = createClient();
+    const paths = [
+      `${businessId}/banner.jpg`, `${businessId}/banner.png`, `${businessId}/banner.webp`,
+      `${businessId}/banner-original.jpg`, `${businessId}/banner-original.png`, `${businessId}/banner-original.webp`
+    ];
+    await supabase.storage.from(BUCKET_NAME).remove(paths);
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 /**

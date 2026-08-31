@@ -103,13 +103,24 @@ export function CatalogRenderer({
           className="relative px-5 pt-8 pb-6 overflow-hidden shadow-md"
           style={{ backgroundColor: primaryColor }}
         >
-          <BackgroundRenderer
-            styleId={backgroundStyleId}
-            primaryColor={primaryColor}
-            accentColor={accentColor}
-            isDarkTemplate={true}
-            headerOnly={true}
-          />
+          {business.banner_url ? (
+            <div className="absolute inset-0 z-0">
+              <img
+                src={business.banner_url}
+                alt={`${business.name} Banner`}
+                className="w-full h-full object-cover"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-slate-950/80 via-slate-950/50 to-slate-950/40 backdrop-blur-[1px]" />
+            </div>
+          ) : (
+            <BackgroundRenderer
+              styleId={backgroundStyleId}
+              primaryColor={primaryColor}
+              accentColor={accentColor}
+              isDarkTemplate={true}
+              headerOnly={true}
+            />
+          )}
 
           <div className="relative z-10 space-y-3 text-white">
             <div className="flex items-center justify-between">
