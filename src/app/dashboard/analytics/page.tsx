@@ -14,7 +14,7 @@ export default function DashboardAnalyticsPage() {
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-  const [daysFilter, setDaysFilter] = useState<number>(30);
+  const [daysFilter, setDaysFilter] = useState<number>(7);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [hoveredTrendIndex, setHoveredTrendIndex] = useState<number | null>(null);
@@ -303,6 +303,21 @@ export default function DashboardAnalyticsPage() {
                 const isHovered = hoveredTrendIndex === idx;
                 const isActive = isSelected || (selectedTrendIndex === null && isHovered);
 
+                const totalTrends = (analytics?.dailyTrends || []).length;
+                const isNearStart = idx < 2;
+                const isNearEnd = idx >= totalTrends - 2;
+
+                let tooltipAlignClass = "left-1/2 -translate-x-1/2";
+                let arrowAlignClass = "left-1/2 -translate-x-1/2";
+
+                if (isNearStart) {
+                  tooltipAlignClass = "left-0 translate-x-0";
+                  arrowAlignClass = "left-4 translate-x-0";
+                } else if (isNearEnd) {
+                  tooltipAlignClass = "right-0 left-auto translate-x-0";
+                  arrowAlignClass = "right-4 left-auto translate-x-0";
+                }
+
                 return (
                   <div
                     key={t.date + idx}
@@ -315,7 +330,7 @@ export default function DashboardAnalyticsPage() {
                   >
                     {/* Floating Interactive Popover Tooltip (Positioned in Headroom) */}
                     {isActive && (
-                      <div className="absolute -top-12 left-1/2 -translate-x-1/2 z-30 bg-slate-900 text-white px-3.5 py-1.5 rounded-xl shadow-2xl border border-slate-700 text-center whitespace-nowrap animate-fade-in pointer-events-none">
+                      <div className={`absolute -top-12 z-30 bg-slate-900 text-white px-3.5 py-1.5 rounded-xl shadow-2xl border border-slate-700 text-center whitespace-nowrap animate-fade-in pointer-events-none ${tooltipAlignClass}`}>
                         <div className="text-[10px] font-extrabold text-indigo-300">{t.date}</div>
                         <div className="text-[11px] font-bold flex items-center justify-center gap-2 mt-0.5">
                           <span className="text-teal-400 font-extrabold">{t.scans} Scans</span>
@@ -323,7 +338,7 @@ export default function DashboardAnalyticsPage() {
                           <span className="text-indigo-400 font-extrabold">{t.views} Views</span>
                         </div>
                         {/* Down Arrow Tip */}
-                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-2 h-2 bg-slate-900 rotate-45 border-r border-b border-slate-700" />
+                        <div className={`absolute -bottom-1 w-2 h-2 bg-slate-900 rotate-45 border-r border-b border-slate-700 ${arrowAlignClass}`} />
                       </div>
                     )}
 
