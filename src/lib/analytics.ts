@@ -159,6 +159,13 @@ export async function logSearchQuery(businessId: string, queryText: string, resu
   } catch (err) {}
 }
 
+export type AnalyticsFilterType = '7d' | '30d' | 'this_month' | 'month';
+
+export interface AnalyticsFilterOptions {
+  type: AnalyticsFilterType;
+  month?: string; // Format: 'YYYY-MM'
+}
+
 /**
  * Calculate period comparison and percentage change safely
  */
@@ -174,9 +181,12 @@ function computeMetricComparison(currentCount: number, previousCount: number): M
 }
 
 /**
- * Fetch tenant-isolated analytics summary for a business with accurate period comparisons
+ * Fetch tenant-isolated analytics summary for a business with accurate period comparisons & monthly filtering
  */
-export async function getAnalyticsSummary(businessId: string, daysLimit: number = 30): Promise<AnalyticsSummary> {
+export async function getAnalyticsSummary(
+  businessId: string, 
+  filter: number | AnalyticsFilterOptions = 7
+): Promise<AnalyticsSummary> {
   let allScans: AnalyticsScan[] = [];
   let allViews: AnalyticsItemView[] = [];
   let allSearches: AnalyticsSearchLog[] = [];
@@ -210,26 +220,90 @@ export async function getAnalyticsSummary(businessId: string, daysLimit: number 
   } catch (e) {}
 
   const now = new Date();
-  const currentCutoff = new Date(now.getTime() - daysLimit * 24 * 60 * 60 * 1000);
-  const previousCutoff = new Date(now.getTime() - daysLimit * 2 * 24 * 60 * 60 * 1000);
+  let currentStart: Date;
+  let currentEnd: Date = now;
+  let previousStart: Date;
+  let previousEnd: Date;
+  const trendDates: string[] = [];
+
+  let options: AnalyticsFilterOptions;
+  if (typeof filter === 'number') {
+    options = filter === 7 ? { type: '7d' } : filter === 30 ? { type: '30d' } : { type: '30d' };
+  } else {
+    options = filter;
+  }
+
+  if (options.type === '7d') {
+    currentStart = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    previousStart = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+    previousEnd = currentStart;
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      trendDates.push(d.toISOString().split('T')[0]);
+    }
+  } else if (options.type === '30d') {
+    currentStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    previousStart = new Date(now.getTime() - 60 * 24 * 60 * 60 * 1000);
+    previousEnd = currentStart;
+    for (let i = 29; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+      trendDates.push(d.toISOString().split('T')[0]);
+    }
+  } else {
+    // 'this_month' or 'month'
+    let year = now.getFullYear();
+    let month = now.getMonth(); // 0-indexed
+
+    if (options.type === 'month' && options.month) {
+      const parts = options.month.split('-');
+      if (parts.length === 2) {
+        year = parseInt(parts[0], 10);
+        month = parseInt(parts[1], 10) - 1;
+      }
+    }
+
+    currentStart = new Date(year, month, 1, 0, 0, 0, 0);
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const isCurrentMonth = (year === now.getFullYear() && month === now.getMonth());
+    currentEnd = isCurrentMonth ? now : new Date(year, month, daysInMonth, 23, 59, 59, 999);
+
+    previousStart = new Date(year, month - 1, 1, 0, 0, 0, 0);
+    const prevDaysInMonth = new Date(year, month, 0).getDate();
+    previousEnd = new Date(year, month - 1, prevDaysInMonth, 23, 59, 59, 999);
+
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dayStr = String(d).padStart(2, '0');
+      const monthStr = String(month + 1).padStart(2, '0');
+      trendDates.push(`${year}-${monthStr}-${dayStr}`);
+    }
+  }
 
   // Filter current period records
-  const currentScans = allScans.filter((s) => new Date(s.created_at) >= currentCutoff);
-  const currentViews = allViews.filter((v) => new Date(v.created_at) >= currentCutoff);
-  const currentSearches = allSearches.filter((q) => new Date(q.created_at) >= currentCutoff);
+  const currentScans = allScans.filter((s) => {
+    const d = new Date(s.created_at);
+    return d >= currentStart && d <= currentEnd;
+  });
+  const currentViews = allViews.filter((v) => {
+    const d = new Date(v.created_at);
+    return d >= currentStart && d <= currentEnd;
+  });
+  const currentSearches = allSearches.filter((q) => {
+    const d = new Date(q.created_at);
+    return d >= currentStart && d <= currentEnd;
+  });
 
   // Filter previous period records for trend comparisons
   const previousScans = allScans.filter((s) => {
     const d = new Date(s.created_at);
-    return d >= previousCutoff && d < currentCutoff;
+    return d >= previousStart && d < previousEnd;
   });
   const previousViews = allViews.filter((v) => {
     const d = new Date(v.created_at);
-    return d >= previousCutoff && d < currentCutoff;
+    return d >= previousStart && d < previousEnd;
   });
   const previousSearches = allSearches.filter((q) => {
     const d = new Date(q.created_at);
-    return d >= previousCutoff && d < currentCutoff;
+    return d >= previousStart && d < previousEnd;
   });
 
   const scansMetric = computeMetricComparison(currentScans.length, previousScans.length);
@@ -285,12 +359,9 @@ export async function getAnalyticsSummary(businessId: string, daysLimit: number 
 
   // Compute Daily Trend Data for Responsive Charts
   const dailyTrendMap: Record<string, { scans: number; views: number }> = {};
-  for (let i = Math.min(daysLimit, 30) - 1; i >= 0; i--) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    const dateStr = d.toISOString().split('T')[0];
+  trendDates.forEach((dateStr) => {
     dailyTrendMap[dateStr] = { scans: 0, views: 0 };
-  }
+  });
 
   currentScans.forEach((s) => {
     const dStr = (s.created_at || '').split('T')[0];

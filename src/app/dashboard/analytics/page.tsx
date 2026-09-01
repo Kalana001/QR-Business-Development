@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { 
   BarChart3, QrCode, Eye, Search, Smartphone, Users, Crown, Calendar, TrendingUp, AlertTriangle, ArrowUpRight, CheckCircle2, Lock, ArrowDownRight, Layers, Sparkles 
 } from 'lucide-react';
@@ -8,17 +8,29 @@ import { Button } from '@/components/ui/Button';
 import { UpgradeModal } from '@/components/ui/UpgradeModal';
 import { createClient } from '@/lib/supabase/client';
 import { Business } from '@/lib/types';
-import { getAnalyticsSummary, AnalyticsSummary, MetricComparison } from '@/lib/analytics';
+import { getAnalyticsSummary, AnalyticsSummary, MetricComparison, AnalyticsFilterOptions } from '@/lib/analytics';
 
 export default function DashboardAnalyticsPage() {
   const [business, setBusiness] = useState<Business | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
-  const [daysFilter, setDaysFilter] = useState<number>(7);
+  const [filterOption, setFilterOption] = useState<AnalyticsFilterOptions>({ type: '7d' });
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [hoveredTrendIndex, setHoveredTrendIndex] = useState<number | null>(null);
   const [selectedTrendIndex, setSelectedTrendIndex] = useState<number | null>(null);
+
+  const availableMonths = useMemo(() => {
+    const months = [];
+    const now = new Date();
+    for (let i = 0; i < 12; i++) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      months.push({ value, label });
+    }
+    return months;
+  }, []);
 
   useEffect(() => {
     async function loadData() {
@@ -43,14 +55,14 @@ export default function DashboardAnalyticsPage() {
       const { data: biz } = await supabase.from('businesses').select('*').eq('owner_id', user.id).single();
       if (biz) {
         setBusiness(biz as Business);
-        const data = await getAnalyticsSummary(biz.id, daysFilter);
+        const data = await getAnalyticsSummary(biz.id, filterOption);
         setAnalytics(data);
       }
       setLoading(false);
     }
 
     loadData();
-  }, [daysFilter]);
+  }, [filterOption]);
 
   if (loading) {
     return (
@@ -135,6 +147,7 @@ export default function DashboardAnalyticsPage() {
   }
 
   // Render Metric Trend Pill
+  // Render Metric Trend Pill
   const renderMetricTrend = (metric?: MetricComparison) => {
     if (!metric || metric.notEnoughData || metric.percentageChange === null) {
       return (
@@ -145,6 +158,7 @@ export default function DashboardAnalyticsPage() {
     }
 
     const isPositive = metric.percentageChange >= 0;
+    const periodLabel = (filterOption.type === 'this_month' || filterOption.type === 'month') ? 'vs prev month' : 'vs prev period';
     return (
       <span className={`text-[11px] font-bold flex items-center gap-0.5 ${isPositive ? 'text-emerald-600' : 'text-rose-600'}`}>
         {isPositive ? (
@@ -152,7 +166,7 @@ export default function DashboardAnalyticsPage() {
         ) : (
           <ArrowDownRight className="w-3.5 h-3.5" />
         )}
-        {Math.abs(metric.percentageChange)}% vs prev period
+        {Math.abs(metric.percentageChange)}% {periodLabel}
       </span>
     );
   };
@@ -175,43 +189,68 @@ export default function DashboardAnalyticsPage() {
           </p>
         </div>
 
-        {/* Date Filter Buttons */}
-        <div className="flex items-center gap-1 bg-slate-200/80 p-1 rounded-xl border border-slate-300/60 shrink-0 overflow-x-auto no-scrollbar">
-          <button
-            onClick={() => setDaysFilter(7)}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-              daysFilter === 7
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Last 7 Days
-          </button>
-          <button
-            onClick={() => setDaysFilter(30)}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-              daysFilter === 30
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            Last 30 Days
-          </button>
-          <button
-            onClick={() => setDaysFilter(365)}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
-              daysFilter === 365
-                ? 'bg-white text-slate-900 shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            All Time
-          </button>
+        {/* Date Filter Buttons & Monthly Selector */}
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1 bg-slate-200/80 p-1 rounded-xl border border-slate-300/60 shrink-0">
+            <button
+              onClick={() => setFilterOption({ type: '7d' })}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                filterOption.type === '7d'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Last 7 Days
+            </button>
+            <button
+              onClick={() => setFilterOption({ type: '30d' })}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                filterOption.type === '30d'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              Last 30 Days
+            </button>
+            <button
+              onClick={() => setFilterOption({ type: 'this_month' })}
+              className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all ${
+                filterOption.type === 'this_month'
+                  ? 'bg-white text-slate-900 shadow-xs'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              This Month
+            </button>
+          </div>
+
+          {/* Monthly Dropdown */}
+          <div className="flex items-center bg-white px-3 py-1.5 rounded-xl border border-slate-300/80 shadow-xs">
+            <Calendar className="w-3.5 h-3.5 text-slate-500 mr-2 shrink-0" />
+            <select
+              value={filterOption.type === 'month' ? filterOption.month : ''}
+              onChange={(e) => {
+                if (e.target.value) {
+                  setFilterOption({ type: 'month', month: e.target.value });
+                }
+              }}
+              className={`bg-transparent text-xs font-semibold focus:outline-hidden cursor-pointer ${
+                filterOption.type === 'month' ? 'text-indigo-600 font-bold' : 'text-slate-600'
+              }`}
+            >
+              <option value="" disabled>By Month...</option>
+              {availableMonths.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
-      {/* Top 4 Key Metric Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+      {/* Top 2 Key Metric Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
         <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex items-center justify-between">
           <div className="space-y-1">
             <div className="text-xs font-bold uppercase tracking-wider text-slate-400">QR Scans</div>
@@ -231,28 +270,6 @@ export default function DashboardAnalyticsPage() {
           </div>
           <div className="p-3 bg-purple-50 text-purple-600 rounded-xl border border-purple-100">
             <Eye className="w-6 h-6" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex items-center justify-between">
-          <div className="space-y-1">
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Total Searches</div>
-            <div className="text-2xl font-black text-slate-900">{analytics?.topSearches.length || 0}</div>
-            {renderMetricTrend(analytics?.searchesMetric)}
-          </div>
-          <div className="p-3 bg-amber-50 text-amber-600 rounded-xl border border-amber-100">
-            <Search className="w-6 h-6" />
-          </div>
-        </div>
-
-        <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs flex items-center justify-between">
-          <div className="space-y-1">
-            <div className="text-xs font-bold uppercase tracking-wider text-slate-400">Zero-Result Searches</div>
-            <div className="text-2xl font-black text-slate-900">{analytics?.zeroResultSearches.length || 0}</div>
-            <div className="text-[11px] text-amber-600 font-semibold">Expansion opportunities</div>
-          </div>
-          <div className="p-3 bg-amber-500/10 text-amber-700 rounded-xl border border-amber-500/20">
-            <AlertTriangle className="w-6 h-6" />
           </div>
         </div>
       </div>
@@ -439,104 +456,45 @@ export default function DashboardAnalyticsPage() {
           </div>
         </div>
 
-        {/* Customer Search Keywords & Zero-Result Opportunities */}
+        {/* Visitor Device Distribution */}
         <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-5 flex flex-col justify-between">
           <div>
             <h3 className="text-base font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
-              <Search className="w-5 h-5 text-purple-600" /> Search Intelligence & Keyword Trends
+              <Smartphone className="w-5 h-5 text-blue-600" /> Visitor Device Distribution
             </h3>
             <p className="text-xs text-slate-500 mt-2">
-              Keywords customers are searching for, including unlisted items they want to buy.
+              Breakdown of devices used by customers to scan and browse your catalog.
             </p>
           </div>
 
-          <div className="space-y-4">
-            {/* Top Keywords */}
-            <div>
-              <div className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">
-                Popular Search Terms
-              </div>
-              {!analytics?.topSearches || analytics.topSearches.length === 0 ? (
-                <div className="text-xs text-slate-400 italic">No search queries logged yet.</div>
-              ) : (
-                <div className="flex flex-wrap gap-2">
-                  {analytics.topSearches.map((s) => (
-                    <span
-                      key={s.query}
-                      className="px-3 py-1 bg-purple-50 text-purple-700 border border-purple-200 rounded-xl text-xs font-bold flex items-center gap-1.5"
-                    >
-                      <span>&quot;{s.query}&quot;</span>
-                      <span className="px-1.5 py-0.2 bg-purple-200/80 rounded-md text-[10px] font-mono">
-                        {s.count}x
-                      </span>
-                    </span>
-                  ))}
-                </div>
-              )}
+          <div className="grid grid-cols-2 gap-4 pt-2">
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-center space-y-1">
+              <div className="text-xs font-bold text-slate-500 uppercase">iPhone / iOS</div>
+              <div className="text-xl font-extrabold text-slate-900">{analytics?.deviceBreakdown.iphone || 0}</div>
+              <div className="text-[10px] text-slate-400">Apple Safari / Chrome</div>
             </div>
 
-            {/* Zero Result Searches Alert Box */}
-            <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-2">
-              <div className="flex items-center gap-2 text-xs font-bold text-amber-900">
-                <AlertTriangle className="w-4 h-4 text-amber-600" /> Zero-Result Searches (Menu Expansion Ideas)
-              </div>
-              <p className="text-[11px] text-amber-700 leading-relaxed">
-                Customers searched for these keywords but your catalog yielded 0 matching items:
-              </p>
-              {!analytics?.zeroResultSearches || analytics.zeroResultSearches.length === 0 ? (
-                <div className="text-xs text-amber-800 font-medium italic">
-                  All customer searches found matching catalog items!
-                </div>
-              ) : (
-                <div className="flex flex-wrap gap-1.5 pt-1">
-                  {analytics.zeroResultSearches.map((z) => (
-                    <span
-                      key={z.query}
-                      className="px-2.5 py-1 bg-amber-200/70 text-amber-900 rounded-lg text-xs font-bold border border-amber-300"
-                    >
-                      &quot;{z.query}&quot; ({z.count} searches)
-                    </span>
-                  ))}
-                </div>
-              )}
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-center space-y-1">
+              <div className="text-xs font-bold text-slate-500 uppercase">Android Mobile</div>
+              <div className="text-xl font-extrabold text-slate-900">{analytics?.deviceBreakdown.android || 0}</div>
+              <div className="text-[10px] text-slate-400">Android Chrome / Browser</div>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-center space-y-1">
+              <div className="text-xs font-bold text-slate-500 uppercase">Desktop / Laptop</div>
+              <div className="text-xl font-extrabold text-slate-900">{analytics?.deviceBreakdown.desktop || 0}</div>
+              <div className="text-[10px] text-slate-400">Web Browsers</div>
+            </div>
+
+            <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-center space-y-1">
+              <div className="text-xs font-bold text-slate-500 uppercase">Other Devices</div>
+              <div className="text-xl font-extrabold text-slate-900">{analytics?.deviceBreakdown.other || 0}</div>
+              <div className="text-[10px] text-slate-400">Tablets & Scanners</div>
             </div>
           </div>
 
-          <div className="text-[11px] text-slate-400 font-medium pt-2 border-t border-slate-100">
-            Use zero-result searches to add popular requested dishes or products to your catalog.
-          </div>
-        </div>
-      </div>
-
-      {/* Device Breakdown Section */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-xs space-y-4">
-        <h3 className="text-base font-bold text-slate-900 flex items-center gap-2 border-b border-slate-100 pb-3">
-          <Smartphone className="w-5 h-5 text-blue-600" /> Visitor Device Distribution
-        </h3>
-
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-2">
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-center space-y-1">
-            <div className="text-xs font-bold text-slate-500 uppercase">iPhone / iOS</div>
-            <div className="text-xl font-extrabold text-slate-900">{analytics?.deviceBreakdown.iphone || 0}</div>
-            <div className="text-[10px] text-slate-400">Apple Safari / Chrome</div>
-          </div>
-
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-center space-y-1">
-            <div className="text-xs font-bold text-slate-500 uppercase">Android Mobile</div>
-            <div className="text-xl font-extrabold text-slate-900">{analytics?.deviceBreakdown.android || 0}</div>
-            <div className="text-[10px] text-slate-400">Android Chrome / Browser</div>
-          </div>
-
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-center space-y-1">
-            <div className="text-xs font-bold text-slate-500 uppercase">Desktop / Laptop</div>
-            <div className="text-xl font-extrabold text-slate-900">{analytics?.deviceBreakdown.desktop || 0}</div>
-            <div className="text-[10px] text-slate-400">Web Browsers</div>
-          </div>
-
-          <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 text-center space-y-1">
-            <div className="text-xs font-bold text-slate-500 uppercase">Other Devices</div>
-            <div className="text-xl font-extrabold text-slate-900">{analytics?.deviceBreakdown.other || 0}</div>
-            <div className="text-[10px] text-slate-400">Tablets & Scanners</div>
+          <div className="text-[11px] text-slate-400 font-medium pt-2 border-t border-slate-100 flex items-center gap-1.5">
+            <Users className="w-3.5 h-3.5 text-blue-600" /> Real-time mobile vs desktop traffic analysis.
           </div>
         </div>
       </div>
