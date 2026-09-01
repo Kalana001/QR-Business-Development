@@ -1,14 +1,24 @@
 'use client';
 
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import { 
-  BarChart3, QrCode, Eye, Search, Smartphone, Users, Crown, Calendar, TrendingUp, AlertTriangle, ArrowUpRight, CheckCircle2, Lock, ArrowDownRight, Layers, Sparkles 
+  BarChart3, QrCode, Eye, Search, Smartphone, Users, Crown, Calendar, TrendingUp, AlertTriangle, ArrowUpRight, CheckCircle2, Lock, ArrowDownRight, Layers, Sparkles, ChevronLeft, ChevronRight, ChevronDown 
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { UpgradeModal } from '@/components/ui/UpgradeModal';
 import { createClient } from '@/lib/supabase/client';
 import { Business } from '@/lib/types';
 import { getAnalyticsSummary, AnalyticsSummary, MetricComparison, AnalyticsFilterOptions } from '@/lib/analytics';
+
+const MONTH_NAMES = [
+  'January', 'February', 'March', 'April', 'May', 'June',
+  'July', 'August', 'September', 'October', 'November', 'December'
+];
+
+const MONTH_SHORT = [
+  'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+];
 
 export default function DashboardAnalyticsPage() {
   const [business, setBusiness] = useState<Business | null>(null);
@@ -19,18 +29,34 @@ export default function DashboardAnalyticsPage() {
   const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
   const [hoveredTrendIndex, setHoveredTrendIndex] = useState<number | null>(null);
   const [selectedTrendIndex, setSelectedTrendIndex] = useState<number | null>(null);
+  const [isMonthPickerOpen, setIsMonthPickerOpen] = useState(false);
+  const [pickerYear, setPickerYear] = useState<number>(() => new Date().getFullYear());
+  const monthPickerRef = useRef<HTMLDivElement>(null);
 
-  const availableMonths = useMemo(() => {
-    const months = [];
-    const now = new Date();
-    for (let i = 0; i < 12; i++) {
-      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const value = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      const label = d.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-      months.push({ value, label });
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (monthPickerRef.current && !monthPickerRef.current.contains(event.target as Node)) {
+        setIsMonthPickerOpen(false);
+      }
     }
-    return months;
-  }, []);
+    if (isMonthPickerOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isMonthPickerOpen]);
+
+  const getMonthFilterLabel = () => {
+    if (filterOption.type === 'month' && filterOption.month) {
+      const parts = filterOption.month.split('-');
+      if (parts.length === 2) {
+        const mIdx = parseInt(parts[1], 10) - 1;
+        return `${MONTH_NAMES[mIdx] || 'Month'} ${parts[0]}`;
+      }
+    }
+    return 'Select Month';
+  };
 
   useEffect(() => {
     async function loadData() {
@@ -224,27 +250,101 @@ export default function DashboardAnalyticsPage() {
             </button>
           </div>
 
-          {/* Monthly Dropdown */}
-          <div className="flex items-center bg-white px-3 py-1.5 rounded-xl border border-slate-300/80 shadow-xs">
-            <Calendar className="w-3.5 h-3.5 text-slate-500 mr-2 shrink-0" />
-            <select
-              value={filterOption.type === 'month' ? filterOption.month : ''}
-              onChange={(e) => {
-                if (e.target.value) {
-                  setFilterOption({ type: 'month', month: e.target.value });
-                }
-              }}
-              className={`bg-transparent text-xs font-semibold focus:outline-hidden cursor-pointer ${
-                filterOption.type === 'month' ? 'text-indigo-600 font-bold' : 'text-slate-600'
+          {/* Monthly Calendar Popover Picker */}
+          <div className="relative" ref={monthPickerRef}>
+            <button
+              type="button"
+              onClick={() => setIsMonthPickerOpen(!isMonthPickerOpen)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 transition-all border shadow-xs cursor-pointer ${
+                filterOption.type === 'month'
+                  ? 'bg-indigo-600 text-white border-indigo-600 shadow-indigo-100 ring-2 ring-indigo-200'
+                  : 'bg-white text-slate-700 border-slate-300/80 hover:bg-slate-50 hover:border-slate-400'
               }`}
             >
-              <option value="" disabled>By Month...</option>
-              {availableMonths.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
+              <Calendar className={`w-3.5 h-3.5 ${filterOption.type === 'month' ? 'text-white' : 'text-indigo-600'}`} />
+              <span>{getMonthFilterLabel()}</span>
+              <ChevronDown className={`w-3 h-3 transition-transform duration-200 ${isMonthPickerOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isMonthPickerOpen && (
+              <div className="absolute right-0 top-full mt-2 w-72 bg-white rounded-2xl border border-slate-200 shadow-2xl p-4 space-y-3 z-40 animate-fade-in">
+                {/* Year Navigation Bar */}
+                <div className="flex items-center justify-between pb-2 border-b border-slate-100">
+                  <button
+                    type="button"
+                    onClick={() => setPickerYear((y) => y - 1)}
+                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span className="text-sm font-extrabold text-slate-900">
+                    {pickerYear}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPickerYear((y) => y + 1)}
+                    className="p-1.5 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+
+                {/* 12-Month Calendar Grid */}
+                <div className="grid grid-cols-3 gap-2">
+                  {MONTH_SHORT.map((mShort, idx) => {
+                    const mValue = `${pickerYear}-${String(idx + 1).padStart(2, '0')}`;
+                    const isSelected = filterOption.type === 'month' && filterOption.month === mValue;
+                    const isCurrent = new Date().getFullYear() === pickerYear && new Date().getMonth() === idx;
+
+                    return (
+                      <button
+                        key={mShort}
+                        type="button"
+                        onClick={() => {
+                          setFilterOption({ type: 'month', month: mValue });
+                          setIsMonthPickerOpen(false);
+                        }}
+                        className={`py-2.5 rounded-xl text-xs font-bold transition-all relative cursor-pointer ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white shadow-md font-extrabold'
+                            : isCurrent
+                            ? 'bg-indigo-50 text-indigo-700 border border-indigo-200 hover:bg-indigo-100'
+                            : 'bg-slate-50 text-slate-700 hover:bg-slate-100 hover:text-slate-900'
+                        }`}
+                      >
+                        <span>{mShort}</span>
+                        {isCurrent && !isSelected && (
+                          <span className="absolute top-1 right-1.5 w-1.5 h-1.5 rounded-full bg-indigo-600" />
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+
+                {/* Footer Quick Action */}
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[11px]">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const now = new Date();
+                      setPickerYear(now.getFullYear());
+                      setFilterOption({ type: 'this_month' });
+                      setIsMonthPickerOpen(false);
+                    }}
+                    className="text-indigo-600 hover:text-indigo-700 font-bold cursor-pointer"
+                  >
+                    Current Month
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setIsMonthPickerOpen(false)}
+                    className="text-slate-400 hover:text-slate-600 font-medium cursor-pointer"
+                  >
+                    Close
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
