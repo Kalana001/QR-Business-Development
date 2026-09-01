@@ -301,10 +301,10 @@ export default function DashboardAnalyticsPage() {
           </div>
         ) : (
           <div className="space-y-4 pt-2">
-            {/* Interactive Bar Chart Viewport with Generous Headroom for Popovers */}
-            <div className="relative h-72 pt-16 pb-3 px-3 border-b border-slate-100 bg-slate-50/50 rounded-2xl border border-slate-200/80 overflow-x-auto no-scrollbar flex items-end justify-between gap-2">
+            {/* Interactive Bar Chart Viewport - 100% Fixed Frame (No Horizontal Scroll) */}
+            <div className="relative h-72 pt-14 pb-2 px-2 sm:px-4 bg-slate-50/60 rounded-2xl border border-slate-200/80 flex items-end justify-between gap-0.5 sm:gap-1 w-full overflow-visible">
               {/* Subtle Horizontal Gridlines */}
-              <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 pt-16 opacity-40" aria-hidden="true">
+              <div className="absolute inset-0 pointer-events-none flex flex-col justify-between p-4 pt-14 opacity-40" aria-hidden="true">
                 <div className="w-full border-b border-dashed border-slate-300" />
                 <div className="w-full border-b border-dashed border-slate-300" />
                 <div className="w-full border-b border-dashed border-slate-300" />
@@ -321,18 +321,20 @@ export default function DashboardAnalyticsPage() {
                 const isActive = isSelected || (selectedTrendIndex === null && isHovered);
 
                 const totalTrends = (analytics?.dailyTrends || []).length;
-                const isNearStart = idx < 2;
-                const isNearEnd = idx >= totalTrends - 2;
+                const isDense = totalTrends > 10;
+                
+                // Show milestone labels on dense views (e.g. 30 days) to prevent text collision
+                const showDateLabel = !isDense || idx === 0 || idx === totalTrends - 1 || idx % Math.ceil(totalTrends / 6) === 0 || isActive;
 
                 let tooltipAlignClass = "left-1/2 -translate-x-1/2";
                 let arrowAlignClass = "left-1/2 -translate-x-1/2";
 
-                if (isNearStart) {
+                if (idx < 3) {
                   tooltipAlignClass = "left-0 translate-x-0";
-                  arrowAlignClass = "left-4 translate-x-0";
-                } else if (isNearEnd) {
+                  arrowAlignClass = "left-3 translate-x-0";
+                } else if (idx >= totalTrends - 3) {
                   tooltipAlignClass = "right-0 left-auto translate-x-0";
-                  arrowAlignClass = "right-4 left-auto translate-x-0";
+                  arrowAlignClass = "right-3 left-auto translate-x-0";
                 }
 
                 return (
@@ -341,15 +343,15 @@ export default function DashboardAnalyticsPage() {
                     onMouseEnter={() => setHoveredTrendIndex(idx)}
                     onMouseLeave={() => setHoveredTrendIndex(null)}
                     onClick={() => setSelectedTrendIndex(idx)}
-                    className={`flex-1 min-w-[32px] flex flex-col items-center gap-2 group cursor-pointer relative z-10 transition-all duration-200 p-1 rounded-xl ${
-                      isActive ? 'bg-white shadow-md ring-2 ring-indigo-500 scale-105' : 'hover:bg-white/80 hover:shadow-xs'
+                    className={`flex-1 min-w-0 h-full flex flex-col items-center justify-end group cursor-pointer relative z-10 transition-all duration-200 p-0.5 rounded-lg ${
+                      isActive ? 'bg-white/90 shadow-md ring-2 ring-indigo-500 scale-105' : 'hover:bg-white/60'
                     }`}
                   >
-                    {/* Floating Interactive Popover Tooltip (Positioned in Headroom) */}
+                    {/* Floating Interactive Popover Tooltip */}
                     {isActive && (
-                      <div className={`absolute -top-12 z-30 bg-slate-900 text-white px-3.5 py-1.5 rounded-xl shadow-2xl border border-slate-700 text-center whitespace-nowrap animate-fade-in pointer-events-none ${tooltipAlignClass}`}>
+                      <div className={`absolute -top-12 z-30 bg-slate-900 text-white px-3 py-1.5 rounded-xl shadow-2xl border border-slate-700 text-center whitespace-nowrap animate-fade-in pointer-events-none ${tooltipAlignClass}`}>
                         <div className="text-[10px] font-extrabold text-indigo-300">{t.date}</div>
-                        <div className="text-[11px] font-bold flex items-center justify-center gap-2 mt-0.5">
+                        <div className="text-[11px] font-bold flex items-center justify-center gap-1.5 mt-0.5">
                           <span className="text-teal-400 font-extrabold">{t.scans} Scans</span>
                           <span className="text-slate-500">•</span>
                           <span className="text-indigo-400 font-extrabold">{t.views} Views</span>
@@ -359,10 +361,12 @@ export default function DashboardAnalyticsPage() {
                       </div>
                     )}
 
-                    <div className="w-full flex items-end justify-center gap-1.5 h-44">
+                    <div className="w-full flex items-end justify-center gap-0.5 sm:gap-1 h-40">
                       {/* QR Scans Bar */}
                       <div
-                        className={`w-3.5 rounded-t-lg transition-all duration-300 shadow-xs ${
+                        className={`rounded-t-sm sm:rounded-t-md transition-all duration-300 shadow-xs ${
+                          isDense ? 'w-full max-w-[5px] sm:max-w-[7px]' : 'w-3 sm:w-4'
+                        } ${
                           isActive
                             ? 'bg-gradient-to-t from-teal-600 via-teal-500 to-teal-400 ring-1 ring-teal-300'
                             : 'bg-gradient-to-t from-teal-500 to-teal-400/80 group-hover:from-teal-600 group-hover:to-teal-400'
@@ -372,7 +376,9 @@ export default function DashboardAnalyticsPage() {
 
                       {/* Item Views Bar */}
                       <div
-                        className={`w-3.5 rounded-t-lg transition-all duration-300 shadow-xs ${
+                        className={`rounded-t-sm sm:rounded-t-md transition-all duration-300 shadow-xs ${
+                          isDense ? 'w-full max-w-[5px] sm:max-w-[7px]' : 'w-3 sm:w-4'
+                        } ${
                           isActive
                             ? 'bg-gradient-to-t from-indigo-600 via-indigo-500 to-indigo-400 ring-1 ring-indigo-300'
                             : 'bg-gradient-to-t from-indigo-500 to-indigo-400/80 group-hover:from-indigo-600 group-hover:to-indigo-400'
@@ -381,11 +387,17 @@ export default function DashboardAnalyticsPage() {
                       />
                     </div>
 
-                    <span className={`text-[10px] font-bold truncate transition-colors ${
-                      isActive ? 'text-indigo-900 font-extrabold' : 'text-slate-500 group-hover:text-slate-900'
-                    }`}>
-                      {t.date}
-                    </span>
+                    <div className="h-5 flex items-center justify-center w-full">
+                      {showDateLabel ? (
+                        <span className={`text-[9px] sm:text-[10px] font-bold truncate transition-colors ${
+                          isActive ? 'text-indigo-900 font-extrabold' : 'text-slate-500 group-hover:text-slate-900'
+                        }`}>
+                          {t.date}
+                        </span>
+                      ) : (
+                        <span className="w-1 h-1 rounded-full bg-slate-300 group-hover:bg-indigo-400 transition-colors" />
+                      )}
+                    </div>
                   </div>
                 );
               })}
