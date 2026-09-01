@@ -3,13 +3,14 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
-  Plus, Search, Edit2, Trash2, CheckCircle2, XCircle, Star, Image as ImageIcon, Filter, Upload, AlertCircle, Zap, Crown, Lock, RefreshCw, Crop
+  Plus, Search, Edit2, Trash2, CheckCircle2, XCircle, Star, Image as ImageIcon, Filter, Upload, AlertCircle, Zap, Crown, Lock, RefreshCw, Crop, DollarSign
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { UpgradeModal } from '@/components/ui/UpgradeModal';
 import { BulkImportModal } from '@/components/catalog/BulkImportModal';
+import { BulkPriceUpdateModal, UndoPriceItem } from '@/components/catalog/BulkPriceUpdateModal';
 import { ImageCropperModal } from '@/components/catalog/ImageCropperModal';
 import { CategoryPlaceholder } from '@/components/placeholders/CategoryPlaceholder';
 import { createClient } from '@/lib/supabase/client';
@@ -30,7 +31,13 @@ export default function DashboardItemsPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
+  const [isBulkPriceUpdateOpen, setIsBulkPriceUpdateOpen] = useState(false);
   const [isCreateCategoryModalOpen, setIsCreateCategoryModalOpen] = useState(false);
+
+  // Bulk Price Update Feedback & Undo State
+  const [priceUpdateSuccessMsg, setPriceUpdateSuccessMsg] = useState<string | null>(null);
+  const [undoPriceList, setUndoPriceList] = useState<UndoPriceItem[] | null>(null);
+  const [isUndoing, setIsUndoing] = useState(false);
 
   // Inline Category Creation Fields
   const [newCategoryName, setNewCategoryName] = useState('');
@@ -518,6 +525,44 @@ export default function DashboardItemsPage() {
     }
   };
 
+  const handleBulkPriceSuccess = async (count: number, undoList: UndoPriceItem[]) => {
+    setPriceUpdateSuccessMsg(`${count} ${count === 1 ? 'item price was' : 'item prices were'} updated successfully.`);
+    setUndoPriceList(undoList.length > 0 ? undoList : null);
+    await loadData();
+  };
+
+  const handleUndoPriceUpdate = async () => {
+    if (!undoPriceList || undoPriceList.length === 0 || !business) return;
+    setIsUndoing(true);
+    try {
+      const supabase = createClient();
+      const BATCH_SIZE = 25;
+      for (let i = 0; i < undoPriceList.length; i += BATCH_SIZE) {
+        const batch = undoPriceList.slice(i, i + BATCH_SIZE);
+        await Promise.all(
+          batch.map(async ({ id, oldPrice }) => {
+            await supabase
+              .from('catalog_items')
+              .update({
+                price: oldPrice,
+                updated_at: new Date().toISOString(),
+              })
+              .eq('id', id)
+              .eq('business_id', business.id);
+          })
+        );
+      }
+      setPriceUpdateSuccessMsg(`Reverted prices for ${undoPriceList.length} items successfully.`);
+      setUndoPriceList(null);
+      await loadData();
+    } catch (err: any) {
+      console.error('Undo price update error:', err);
+      alert('Failed to undo price update: ' + (err.message || 'Unknown error'));
+    } finally {
+      setIsUndoing(false);
+    }
+  };
+
   // Filtered items
   const filteredItems = items.filter((item) => {
     const matchesSearch = item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -540,15 +585,22 @@ export default function DashboardItemsPage() {
             Manage products and services displayed to customers when scanning your QR code.
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            onClick={() => setIsBulkPriceUpdateOpen(true)}
+            variant="outline"
+            className="gap-1.5 font-semibold border-amber-500/40 text-amber-800 bg-amber-50 hover:bg-amber-100 shadow-xs text-xs"
+          >
+            <DollarSign className="w-4 h-4 text-amber-600" /> Bulk Price Update
+          </Button>
           <Button
             onClick={() => setIsBulkImportOpen(true)}
             variant="outline"
-            className="gap-2 font-semibold border-teal-500/40 text-teal-700 bg-teal-50 hover:bg-teal-100 shadow-xs"
+            className="gap-2 font-semibold border-teal-500/40 text-teal-700 bg-teal-50 hover:bg-teal-100 shadow-xs text-xs"
           >
             <Upload className="w-4 h-4" /> Bulk Import
           </Button>
-          <Button onClick={openAddModal} className="gap-2 font-semibold shadow-xs">
+          <Button onClick={openAddModal} className="gap-2 font-semibold shadow-xs text-xs">
             <Plus className="w-4 h-4" /> Add New {bMeta.itemTerm}
           </Button>
         </div>
@@ -614,6 +666,49 @@ export default function DashboardItemsPage() {
               <Zap className="w-3.5 h-3.5" /> Upgrade Plan
             </Button>
           )}
+        </div>
+      )}
+
+      {/* Price Update Success & Undo Alert */}
+      {priceUpdateSuccessMsg && (
+        <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-xs animate-fade-in">
+          <div className="flex items-center gap-2.5 text-xs">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span className="font-bold">{priceUpdateSuccessMsg}</span>
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            {undoPriceList && undoPriceList.length > 0 && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={handleUndoPriceUpdate}
+                disabled={isUndoing}
+                className="text-xs h-7.5 bg-white border-emerald-300 text-emerald-800 hover:bg-emerald-100 font-bold"
+              >
+                {isUndoing ? (
+                  <>
+                    <RefreshCw className="w-3.5 h-3.5 mr-1 animate-spin" />
+                    Undoing...
+                  </>
+                ) : (
+                  'Undo Changes'
+                )}
+              </Button>
+            )}
+            <button
+              type="button"
+              onClick={() => {
+                setPriceUpdateSuccessMsg(null);
+                setUndoPriceList(null);
+              }}
+              className="text-emerald-700 hover:text-emerald-900 text-xs p-1 cursor-pointer"
+              title="Dismiss"
+            >
+              ✕
+            </button>
+          </div>
         </div>
       )}
 
@@ -1309,6 +1404,18 @@ export default function DashboardItemsPage() {
             setIsBulkImportOpen(false);
             setIsUpgradeModalOpen(true);
           }}
+        />
+      )}
+
+      {/* Bulk Price Update Modal */}
+      {business && (
+        <BulkPriceUpdateModal
+          isOpen={isBulkPriceUpdateOpen}
+          onClose={() => setIsBulkPriceUpdateOpen(false)}
+          business={business}
+          categories={categories}
+          items={items}
+          onUpdateSuccess={handleBulkPriceSuccess}
         />
       )}
 
