@@ -186,123 +186,16 @@ export default function LandingPage() {
             {/* TAB 1: Mobile Customer Catalog */}
             {activePrototypeTab === 'mobile' && (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-                {/* Smartphone Mockup (5 Cols) */}
+                {/* Real Smartphone Mockup (5 Cols) */}
                 <div className="lg:col-span-5 flex justify-center">
-                  <div className="w-full max-w-[340px] bg-slate-950 rounded-[40px] border-[6px] border-slate-800 shadow-2xl p-4 space-y-3.5 relative overflow-hidden ring-1 ring-white/10">
-                    {/* Phone Top Notch / Speaker */}
-                    <div className="w-24 h-4 bg-slate-800 rounded-full mx-auto" />
-
-                    {/* Catalog Restaurant Header */}
-                    <div className="bg-gradient-to-r from-teal-900/60 via-slate-900 to-slate-900 p-3 rounded-2xl border border-teal-500/30 flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-teal-500 text-slate-950 flex items-center justify-center font-black text-sm shrink-0 shadow-sm">
-                        SF
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-1.5">
-                          <h4 className="text-xs font-bold text-white truncate">Sigiri Food &amp; Bistro</h4>
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
-                        </div>
-                        <p className="text-[10px] text-teal-300 font-medium">★ 4.9 (140+ reviews) • Polgasowita</p>
-                      </div>
-                    </div>
-
-                    {/* Category Selector Bar */}
-                    <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-1">
-                      <span className="px-2.5 py-1 bg-teal-500 text-slate-950 rounded-lg text-[10px] font-bold shrink-0 shadow-xs">
-                        Fried Rice
-                      </span>
-                      <span className="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg text-[10px] font-medium shrink-0">
-                        Kottu
-                      </span>
-                      <span className="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg text-[10px] font-medium shrink-0">
-                        Chopsey Rice
-                      </span>
-                      <span className="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg text-[10px] font-medium shrink-0">
-                        Noodles
-                      </span>
-                    </div>
-
-                    {/* Interactive Item Card with Variations */}
-                    <div className="p-3.5 bg-slate-900/90 border border-slate-800 rounded-2xl space-y-2.5 relative">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[9px] font-bold uppercase tracking-wider">
-                            🔥 Chef&apos;s Special
-                          </span>
-                          <h5 className="text-xs font-bold text-white mt-1">
-                            Mixed Fried Rice (Basmathi)
-                          </h5>
-                          <p className="text-[10px] text-slate-400 line-clamp-2 mt-0.5">
-                            Wok-seared Basmathi with tender chicken, sea prawns &amp; fresh farm eggs.
-                          </p>
-                        </div>
-                        <div className="w-14 h-14 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-xl shrink-0">
-                          🍚
-                        </div>
-                      </div>
-
-                      {/* Interactive Size Selector */}
-                      <div className="space-y-1 pt-1 border-t border-slate-800">
-                        <div className="flex items-center justify-between text-[10px]">
-                          <span className="text-slate-400 font-semibold">Select Portion:</span>
-                          <span className="text-teal-400 font-bold">
-                            {activeSizeVariation === 'small' ? 'Rs. 850.00' : activeSizeVariation === 'large' ? 'Rs. 1,100.00' : 'Rs. 1,400.00'}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-3 gap-1">
-                          <button
-                            type="button"
-                            onClick={() => setActiveSizeVariation('small')}
-                            className={`py-1 px-1 rounded-lg text-[9px] font-bold text-center transition-all cursor-pointer ${
-                              activeSizeVariation === 'small'
-                                ? 'bg-teal-500 text-slate-950 font-black shadow-xs'
-                                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                            }`}
-                          >
-                            Small
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setActiveSizeVariation('large')}
-                            className={`py-1 px-1 rounded-lg text-[9px] font-bold text-center transition-all cursor-pointer ${
-                              activeSizeVariation === 'large'
-                                ? 'bg-teal-500 text-slate-950 font-black shadow-xs'
-                                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                            }`}
-                          >
-                            Large
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setActiveSizeVariation('extreme')}
-                            className={`py-1 px-1 rounded-lg text-[9px] font-bold text-center transition-all cursor-pointer ${
-                              activeSizeVariation === 'extreme'
-                                ? 'bg-teal-500 text-slate-950 font-black shadow-xs'
-                                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                            }`}
-                          >
-                            Extreme
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* WhatsApp Order Button */}
-                      <div className="pt-1">
-                        <div className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-bold flex items-center justify-center gap-1.5 shadow-md">
-                          <MessageSquare className="w-3.5 h-3.5 fill-current" />
-                          <span>Order on WhatsApp ({activeSizeVariation.toUpperCase()})</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* 2nd Mock Item */}
-                    <div className="p-3 bg-slate-900/60 border border-slate-800/80 rounded-2xl flex items-center justify-between">
-                      <div>
-                        <h6 className="text-[11px] font-bold text-white">Chicken Cheese Kottu</h6>
-                        <span className="text-[10px] text-teal-400 font-semibold">From Rs. 1,100 (2 Options)</span>
-                      </div>
-                      <span className="text-[10px] text-slate-400 px-2 py-1 bg-slate-800 rounded-lg">View</span>
-                    </div>
+                  <div className="w-full max-w-[340px] rounded-[38px] overflow-hidden border-[6px] border-slate-800 shadow-2xl bg-slate-950 ring-1 ring-white/10 relative group">
+                    {/* Dynamic Island / Notch */}
+                    <div className="absolute top-2 left-1/2 -translate-x-1/2 w-28 h-4 bg-slate-900/90 rounded-full z-20 pointer-events-none" />
+                    <img
+                      src="/screenshots/customer-mobile-view.png"
+                      alt="Real Mobile Customer QR Catalog View"
+                      className="w-full h-auto object-cover object-top max-h-[580px] select-none"
+                    />
                   </div>
                 </div>
 
@@ -340,7 +233,7 @@ export default function LandingPage() {
                         <Layers className="w-4 h-4" />
                       </div>
                       <h4 className="text-sm font-bold text-white">Portions &amp; Variations</h4>
-                      <p className="text-xs text-slate-400">Add Small/Large sizes, book editions, or options with dynamic prices.</p>
+                      <p className="text-xs text-slate-400">Add Small/Large sizes, portion options, and dynamic pricing.</p>
                     </div>
 
                     <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-1.5">
@@ -360,7 +253,7 @@ export default function LandingPage() {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
                 {/* Desktop Browser Window Mockup (6 Cols) */}
                 <div className="lg:col-span-6 flex justify-center">
-                  <div className="w-full bg-slate-950 rounded-2xl border border-slate-800 shadow-2xl overflow-hidden ring-1 ring-white/10">
+                  <div className="w-full rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-slate-950 ring-1 ring-white/10">
                     {/* Browser Chrome Header */}
                     <div className="bg-slate-900/90 px-4 py-2.5 border-b border-slate-800 flex items-center gap-2">
                       <div className="flex gap-1.5">
@@ -369,68 +262,15 @@ export default function LandingPage() {
                         <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
                       </div>
                       <div className="flex-1 mx-3 bg-slate-950/80 rounded-md px-2.5 py-0.5 text-[10px] text-slate-400 font-mono truncate border border-slate-800">
-                        https://qrcatalog.lk/dashboard/items
+                        https://qrcatalog.lk/dashboard/analytics
                       </div>
                     </div>
 
-                    {/* Dashboard Preview Body */}
-                    <div className="p-4 space-y-4">
-                      {/* Top Metric Bar */}
-                      <div className="grid grid-cols-3 gap-2">
-                        <div className="p-2.5 bg-slate-900/80 rounded-xl border border-slate-800">
-                          <div className="text-[10px] font-bold text-slate-400 uppercase">QR Scans</div>
-                          <div className="text-base font-black text-white">1,420</div>
-                          <div className="text-[9px] text-emerald-400 font-semibold">↑ +24% vs last mo</div>
-                        </div>
-                        <div className="p-2.5 bg-slate-900/80 rounded-xl border border-slate-800">
-                          <div className="text-[10px] font-bold text-slate-400 uppercase">Item Views</div>
-                          <div className="text-base font-black text-white">4,890</div>
-                          <div className="text-[9px] text-indigo-400 font-semibold">★ Top: Fried Rice</div>
-                        </div>
-                        <div className="p-2.5 bg-slate-900/80 rounded-xl border border-slate-800">
-                          <div className="text-[10px] font-bold text-slate-400 uppercase">Catalog Items</div>
-                          <div className="text-base font-black text-teal-400">42 Active</div>
-                          <div className="text-[9px] text-slate-400">7 Categories</div>
-                        </div>
-                      </div>
-
-                      {/* Mock Item Editor Form */}
-                      <div className="p-3.5 bg-slate-900/90 rounded-xl border border-slate-800 space-y-3">
-                        <div className="flex items-center justify-between border-b border-slate-800 pb-2">
-                          <span className="text-xs font-bold text-white flex items-center gap-1.5">
-                            <SlidersHorizontal className="w-3.5 h-3.5 text-teal-400" /> Item Variations Builder
-                          </span>
-                          <span className="px-2 py-0.5 bg-teal-500/20 text-teal-300 rounded text-[9px] font-bold">
-                            ✓ Variations Enabled
-                          </span>
-                        </div>
-
-                        {/* Rows */}
-                        <div className="space-y-1.5 text-xs">
-                          <div className="flex items-center justify-between p-1.5 bg-slate-950 rounded-lg border border-slate-800 text-[10px]">
-                            <span className="text-white font-medium">Small Portion</span>
-                            <span className="text-teal-300 font-bold font-mono">Rs. 850.00</span>
-                          </div>
-                          <div className="flex items-center justify-between p-1.5 bg-slate-950 rounded-lg border border-slate-800 text-[10px]">
-                            <span className="text-white font-medium">Large Portion</span>
-                            <span className="text-teal-300 font-bold font-mono">Rs. 1,100.00</span>
-                          </div>
-                          <div className="flex items-center justify-between p-1.5 bg-slate-950 rounded-lg border border-slate-800 text-[10px]">
-                            <span className="text-white font-medium">Extreme Large</span>
-                            <span className="text-teal-300 font-bold font-mono">Rs. 1,400.00</span>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
-                          <span className="flex items-center gap-1 text-teal-400 font-semibold">
-                            <FileSpreadsheet className="w-3 h-3" /> Excel Bulk Import Ready
-                          </span>
-                          <span className="px-2.5 py-1 bg-teal-500 text-slate-950 font-bold rounded-md">
-                            Save Changes
-                          </span>
-                        </div>
-                      </div>
-                    </div>
+                    <img
+                      src="/screenshots/owner-admin-studio.png"
+                      alt="Real Owner Admin Studio Dashboard"
+                      className="w-full h-auto object-cover object-top max-h-[460px] select-none"
+                    />
                   </div>
                 </div>
 
@@ -439,7 +279,7 @@ export default function LandingPage() {
                   <div className="space-y-2">
                     <span className="text-xs font-bold uppercase tracking-wider text-teal-400">Owner Management Studio</span>
                     <h3 className="text-2xl sm:text-3xl font-extrabold text-white">
-                      Full Control of Prices, Items &amp; Branding Anytime
+                      Full Control of Prices, Items &amp; Analytics
                     </h3>
                     <p className="text-slate-300 text-sm leading-relaxed">
                       Update your digital menu in seconds from your phone, tablet, or laptop. No waiting for graphic designers or paying for costly re-prints when prices adjust.
@@ -486,38 +326,31 @@ export default function LandingPage() {
             {/* TAB 3: Printable Tabletop QR Flyers */}
             {activePrototypeTab === 'flyer' && (
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
-                {/* Tabletop Stand Mockup (5 Cols) */}
-                <div className="lg:col-span-5 flex justify-center">
-                  <div className="w-full max-w-[300px] bg-slate-900 border-2 border-slate-700 rounded-3xl p-6 shadow-2xl space-y-4 text-center relative ring-1 ring-white/10">
-                    {/* Brand Top Header */}
-                    <div className="space-y-1">
-                      <div className="w-10 h-10 rounded-xl bg-teal-500 text-slate-950 flex items-center justify-center font-black mx-auto text-sm shadow-md">
-                        SF
+                {/* Real Printable Flyer Mockup (6 Cols) */}
+                <div className="lg:col-span-6 flex justify-center">
+                  <div className="w-full rounded-2xl overflow-hidden border border-slate-800 shadow-2xl bg-slate-950 ring-1 ring-white/10">
+                    {/* Browser Chrome Header */}
+                    <div className="bg-slate-900/90 px-4 py-2.5 border-b border-slate-800 flex items-center gap-2">
+                      <div className="flex gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-rose-500/80" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
                       </div>
-                      <h4 className="text-sm font-black text-white">Sigiri Food &amp; Bistro</h4>
-                      <p className="text-[10px] text-slate-400">Scan to Browse Menu &amp; Order</p>
-                    </div>
-
-                    {/* QR Code Centerpiece */}
-                    <div className="p-4 bg-white rounded-2xl shadow-inner inline-block mx-auto border-4 border-teal-500/40">
-                      <QrCode className="w-32 h-32 text-slate-950" />
-                    </div>
-
-                    {/* Table Number & WiFi Details */}
-                    <div className="space-y-1.5 pt-1">
-                      <div className="inline-block px-3 py-1 bg-slate-800 text-teal-300 font-extrabold text-xs rounded-full border border-slate-700">
-                        TABLE #12
+                      <div className="flex-1 mx-3 bg-slate-950/80 rounded-md px-2.5 py-0.5 text-[10px] text-slate-400 font-mono truncate border border-slate-800">
+                        https://qrcatalog.lk/dashboard/qr-code
                       </div>
-                      <p className="text-[10px] text-slate-400 font-mono">📶 Free WiFi: Sigiri_Guest</p>
                     </div>
 
-                    {/* Wooden / Acrylic Base Illusion */}
-                    <div className="w-44 h-3 bg-gradient-to-r from-amber-700 via-amber-600 to-amber-800 rounded-full mx-auto shadow-lg" />
+                    <img
+                      src="/screenshots/printable-qr-flyer.png"
+                      alt="Real Printable 5x7 Table Tent &amp; QR Code Studio"
+                      className="w-full h-auto object-cover object-top max-h-[460px] select-none"
+                    />
                   </div>
                 </div>
 
-                {/* Feature Highlights (7 Cols) */}
-                <div className="lg:col-span-7 space-y-6">
+                {/* Feature Highlights (6 Cols) */}
+                <div className="lg:col-span-6 space-y-6">
                   <div className="space-y-2">
                     <span className="text-xs font-bold uppercase tracking-wider text-teal-400">Physical QR Collateral</span>
                     <h3 className="text-2xl sm:text-3xl font-extrabold text-white">
