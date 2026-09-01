@@ -2,12 +2,18 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { QrCode, Store, Utensils, BookOpen, Scissors, ArrowRight, ShieldCheck, Smartphone, CheckCircle } from 'lucide-react';
+import { 
+  QrCode, Store, Utensils, BookOpen, Scissors, ArrowRight, ShieldCheck, 
+  Smartphone, CheckCircle, Laptop, Printer, MessageSquare, Sparkles, 
+  Layers, SlidersHorizontal, FileSpreadsheet, BarChart3, CheckCircle2 
+} from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { BillingInterval, calculatePackageDiscount } from '@/lib/types';
 
 export default function LandingPage() {
   const [billingInterval, setBillingInterval] = useState<BillingInterval>('annual');
+  const [activePrototypeTab, setActivePrototypeTab] = useState<'mobile' | 'dashboard' | 'flyer'>('mobile');
+  const [activeSizeVariation, setActiveSizeVariation] = useState<'small' | 'large' | 'extreme'>('large');
 
   const proDiscount = calculatePackageDiscount(2000, 21000);
   const bizPlusDiscount = calculatePackageDiscount(3500, 36000);
@@ -114,6 +120,452 @@ export default function LandingPage() {
             </p>
           </div>
         </div>
+
+        {/* Prototype & Feature Showcase Section */}
+        <section className="space-y-10 pt-10">
+          <div className="text-center space-y-4 max-w-3xl mx-auto">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-teal-500/10 border border-teal-500/20 text-teal-300 text-xs font-bold uppercase tracking-wider">
+              <Sparkles className="w-3.5 h-3.5 text-teal-400" />
+              <span>Interactive System Showcase</span>
+            </div>
+            <h2 className="text-3xl sm:text-5xl font-black text-white tracking-tight">
+              See What You &amp; Your Customers Get
+            </h2>
+            <p className="text-slate-400 text-sm sm:text-base leading-relaxed">
+              Explore the complete ecosystem included in your QR digital catalog: from seamless mobile ordering for your diners to intuitive real-time management and print-ready flyers.
+            </p>
+
+            {/* Showcase Tab Selector */}
+            <div className="pt-2 flex justify-center">
+              <div className="p-1.5 bg-slate-900 border border-slate-800 rounded-2xl inline-flex flex-wrap items-center justify-center gap-1.5 shadow-xl">
+                <button
+                  type="button"
+                  onClick={() => setActivePrototypeTab('mobile')}
+                  className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer ${
+                    activePrototypeTab === 'mobile'
+                      ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-slate-950 shadow-md scale-102'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Smartphone className="w-4 h-4" />
+                  <span>1. Mobile Customer View</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActivePrototypeTab('dashboard')}
+                  className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer ${
+                    activePrototypeTab === 'dashboard'
+                      ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-slate-950 shadow-md scale-102'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Laptop className="w-4 h-4" />
+                  <span>2. Owner Admin Studio</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActivePrototypeTab('flyer')}
+                  className={`px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2 transition-all cursor-pointer ${
+                    activePrototypeTab === 'flyer'
+                      ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-slate-950 shadow-md scale-102'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-800/60'
+                  }`}
+                >
+                  <Printer className="w-4 h-4" />
+                  <span>3. Printable QR Table Tents</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Prototype Display Card */}
+          <div className="bg-slate-900/80 border border-slate-800 rounded-3xl p-6 sm:p-10 shadow-2xl relative overflow-hidden backdrop-blur-sm">
+            {/* Background Glow */}
+            <div className="absolute top-1/2 left-1/3 -translate-x-1/2 -translate-y-1/2 w-96 h-96 bg-teal-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            {/* TAB 1: Mobile Customer Catalog */}
+            {activePrototypeTab === 'mobile' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                {/* Smartphone Mockup (5 Cols) */}
+                <div className="lg:col-span-5 flex justify-center">
+                  <div className="w-full max-w-[340px] bg-slate-950 rounded-[40px] border-[6px] border-slate-800 shadow-2xl p-4 space-y-3.5 relative overflow-hidden ring-1 ring-white/10">
+                    {/* Phone Top Notch / Speaker */}
+                    <div className="w-24 h-4 bg-slate-800 rounded-full mx-auto" />
+
+                    {/* Catalog Restaurant Header */}
+                    <div className="bg-gradient-to-r from-teal-900/60 via-slate-900 to-slate-900 p-3 rounded-2xl border border-teal-500/30 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-teal-500 text-slate-950 flex items-center justify-center font-black text-sm shrink-0 shadow-sm">
+                        SF
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1.5">
+                          <h4 className="text-xs font-bold text-white truncate">Sigiri Food &amp; Bistro</h4>
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 shrink-0" />
+                        </div>
+                        <p className="text-[10px] text-teal-300 font-medium">★ 4.9 (140+ reviews) • Polgasowita</p>
+                      </div>
+                    </div>
+
+                    {/* Category Selector Bar */}
+                    <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-1">
+                      <span className="px-2.5 py-1 bg-teal-500 text-slate-950 rounded-lg text-[10px] font-bold shrink-0 shadow-xs">
+                        Fried Rice
+                      </span>
+                      <span className="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg text-[10px] font-medium shrink-0">
+                        Kottu
+                      </span>
+                      <span className="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg text-[10px] font-medium shrink-0">
+                        Chopsey Rice
+                      </span>
+                      <span className="px-2.5 py-1 bg-slate-800 text-slate-300 rounded-lg text-[10px] font-medium shrink-0">
+                        Noodles
+                      </span>
+                    </div>
+
+                    {/* Interactive Item Card with Variations */}
+                    <div className="p-3.5 bg-slate-900/90 border border-slate-800 rounded-2xl space-y-2.5 relative">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-300 text-[9px] font-bold uppercase tracking-wider">
+                            🔥 Chef&apos;s Special
+                          </span>
+                          <h5 className="text-xs font-bold text-white mt-1">
+                            Mixed Fried Rice (Basmathi)
+                          </h5>
+                          <p className="text-[10px] text-slate-400 line-clamp-2 mt-0.5">
+                            Wok-seared Basmathi with tender chicken, sea prawns &amp; fresh farm eggs.
+                          </p>
+                        </div>
+                        <div className="w-14 h-14 rounded-xl bg-slate-800 border border-slate-700 flex items-center justify-center text-xl shrink-0">
+                          🍚
+                        </div>
+                      </div>
+
+                      {/* Interactive Size Selector */}
+                      <div className="space-y-1 pt-1 border-t border-slate-800">
+                        <div className="flex items-center justify-between text-[10px]">
+                          <span className="text-slate-400 font-semibold">Select Portion:</span>
+                          <span className="text-teal-400 font-bold">
+                            {activeSizeVariation === 'small' ? 'Rs. 850.00' : activeSizeVariation === 'large' ? 'Rs. 1,100.00' : 'Rs. 1,400.00'}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-1">
+                          <button
+                            type="button"
+                            onClick={() => setActiveSizeVariation('small')}
+                            className={`py-1 px-1 rounded-lg text-[9px] font-bold text-center transition-all cursor-pointer ${
+                              activeSizeVariation === 'small'
+                                ? 'bg-teal-500 text-slate-950 font-black shadow-xs'
+                                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                            }`}
+                          >
+                            Small
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActiveSizeVariation('large')}
+                            className={`py-1 px-1 rounded-lg text-[9px] font-bold text-center transition-all cursor-pointer ${
+                              activeSizeVariation === 'large'
+                                ? 'bg-teal-500 text-slate-950 font-black shadow-xs'
+                                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                            }`}
+                          >
+                            Large
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setActiveSizeVariation('extreme')}
+                            className={`py-1 px-1 rounded-lg text-[9px] font-bold text-center transition-all cursor-pointer ${
+                              activeSizeVariation === 'extreme'
+                                ? 'bg-teal-500 text-slate-950 font-black shadow-xs'
+                                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                            }`}
+                          >
+                            Extreme
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* WhatsApp Order Button */}
+                      <div className="pt-1">
+                        <div className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-[10px] font-bold flex items-center justify-center gap-1.5 shadow-md">
+                          <MessageSquare className="w-3.5 h-3.5 fill-current" />
+                          <span>Order on WhatsApp ({activeSizeVariation.toUpperCase()})</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* 2nd Mock Item */}
+                    <div className="p-3 bg-slate-900/60 border border-slate-800/80 rounded-2xl flex items-center justify-between">
+                      <div>
+                        <h6 className="text-[11px] font-bold text-white">Chicken Cheese Kottu</h6>
+                        <span className="text-[10px] text-teal-400 font-semibold">From Rs. 1,100 (2 Options)</span>
+                      </div>
+                      <span className="text-[10px] text-slate-400 px-2 py-1 bg-slate-800 rounded-lg">View</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Feature Highlights (7 Cols) */}
+                <div className="lg:col-span-7 space-y-6">
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-teal-400">Customer Mobile Experience</span>
+                    <h3 className="text-2xl sm:text-3xl font-extrabold text-white">
+                      Lightning-Fast Digital Menus Your Customers Love
+                    </h3>
+                    <p className="text-slate-300 text-sm leading-relaxed">
+                      Say goodbye to outdated paper menus. When customers point their phone camera at your QR code, your menu opens instantly with rich photos, portion size selectors, and direct ordering.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                    <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-1.5">
+                      <div className="p-2 bg-teal-500/10 text-teal-400 rounded-lg w-fit">
+                        <Smartphone className="w-4 h-4" />
+                      </div>
+                      <h4 className="text-sm font-bold text-white">No App Download</h4>
+                      <p className="text-xs text-slate-400">Works directly in Safari, Chrome, and all mobile camera scanners.</p>
+                    </div>
+
+                    <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-1.5">
+                      <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg w-fit">
+                        <MessageSquare className="w-4 h-4" />
+                      </div>
+                      <h4 className="text-sm font-bold text-white">1-Click WhatsApp Orders</h4>
+                      <p className="text-xs text-slate-400">Selected dish, portion size, and price pre-fill the customer&apos;s WhatsApp chat.</p>
+                    </div>
+
+                    <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-1.5">
+                      <div className="p-2 bg-purple-500/10 text-purple-400 rounded-lg w-fit">
+                        <Layers className="w-4 h-4" />
+                      </div>
+                      <h4 className="text-sm font-bold text-white">Portions &amp; Variations</h4>
+                      <p className="text-xs text-slate-400">Add Small/Large sizes, book editions, or options with dynamic prices.</p>
+                    </div>
+
+                    <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-1.5">
+                      <div className="p-2 bg-amber-500/10 text-amber-400 rounded-lg w-fit">
+                        <Sparkles className="w-4 h-4" />
+                      </div>
+                      <h4 className="text-sm font-bold text-white">Dietary &amp; Chef Badges</h4>
+                      <p className="text-xs text-slate-400">Tag items with Spicy, Chef&apos;s Special, Vegan, or Best Seller badges.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 2: Owner Management Studio */}
+            {activePrototypeTab === 'dashboard' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                {/* Desktop Browser Window Mockup (6 Cols) */}
+                <div className="lg:col-span-6 flex justify-center">
+                  <div className="w-full bg-slate-950 rounded-2xl border border-slate-800 shadow-2xl overflow-hidden ring-1 ring-white/10">
+                    {/* Browser Chrome Header */}
+                    <div className="bg-slate-900/90 px-4 py-2.5 border-b border-slate-800 flex items-center gap-2">
+                      <div className="flex gap-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-rose-500/80" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-amber-500/80" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500/80" />
+                      </div>
+                      <div className="flex-1 mx-3 bg-slate-950/80 rounded-md px-2.5 py-0.5 text-[10px] text-slate-400 font-mono truncate border border-slate-800">
+                        https://qrcatalog.lk/dashboard/items
+                      </div>
+                    </div>
+
+                    {/* Dashboard Preview Body */}
+                    <div className="p-4 space-y-4">
+                      {/* Top Metric Bar */}
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="p-2.5 bg-slate-900/80 rounded-xl border border-slate-800">
+                          <div className="text-[10px] font-bold text-slate-400 uppercase">QR Scans</div>
+                          <div className="text-base font-black text-white">1,420</div>
+                          <div className="text-[9px] text-emerald-400 font-semibold">↑ +24% vs last mo</div>
+                        </div>
+                        <div className="p-2.5 bg-slate-900/80 rounded-xl border border-slate-800">
+                          <div className="text-[10px] font-bold text-slate-400 uppercase">Item Views</div>
+                          <div className="text-base font-black text-white">4,890</div>
+                          <div className="text-[9px] text-indigo-400 font-semibold">★ Top: Fried Rice</div>
+                        </div>
+                        <div className="p-2.5 bg-slate-900/80 rounded-xl border border-slate-800">
+                          <div className="text-[10px] font-bold text-slate-400 uppercase">Catalog Items</div>
+                          <div className="text-base font-black text-teal-400">42 Active</div>
+                          <div className="text-[9px] text-slate-400">7 Categories</div>
+                        </div>
+                      </div>
+
+                      {/* Mock Item Editor Form */}
+                      <div className="p-3.5 bg-slate-900/90 rounded-xl border border-slate-800 space-y-3">
+                        <div className="flex items-center justify-between border-b border-slate-800 pb-2">
+                          <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                            <SlidersHorizontal className="w-3.5 h-3.5 text-teal-400" /> Item Variations Builder
+                          </span>
+                          <span className="px-2 py-0.5 bg-teal-500/20 text-teal-300 rounded text-[9px] font-bold">
+                            ✓ Variations Enabled
+                          </span>
+                        </div>
+
+                        {/* Rows */}
+                        <div className="space-y-1.5 text-xs">
+                          <div className="flex items-center justify-between p-1.5 bg-slate-950 rounded-lg border border-slate-800 text-[10px]">
+                            <span className="text-white font-medium">Small Portion</span>
+                            <span className="text-teal-300 font-bold font-mono">Rs. 850.00</span>
+                          </div>
+                          <div className="flex items-center justify-between p-1.5 bg-slate-950 rounded-lg border border-slate-800 text-[10px]">
+                            <span className="text-white font-medium">Large Portion</span>
+                            <span className="text-teal-300 font-bold font-mono">Rs. 1,100.00</span>
+                          </div>
+                          <div className="flex items-center justify-between p-1.5 bg-slate-950 rounded-lg border border-slate-800 text-[10px]">
+                            <span className="text-white font-medium">Extreme Large</span>
+                            <span className="text-teal-300 font-bold font-mono">Rs. 1,400.00</span>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center justify-between text-[10px] text-slate-400 pt-1">
+                          <span className="flex items-center gap-1 text-teal-400 font-semibold">
+                            <FileSpreadsheet className="w-3 h-3" /> Excel Bulk Import Ready
+                          </span>
+                          <span className="px-2.5 py-1 bg-teal-500 text-slate-950 font-bold rounded-md">
+                            Save Changes
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Feature Highlights (6 Cols) */}
+                <div className="lg:col-span-6 space-y-6">
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-teal-400">Owner Management Studio</span>
+                    <h3 className="text-2xl sm:text-3xl font-extrabold text-white">
+                      Full Control of Prices, Items &amp; Branding Anytime
+                    </h3>
+                    <p className="text-slate-300 text-sm leading-relaxed">
+                      Update your digital menu in seconds from your phone, tablet, or laptop. No waiting for graphic designers or paying for costly re-prints when prices adjust.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                    <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-1.5">
+                      <div className="p-2 bg-teal-500/10 text-teal-400 rounded-lg w-fit">
+                        <SlidersHorizontal className="w-4 h-4" />
+                      </div>
+                      <h4 className="text-sm font-bold text-white">Instant Price Updates</h4>
+                      <p className="text-xs text-slate-400">Change prices or toggle sold-out items live in under 5 seconds.</p>
+                    </div>
+
+                    <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-1.5">
+                      <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg w-fit">
+                        <FileSpreadsheet className="w-4 h-4" />
+                      </div>
+                      <h4 className="text-sm font-bold text-white">Excel &amp; CSV Bulk Import</h4>
+                      <p className="text-xs text-slate-400">Import your entire catalog with variations from a spreadsheet in one click.</p>
+                    </div>
+
+                    <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-1.5">
+                      <div className="p-2 bg-purple-500/10 text-purple-400 rounded-lg w-fit">
+                        <BarChart3 className="w-4 h-4" />
+                      </div>
+                      <h4 className="text-sm font-bold text-white">Scan &amp; Traffic Analytics</h4>
+                      <p className="text-xs text-slate-400">Track daily QR scans, most popular dishes, and visitor device trends.</p>
+                    </div>
+
+                    <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-1.5">
+                      <div className="p-2 bg-indigo-500/10 text-indigo-400 rounded-lg w-fit">
+                        <Layers className="w-4 h-4" />
+                      </div>
+                      <h4 className="text-sm font-bold text-white">6 Premium Visual Themes</h4>
+                      <p className="text-xs text-slate-400">Customize accent colors, dark/light layouts, and restaurant banners.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TAB 3: Printable Tabletop QR Flyers */}
+            {activePrototypeTab === 'flyer' && (
+              <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+                {/* Tabletop Stand Mockup (5 Cols) */}
+                <div className="lg:col-span-5 flex justify-center">
+                  <div className="w-full max-w-[300px] bg-slate-900 border-2 border-slate-700 rounded-3xl p-6 shadow-2xl space-y-4 text-center relative ring-1 ring-white/10">
+                    {/* Brand Top Header */}
+                    <div className="space-y-1">
+                      <div className="w-10 h-10 rounded-xl bg-teal-500 text-slate-950 flex items-center justify-center font-black mx-auto text-sm shadow-md">
+                        SF
+                      </div>
+                      <h4 className="text-sm font-black text-white">Sigiri Food &amp; Bistro</h4>
+                      <p className="text-[10px] text-slate-400">Scan to Browse Menu &amp; Order</p>
+                    </div>
+
+                    {/* QR Code Centerpiece */}
+                    <div className="p-4 bg-white rounded-2xl shadow-inner inline-block mx-auto border-4 border-teal-500/40">
+                      <QrCode className="w-32 h-32 text-slate-950" />
+                    </div>
+
+                    {/* Table Number & WiFi Details */}
+                    <div className="space-y-1.5 pt-1">
+                      <div className="inline-block px-3 py-1 bg-slate-800 text-teal-300 font-extrabold text-xs rounded-full border border-slate-700">
+                        TABLE #12
+                      </div>
+                      <p className="text-[10px] text-slate-400 font-mono">📶 Free WiFi: Sigiri_Guest</p>
+                    </div>
+
+                    {/* Wooden / Acrylic Base Illusion */}
+                    <div className="w-44 h-3 bg-gradient-to-r from-amber-700 via-amber-600 to-amber-800 rounded-full mx-auto shadow-lg" />
+                  </div>
+                </div>
+
+                {/* Feature Highlights (7 Cols) */}
+                <div className="lg:col-span-7 space-y-6">
+                  <div className="space-y-2">
+                    <span className="text-xs font-bold uppercase tracking-wider text-teal-400">Physical QR Collateral</span>
+                    <h3 className="text-2xl sm:text-3xl font-extrabold text-white">
+                      Print-Ready Tabletop Tents &amp; Posters with 1 Click
+                    </h3>
+                    <p className="text-slate-300 text-sm leading-relaxed">
+                      Download pre-designed, high-resolution QR flyers tailored to standard 5&quot;x7&quot; acrylic table stands, counter displays, or A4 wall posters.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                    <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-1.5">
+                      <div className="p-2 bg-teal-500/10 text-teal-400 rounded-lg w-fit">
+                        <Printer className="w-4 h-4" />
+                      </div>
+                      <h4 className="text-sm font-bold text-white">Standard 5&quot;x7&quot; &amp; A4 Formats</h4>
+                      <p className="text-xs text-slate-400">Pre-formatted for standard table tent acrylic stands and wall posters.</p>
+                    </div>
+
+                    <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-1.5">
+                      <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg w-fit">
+                        <ShieldCheck className="w-4 h-4" />
+                      </div>
+                      <h4 className="text-sm font-bold text-white">Permanent QR Technology</h4>
+                      <p className="text-xs text-slate-400">The QR never expires or changes, even if you rebrand or change prices.</p>
+                    </div>
+
+                    <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-1.5">
+                      <div className="p-2 bg-purple-500/10 text-purple-400 rounded-lg w-fit">
+                        <QrCode className="w-4 h-4" />
+                      </div>
+                      <h4 className="text-sm font-bold text-white">Custom Table Numbers</h4>
+                      <p className="text-xs text-slate-400">Generate table-specific QR flyers so staff know exactly where orders originate.</p>
+                    </div>
+
+                    <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-1.5">
+                      <div className="p-2 bg-amber-500/10 text-amber-400 rounded-lg w-fit">
+                        <CheckCircle2 className="w-4 h-4" />
+                      </div>
+                      <h4 className="text-sm font-bold text-white">Zero Hardware Fees</h4>
+                      <p className="text-xs text-slate-400">No expensive tablet stands or proprietary POS terminal rentals required.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
 
         {/* Pricing Packages Section */}
         <section id="pricing" className="mt-24 scroll-mt-20">
@@ -419,13 +871,5 @@ export default function LandingPage() {
         </div>
       </footer>
     </div>
-  );
-}
-
-function Sparkles(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" {...props}>
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" />
-    </svg>
   );
 }
