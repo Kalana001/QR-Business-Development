@@ -515,152 +515,11 @@ export function CatalogRenderer({
           ) : (
             <div className="space-y-4">
               {filteredItems.map((item) => {
-                const isItemOutOfStock = Boolean(bMeta.fields.quantity && item.quantity === 0);
-                const minVarPrice = item.variations && item.variations.length > 0 
-                  ? Math.min(...item.variations.map((v) => v.price))
-                  : item.price;
-
-                if (!showItemImages) {
-                  // =========================================================================
-                  // TEXT-FIRST LUXURY MENU CARD (FINE-DINING BISTRO AESTHETIC)
-                  // =========================================================================
-                  return (
-                    <div
-                      key={item.id}
-                      onClick={() => handleItemClick(item)}
-                      className="group relative border rounded-2xl p-4 sm:p-5 shadow-xs hover:shadow-md active:scale-[0.99] transition-all cursor-pointer overflow-hidden backdrop-blur-md"
-                      style={{
-                        backgroundColor: isDarkTemplate ? 'rgba(15, 23, 42, 0.88)' : 'rgba(255, 255, 255, 0.92)',
-                        borderLeftColor: accentColor,
-                        borderLeftWidth: '4px',
-                        borderColor: isDarkTemplate ? 'rgba(255, 255, 255, 0.10)' : 'rgba(226, 232, 240, 0.85)',
-                      }}
-                    >
-                      {/* Top Row: Dish Name + Dot Leader + Price */}
-                      <div className="flex items-baseline justify-between gap-2">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <h3 className="text-sm sm:text-base font-extrabold tracking-tight leading-snug group-hover:opacity-90 transition-opacity" style={{ color: textColor }}>
-                            {item.name}
-                          </h3>
-                          {item.is_featured && (
-                            <span 
-                              className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider shrink-0 shadow-2xs"
-                              style={{ backgroundColor: accentColor, color: activePillText }}
-                            >
-                              ★ Popular
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Dot Leader Line */}
-                        <div className="hidden sm:block flex-1 border-b border-dotted mx-2 mb-1.5 opacity-30" style={{ borderColor: isDarkTemplate ? '#FFFFFF' : '#0F172A' }} />
-
-                        {/* Price */}
-                        <div className="text-sm sm:text-base font-black shrink-0 font-mono tracking-tight" style={{ color: accentColor }}>
-                          {item.variations && item.variations.length > 0 ? (
-                            <span className="flex items-baseline gap-1">
-                              <span className="text-[10px] font-sans font-semibold opacity-75 uppercase">From</span>
-                              <span>{formatCurrency(minVarPrice, business.currency)}</span>
-                            </span>
-                          ) : (
-                            formatCurrency(item.price, business.currency)
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Author / Subtitle */}
-                      {item.author && (
-                        <p className="text-xs font-medium pt-0.5 text-teal-600 dark:text-teal-400">by {item.author}</p>
-                      )}
-
-                      {/* Description */}
-                      {item.description && (
-                        <p className="text-xs leading-relaxed pt-1 line-clamp-2" style={{ color: subtextColor }}>
-                          {item.description}
-                        </p>
-                      )}
-
-                      {/* Variation Portion Size Chips */}
-                      {item.variations && item.variations.length > 0 && (
-                        <div className="flex flex-wrap items-center gap-1.5 pt-2.5">
-                          {item.variations.map((v, vIdx) => (
-                            <span
-                              key={vIdx}
-                              className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold border shadow-2xs transition-transform group-hover:scale-[1.02]"
-                              style={{
-                                backgroundColor: isDarkTemplate ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.03)',
-                                borderColor: isDarkTemplate ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.08)',
-                              }}
-                            >
-                              <span className="font-bold opacity-80" style={{ color: textColor }}>{v.name}:</span>
-                              <span className="font-extrabold" style={{ color: accentColor }}>
-                                {formatCurrency(v.price, business.currency)}
-                              </span>
-                            </span>
-                          ))}
-                        </div>
-                      )}
-
-                      {/* Bottom Row: Badges & Quick Tap Button */}
-                      <div className="flex items-center justify-between gap-2 pt-2.5 mt-2 border-t" style={{ borderColor: isDarkTemplate ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.05)' }}>
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          {bMeta.fields.duration && item.duration && (
-                            <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md flex items-center gap-1 bg-purple-500/10 text-purple-400">
-                              <Clock className="w-3 h-3" /> {formatDuration(item.duration)}
-                            </span>
-                          )}
-
-                          {bMeta.fields.quantity && item.quantity !== null && item.quantity !== undefined && (
-                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                              item.quantity === 0
-                                ? 'bg-rose-500/10 text-rose-400'
-                                : 'bg-emerald-500/10 text-emerald-400'
-                            }`}>
-                              {item.quantity === 0 ? 'Out of Stock' : `In Stock: ${item.quantity}`}
-                            </span>
-                          )}
-
-                          {item.badges && item.badges.length > 0 && (
-                            item.badges.map((b) => (
-                              <span key={b} className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-400">
-                                {b}
-                              </span>
-                            ))
-                          )}
-                        </div>
-
-                        {/* Quick Tap Button */}
-                        <div className="shrink-0">
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleItemClick(item);
-                            }}
-                            disabled={isItemOutOfStock}
-                            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all shadow-2xs cursor-pointer hover:scale-105 active:scale-95 disabled:opacity-50"
-                            style={{
-                              backgroundColor: accentColor,
-                              color: activePillText,
-                            }}
-                          >
-                            <ShoppingCart className="w-3.5 h-3.5" />
-                            <span>{item.variations && item.variations.length > 0 ? 'Select Size' : 'Add to Cart'}</span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                }
-
-                // =========================================================================
-                // IMAGE-BASED CARD (ORIGINAL VISUAL GRID / LIST)
-                // =========================================================================
                 return (
                   <div
                     key={item.id}
                     onClick={() => handleItemClick(item)}
-                    className="border rounded-2xl p-4 shadow-xs hover:border-slate-400 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-between gap-4 backdrop-blur-sm"
+                    className="border rounded-2xl p-4 shadow-xs hover:border-slate-400 active:scale-[0.99] transition-all cursor-pointer flex items-center justify-between gap-4"
                     style={{
                       backgroundColor: templateId === 'modern-dark' || templateId === 'elegant-premium' ? '#0F172A' : '#FFFFFF',
                       borderColor: 'rgba(226, 232, 240, 0.15)',
@@ -724,7 +583,7 @@ export function CatalogRenderer({
                         {item.variations && item.variations.length > 0 ? (
                           <>
                             <span className="text-[10px] opacity-75 font-semibold uppercase">From</span>
-                            <span>{formatCurrency(minVarPrice, business.currency)}</span>
+                            <span>{formatCurrency(Math.min(...item.variations.map((v) => v.price)), business.currency)}</span>
                             <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-500/10 text-teal-400 border border-teal-500/20">
                               {item.variations.length} Options
                             </span>
@@ -735,14 +594,16 @@ export function CatalogRenderer({
                       </div>
                     </div>
 
-                    {/* Thumbnail Image */}
-                    <div className="w-24 h-24 rounded-xl overflow-hidden shrink-0 relative bg-slate-800 flex items-center justify-center border border-white/10">
-                      {item.image_url ? (
-                        <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <CategoryPlaceholder businessType={business.business_type} itemName={item.name} />
-                      )}
-                    </div>
+                    {/* Thumbnail Image (Conditional on showItemImages) */}
+                    {showItemImages && (
+                      <div className="w-24 h-24 rounded-xl overflow-hidden shrink-0 relative bg-slate-800 flex items-center justify-center border border-white/10">
+                        {item.image_url ? (
+                          <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <CategoryPlaceholder businessType={business.business_type} itemName={item.name} />
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}            </div>
