@@ -45,6 +45,7 @@ export default function SuperAdminDashboardPage() {
   const [selectedPlan, setSelectedPlan] = useState<SubscriptionPlan>('pro');
   const [selectedBillingInterval, setSelectedBillingInterval] = useState<BillingInterval>('monthly');
   const [startDateStr, setStartDateStr] = useState<string>('');
+  const [endDateStr, setEndDateStr] = useState<string>('');
   const [adminSlug, setAdminSlug] = useState<string>('');
 
   useEffect(() => {
@@ -112,15 +113,43 @@ export default function SuperAdminDashboardPage() {
     if (biz.is_super_admin_owner) return;
     setSelectedBiz(biz);
     setSelectedPlan(biz.subscription_plan || 'pro');
-    setSelectedBillingInterval(biz.billing_interval || 'monthly');
+    const interval = biz.billing_interval || 'monthly';
+    setSelectedBillingInterval(interval);
     setAdminSlug(biz.slug || '');
     
     const today = new Date().toISOString().split('T')[0];
-    setStartDateStr(biz.subscription_start_date ? new Date(biz.subscription_start_date).toISOString().split('T')[0] : today);
+    const start = biz.subscription_start_date ? new Date(biz.subscription_start_date).toISOString().split('T')[0] : today;
+    setStartDateStr(start);
+    
+    if (biz.subscription_end_date) {
+      setEndDateStr(new Date(biz.subscription_end_date).toISOString().split('T')[0]);
+    } else {
+      const d = new Date(start);
+      if (interval === 'annual') {
+        d.setFullYear(d.getFullYear() + 1);
+      } else {
+        d.setMonth(d.getMonth() + 1);
+      }
+      setEndDateStr(d.toISOString().split('T')[0]);
+    }
     
     setSuccessMsg(null);
     setErrorMsg(null);
     setIsModalOpen(true);
+  };
+
+  const applyPresetDuration = (months: number, fromCurrentExpiry: boolean = false) => {
+    let start: Date;
+    if (fromCurrentExpiry && selectedBiz?.subscription_end_date && new Date(selectedBiz.subscription_end_date) > new Date()) {
+      start = new Date(selectedBiz.subscription_end_date);
+    } else {
+      start = startDateStr ? new Date(startDateStr) : new Date();
+    }
+    const end = new Date(start);
+    end.setMonth(end.getMonth() + months);
+
+    setStartDateStr(start.toISOString().split('T')[0]);
+    setEndDateStr(end.toISOString().split('T')[0]);
   };
 
   const handleApproveSubscription = async (e: React.FormEvent) => {
@@ -132,14 +161,18 @@ export default function SuperAdminDashboardPage() {
 
     try {
       const planMeta = SUBSCRIPTION_PLANS_META[selectedPlan];
-      const startDate = new Date(startDateStr);
+      const startDate = new Date(startDateStr || new Date().toISOString().split('T')[0]);
       
-      // Calculate End Date: +1 Year for annual, +1 Month for monthly
-      const endDate = new Date(startDate);
-      if (selectedBillingInterval === 'annual') {
-        endDate.setFullYear(endDate.getFullYear() + 1);
+      let endDate: Date;
+      if (endDateStr) {
+        endDate = new Date(endDateStr);
       } else {
-        endDate.setMonth(endDate.getMonth() + 1);
+        endDate = new Date(startDate);
+        if (selectedBillingInterval === 'annual') {
+          endDate.setFullYear(endDate.getFullYear() + 1);
+        } else {
+          endDate.setMonth(endDate.getMonth() + 1);
+        }
       }
 
       const supabase = createClient();
