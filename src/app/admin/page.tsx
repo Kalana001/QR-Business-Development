@@ -258,6 +258,22 @@ export default function SuperAdminDashboardPage() {
 
   return (
     <div className="space-y-8 animate-fade-in text-slate-100">
+      {/* Super Admin Top Navigation Tabs */}
+      <div className="flex items-center gap-2 border-b border-slate-800 pb-2">
+        <Link
+          href="/admin"
+          className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl transition-all bg-slate-800 text-teal-400 border border-slate-700 shadow-xs"
+        >
+          <Building2 className="w-4 h-4" /> Business Directory &amp; Accounts
+        </Link>
+        <Link
+          href="/admin/income"
+          className="flex items-center gap-2 px-4 py-2.5 text-xs font-bold rounded-xl transition-all text-slate-400 hover:text-white hover:bg-slate-800/60"
+        >
+          <DollarSign className="w-4 h-4" /> Financials &amp; Income Analytics
+        </Link>
+      </div>
+
       {/* Header Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900 p-6 rounded-2xl border border-slate-800 shadow-xl">
         <div className="space-y-1">
@@ -270,9 +286,16 @@ export default function SuperAdminDashboardPage() {
           </p>
         </div>
 
-        <Button onClick={loadMasterDirectory} variant="outline" size="sm" className="gap-2 border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 w-fit">
-          <RefreshCw className="w-3.5 h-3.5" /> Refresh Directory
-        </Button>
+        <div className="flex items-center gap-2">
+          <Link href="/admin/income">
+            <Button variant="outline" size="sm" className="gap-2 border-teal-500/30 bg-teal-500/10 text-teal-400 hover:bg-teal-500/20 text-xs font-bold">
+              <DollarSign className="w-3.5 h-3.5" /> Income &amp; Receipts
+            </Button>
+          </Link>
+          <Button onClick={loadMasterDirectory} variant="outline" size="sm" className="gap-2 border-slate-700 bg-slate-800 text-slate-300 hover:bg-slate-700 w-fit text-xs">
+            <RefreshCw className="w-3.5 h-3.5" /> Refresh
+          </Button>
+        </div>
       </div>
 
       {/* Analytics & Revenue Summary Cards */}
