@@ -104,11 +104,17 @@ export function ReceiptModal({ isOpen, onClose, payment }: ReceiptModalProps) {
       <!DOCTYPE html>
       <html>
         <head>
-          <title>Receipt - ${receiptNo}</title>
+          <title></title>
           <style>
             @page {
               size: A4 portrait;
-              margin: 12mm;
+              margin: 0mm !important;
+            }
+            html, body {
+              margin: 0 !important;
+              padding: 0 !important;
+              background: #ffffff !important;
+              height: 100% !important;
             }
             * {
               box-sizing: border-box;
@@ -119,7 +125,7 @@ export function ReceiptModal({ isOpen, onClose, payment }: ReceiptModalProps) {
               font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
               color: #0f172a;
               background: #ffffff;
-              padding: 0;
+              padding: 12mm 10mm !important;
               -webkit-print-color-adjust: exact;
               print-color-adjust: exact;
             }
