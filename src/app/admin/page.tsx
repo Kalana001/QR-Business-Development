@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { 
-  Building2, Search, Filter, ShieldCheck, CheckCircle2, AlertCircle, Calendar, Crown, ExternalLink, RefreshCw, Zap, DollarSign, BarChart3, QrCode, Eye, Smartphone, TrendingUp, Users, AlertTriangle, ArrowRight, BarChart2, Sparkles 
+  Building2, Search, Filter, ShieldCheck, CheckCircle2, AlertCircle, Calendar, Crown, ExternalLink, RefreshCw, Zap, DollarSign, BarChart3, QrCode, Eye, Smartphone, TrendingUp, Users, AlertTriangle, ArrowRight, BarChart2, Sparkles, Store 
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -531,6 +531,14 @@ export default function SuperAdminDashboardPage() {
                           >
                             <BarChart3 className="w-3.5 h-3.5" /> Inspect Analytics
                           </Button>
+
+                          <Link
+                            href={`/dashboard?biz=${biz.id}`}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-teal-500/40 text-teal-300 hover:bg-teal-950/40 text-xs font-semibold transition-colors"
+                            title="Open Business Studio Workspace"
+                          >
+                            <Store className="w-3.5 h-3.5" /> Manage Studio
+                          </Link>
 
                           <a
                             href={`/c/${biz.slug}`}

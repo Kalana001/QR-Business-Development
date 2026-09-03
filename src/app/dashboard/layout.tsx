@@ -40,17 +40,41 @@ export default function DashboardLayout({
       setIsSuperAdmin(isSuperAdminUser);
 
       // Fetch user's business workspace
-      const { data: bizData } = await supabase
-        .from('businesses')
-        .select('*')
-        .eq('owner_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
+      let targetBizId: string | null = null;
+      if (typeof window !== 'undefined' && isSuperAdminUser) {
+        const urlParams = new URLSearchParams(window.location.search);
+        targetBizId = urlParams.get('biz') || sessionStorage.getItem('admin_active_biz_id');
+      }
+
+      let bizData: Business | null = null;
+      if (isSuperAdminUser && targetBizId) {
+        const { data: adminSelectedBiz } = await supabase
+          .from('businesses')
+          .select('*')
+          .eq('id', targetBizId)
+          .maybeSingle();
+        if (adminSelectedBiz) {
+          bizData = adminSelectedBiz as Business;
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('admin_active_biz_id', targetBizId);
+          }
+        }
+      }
+
+      if (!bizData) {
+        const { data: userBiz } = await supabase
+          .from('businesses')
+          .select('*')
+          .eq('owner_id', user.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        bizData = userBiz as Business | null;
+      }
 
       if (bizData) {
-        // Ensure Super Admin account has Unlimited Enterprise features
-        if (isSuperAdminUser && bizData.subscription_plan !== 'enterprise') {
+        // Ensure Super Admin personal account has Unlimited Enterprise features
+        if (isSuperAdminUser && bizData.owner_id === user.id && bizData.subscription_plan !== 'enterprise') {
           const { data: updatedBiz } = await supabase
             .from('businesses')
             .update({

@@ -119,13 +119,35 @@ export default function DashboardItemsPage() {
       return;
     }
 
-    const { data: biz } = await supabase
-      .from('businesses')
-      .select('*')
-      .eq('owner_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
+    const { data: adminRpc } = await supabase.rpc('is_super_admin');
+    const isSuperAdminUser = Boolean(adminRpc);
+
+    let targetBizId: string | null = null;
+    if (typeof window !== 'undefined' && isSuperAdminUser) {
+      const urlParams = new URLSearchParams(window.location.search);
+      targetBizId = urlParams.get('biz') || sessionStorage.getItem('admin_active_biz_id');
+    }
+
+    let biz: Business | null = null;
+    if (isSuperAdminUser && targetBizId) {
+      const { data: adminSelectedBiz } = await supabase
+        .from('businesses')
+        .select('*')
+        .eq('id', targetBizId)
+        .maybeSingle();
+      biz = adminSelectedBiz as Business | null;
+    }
+
+    if (!biz) {
+      const { data: userBiz } = await supabase
+        .from('businesses')
+        .select('*')
+        .eq('owner_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      biz = userBiz as Business | null;
+    }
 
     if (biz) {
       setBusiness(biz as Business);
