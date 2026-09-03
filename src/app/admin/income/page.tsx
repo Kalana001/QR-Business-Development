@@ -623,9 +623,15 @@ export default function AdminIncomePage() {
                           <div className="font-black text-sm font-mono text-white">
                             {formatCurrency(p.amount, p.currency || 'LKR')}
                           </div>
-                          <div className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
-                            <ShieldCheck className="w-3 h-3" /> Paid In Full
-                          </div>
+                          {p.plan === 'enterprise_gift' || p.amount === 0 ? (
+                            <div className="text-[10px] text-purple-400 font-semibold flex items-center gap-1">
+                              <Sparkles className="w-3 h-3" /> Free
+                            </div>
+                          ) : (
+                            <div className="text-[10px] text-emerald-400 font-semibold flex items-center gap-1">
+                              <ShieldCheck className="w-3 h-3" /> Paid In Full
+                            </div>
+                          )}
                         </td>
 
                         {/* Period */}

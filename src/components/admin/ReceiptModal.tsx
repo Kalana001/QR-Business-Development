@@ -78,6 +78,7 @@ export function ReceiptModal({ isOpen, onClose, payment }: ReceiptModalProps) {
   const businessAddress = payment.businesses?.address || 'N/A';
 
   const currency = payment.currency || payment.businesses?.currency || 'LKR';
+  const isFreeTrial = payment.plan === 'enterprise_gift' || payment.amount === 0;
 
   const handlePrint = () => {
     window.print();
@@ -91,7 +92,7 @@ export function ReceiptModal({ isOpen, onClose, payment }: ReceiptModalProps) {
     `*Package:* ${planMeta.name} (${payment.billing_interval === 'annual' ? 'Annual Billing' : 'Monthly Billing'})\n` +
     `*Amount Paid:* ${formatCurrency(payment.amount, currency)}\n` +
     `*Active Period:* ${startDateFormatted} to ${endDateFormatted}\n` +
-    `*Status:* PAID IN FULL ✓\n` +
+    `*Status:* ${isFreeTrial ? 'Free' : 'PAID IN FULL ✓'}\n` +
     `*Live Catalog:* https://qr-business-development.vercel.app/c/${businessSlug}\n\n` +
     `Thank you for powering your business with QR Business Catalog!`
   );
@@ -204,7 +205,11 @@ export function ReceiptModal({ isOpen, onClose, payment }: ReceiptModalProps) {
               Billing Interval: <span className="capitalize font-bold">{payment.billing_interval}</span>
             </div>
             <div className="font-semibold text-slate-800">
-              Payment Status: <span className="text-emerald-700 font-extrabold uppercase">Paid in Full ✓</span>
+              Payment Status: {isFreeTrial ? (
+              <span className="text-purple-700 font-extrabold uppercase">Free</span>
+            ) : (
+              <span className="text-emerald-700 font-extrabold uppercase">Paid in Full ✓</span>
+            )}
             </div>
             <div className="font-semibold text-slate-800">
               Currency: <span className="font-bold">{currency}</span>
