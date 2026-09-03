@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS public.businesses (
   currency TEXT NOT NULL DEFAULT 'LKR',
   theme_color TEXT NOT NULL DEFAULT '#0F172A',
   is_public BOOLEAN NOT NULL DEFAULT true, -- Publication Control (FIX #4)
+  show_item_images BOOLEAN NOT NULL DEFAULT true, -- Optional Item Images Setting
   
   -- Subscription & Limit System Fields (Protected from non-admin updates)
   subscription_plan TEXT NOT NULL DEFAULT 'free' CHECK (subscription_plan IN ('free', 'pro', 'enterprise')),
@@ -69,6 +70,7 @@ CREATE TABLE IF NOT EXISTS public.businesses (
 );
 
 ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS is_public BOOLEAN NOT NULL DEFAULT true;
+ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS show_item_images BOOLEAN NOT NULL DEFAULT true;
 ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS billing_interval TEXT NOT NULL DEFAULT 'monthly';
 
 -- Safely convert existing fake 999999 limits to NULL for Business Plus (Enterprise)
@@ -233,6 +235,7 @@ SELECT
   currency,
   theme_color,
   is_public,
+  show_item_images,
   created_at,
   updated_at
 FROM public.businesses

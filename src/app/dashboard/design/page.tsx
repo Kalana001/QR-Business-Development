@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { 
-  Palette, Eye, CheckCircle2, RotateCcw, Save, Crown, Sparkles, Filter, X, Smartphone, Store, Utensils, BookOpen, Scissors, Layers, Star, Maximize2 
+  Palette, Eye, Image as ImageIcon, CheckCircle2, RotateCcw, Save, Crown, Sparkles, Filter, X, Smartphone, Store, Utensils, BookOpen, Scissors, Layers, Star, Maximize2 
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { UpgradeModal } from '@/components/ui/UpgradeModal';
@@ -164,6 +164,43 @@ export default function DashboardCatalogDesignPage() {
     setSaving(false);
   };
 
+  const handleToggleShowItemImages = async (enabled: boolean) => {
+    if (!business) return;
+
+    const updatedBiz: Business = {
+      ...business,
+      show_item_images: enabled,
+    };
+    setBusiness(updatedBiz);
+    setSaving(true);
+
+    try {
+      const supabase = createClient();
+      const { error } = await supabase
+        .from('businesses')
+        .update({
+          show_item_images: enabled,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', business.id);
+
+      if (error) {
+        console.warn('[DesignSettings] Update show_item_images warning:', error.message);
+      }
+
+      setSaveSuccessMsg(
+        enabled
+          ? 'Item images enabled in public catalog!'
+          : 'Item images hidden from public catalog. Existing images preserved.'
+      );
+      setTimeout(() => setSaveSuccessMsg(null), 3500);
+    } catch (err: any) {
+      console.error('Error updating show_item_images setting:', err);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const handleSelectBackground = async (bgId: BackgroundStyleId) => {
     const bgMeta = BACKGROUND_STYLES[bgId];
     if (bgMeta.isPremium && !isPaidPlan) {
@@ -247,6 +284,45 @@ export default function DashboardCatalogDesignPage() {
           <span>{saveSuccessMsg}</span>
         </div>
       )}
+
+            {/* SECTION: CATALOG ITEM IMAGES (DISPLAY PREFERENCES) */}
+      <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="p-2 bg-purple-500/10 text-purple-700 rounded-xl">
+                <ImageIcon className="w-5 h-5" />
+              </div>
+              <h3 className="text-base font-extrabold text-slate-900">
+                Catalog Item Images
+              </h3>
+            </div>
+            <p className="text-xs text-slate-500 max-w-xl">
+              Control whether item images are used in your catalog. Turning this off switches your public catalog to a clean text-first menu layout. Existing uploaded images will not be deleted.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <span className={`text-xs font-bold ${business?.show_item_images !== false ? 'text-teal-700' : 'text-slate-500'}`}>
+              {business?.show_item_images !== false ? 'Images ON' : 'Images OFF'}
+            </span>
+            <button
+              type="button"
+              onClick={() => handleToggleShowItemImages(business?.show_item_images === false)}
+              disabled={saving}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-purple-600 focus:ring-offset-2 ${
+                business?.show_item_images !== false ? 'bg-teal-600' : 'bg-slate-300'
+              }`}
+            >
+              <span
+                className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                  business?.show_item_images !== false ? 'translate-x-5' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+      </div>
 
       {/* SECTION 1: CATALOG LAYOUT TEMPLATES */}
       <div className="space-y-4">

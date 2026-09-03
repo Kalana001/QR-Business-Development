@@ -32,6 +32,7 @@ export default function DashboardBusinessSettingsPage() {
   const [themeColor, setThemeColor] = useState('#0F172A');
   const [logoUrl, setLogoUrl] = useState('');
   const [bannerUrl, setBannerUrl] = useState('');
+  const [showItemImages, setShowItemImages] = useState<boolean>(true);
 
   // Logo Cropper State (1:1 Aspect Ratio)
   const [selectedLogoFile, setSelectedLogoFile] = useState<File | null>(null);
@@ -95,6 +96,7 @@ export default function DashboardBusinessSettingsPage() {
     setLogoPreviewUrl(b.logo_url || null);
     setBannerUrl(b.banner_url || '');
     setBannerPreviewUrl(b.banner_url || null);
+    setShowItemImages(b.show_item_images !== false);
   }
 
   // Handle Logo Selection
@@ -229,6 +231,7 @@ export default function DashboardBusinessSettingsPage() {
         website: website || null,
         currency,
         theme_color: themeColor,
+        show_item_images: showItemImages,
         logo_url: finalLogoUrl,
         banner_url: finalBannerUrl,
         updated_at: new Date().toISOString(),
@@ -640,6 +643,39 @@ export default function DashboardBusinessSettingsPage() {
         <h2 className="text-base font-bold text-slate-900 border-b border-slate-100 pb-3 pt-2">
           Localization & Visual Theme
         </h2>
+
+        {/* Catalog Item Images Display Preference */}
+        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-2">
+          <div className="flex items-center justify-between">
+            <div className="space-y-0.5">
+              <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
+                Catalog Item Images
+              </label>
+              <p className="text-xs text-slate-500">
+                Display product images in your public catalog. Turning this off switches to a clean text-first menu without deleting uploaded images.
+              </p>
+            </div>
+            <div className="flex items-center gap-3 shrink-0">
+              <span className={`text-xs font-bold ${showItemImages ? 'text-teal-700' : 'text-slate-500'}`}>
+                {showItemImages ? 'ON' : 'OFF'}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowItemImages(!showItemImages)}
+                className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-slate-900 focus:ring-offset-2 ${
+                  showItemImages ? 'bg-teal-600' : 'bg-slate-300'
+                }`}
+              >
+                <span
+                  className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                    showItemImages ? 'translate-x-5' : 'translate-x-0'
+                  }`}
+                />
+              </button>
+            </div>
+          </div>
+        </div>
+
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1">

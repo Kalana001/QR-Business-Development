@@ -27,6 +27,8 @@ export interface Business {
   banner_url: string | null;
   currency: string;
   theme_color: string;
+  is_public?: boolean;
+  show_item_images?: boolean;
   
   // Subscription fields (NULL max_items or max_categories = Unlimited)
   subscription_plan?: SubscriptionPlan;

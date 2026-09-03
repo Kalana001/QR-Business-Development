@@ -105,6 +105,7 @@ export function CatalogRenderer({
   const subtextColor = templateMeta.defaultColors.subtext;
 
   const isDarkTemplate = templateId === 'modern-dark' || templateId === 'elegant-premium';
+  const showItemImages = business.show_item_images !== false;
   const activePillText = getContrastTextColor(accentColor);
 
   const inactivePillBg = isDarkTemplate
@@ -456,26 +457,36 @@ export function CatalogRenderer({
                   <div
                     key={item.id}
                     onClick={() => handleItemClick(item)}
-                    className="w-48 rounded-2xl overflow-hidden shrink-0 shadow-md cursor-pointer active:scale-98 transition-transform flex flex-col justify-between border"
+                    className={`${showItemImages ? 'w-48' : 'w-44'} rounded-2xl overflow-hidden shrink-0 shadow-md cursor-pointer active:scale-98 transition-transform flex flex-col justify-between border`}
                     style={{ 
                       backgroundColor: isDarkTemplate ? '#0F172A' : '#FFFFFF',
                       borderColor: 'rgba(226, 232, 240, 0.15)',
                     }}
                   >
-                    <div className="h-28 w-full bg-slate-800 relative">
-                      {item.image_url ? (
-                        <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <CategoryPlaceholder businessType={business.business_type} itemName={item.name} />
+                    {showItemImages && (
+                      <div className="h-28 w-full bg-slate-800 relative">
+                        {item.image_url ? (
+                          <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <CategoryPlaceholder businessType={business.business_type} itemName={item.name} />
+                        )}
+                        <span 
+                          className="absolute top-2 right-2 font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-full shadow-xs"
+                          style={{ backgroundColor: accentColor, color: activePillText }}
+                        >
+                          Star
+                        </span>
+                      </div>
+                    )}
+                    <div className="p-3 space-y-1.5">
+                      {!showItemImages && (
+                        <span 
+                          className="inline-block font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-full shadow-xs"
+                          style={{ backgroundColor: accentColor, color: activePillText }}
+                        >
+                          ⭐ Featured
+                        </span>
                       )}
-                      <span 
-                        className="absolute top-2 right-2 font-extrabold text-[9px] uppercase px-2 py-0.5 rounded-full shadow-xs"
-                        style={{ backgroundColor: accentColor, color: activePillText }}
-                      >
-                        Star
-                      </span>
-                    </div>
-                    <div className="p-3 space-y-1">
                       <h4 className="text-xs font-bold line-clamp-1" style={{ color: textColor }}>{item.name}</h4>
                       <p className="text-xs font-extrabold flex items-center gap-1" style={{ color: accentColor }}>
                         {item.variations && item.variations.length > 0 ? (
@@ -575,14 +586,16 @@ export function CatalogRenderer({
                       </div>
                     </div>
 
-                    {/* Thumbnail Image */}
-                    <div className="w-24 h-24 rounded-xl overflow-hidden shrink-0 relative bg-slate-800 flex items-center justify-center border border-white/10">
-                      {item.image_url ? (
-                        <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
-                      ) : (
-                        <CategoryPlaceholder businessType={business.business_type} itemName={item.name} />
-                      )}
-                    </div>
+                    {/* Thumbnail Image (Conditional on showItemImages) */}
+                    {showItemImages && (
+                      <div className="w-24 h-24 rounded-xl overflow-hidden shrink-0 relative bg-slate-800 flex items-center justify-center border border-white/10">
+                        {item.image_url ? (
+                          <img src={item.image_url} alt={item.name} className="w-full h-full object-cover" />
+                        ) : (
+                          <CategoryPlaceholder businessType={business.business_type} itemName={item.name} />
+                        )}
+                      </div>
+                    )}
                   </div>
                 );
               })}
@@ -601,37 +614,51 @@ export function CatalogRenderer({
           return (
             <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-fade-in">
               <div className="w-full max-w-md bg-slate-900 border border-slate-800 text-white rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
-                {/* Large Uncropped Product Image with Object-Contain */}
-                <div className="relative h-60 sm:h-64 w-full bg-slate-950 flex items-center justify-center overflow-hidden group cursor-pointer" onClick={() => setIsLightboxOpen(true)}>
-                  {displayImageSrc ? (
-                    <>
-                      <img
-                        src={displayImageSrc}
-                        alt={selectedItem.name}
-                        className="w-full h-full object-contain p-2"
-                        onError={(e) => {
-                          if (selectedItem.image_url && e.currentTarget.src !== selectedItem.image_url) {
-                            e.currentTarget.src = selectedItem.image_url;
-                          }
-                        }}
-                      />
-                      <div className="absolute bottom-2 right-2 px-2 py-1 bg-slate-900/80 text-white text-[10px] font-bold rounded-md opacity-80 group-hover:opacity-100 transition-opacity">
-                        Tap for Fullscreen 🔍
-                      </div>
-                    </>
-                  ) : (
-                    <CategoryPlaceholder businessType={business.business_type} itemName={selectedItem.name} />
-                  )}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedItem(null);
-                    }}
-                    className="absolute top-3 right-3 p-2 bg-slate-950/80 text-white rounded-full hover:bg-slate-950 transition-colors z-10 cursor-pointer"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
+                {/* Product Image or Header (Conditional on showItemImages) */}
+                {showItemImages ? (
+                  <div className="relative h-60 sm:h-64 w-full bg-slate-950 flex items-center justify-center overflow-hidden group cursor-pointer" onClick={() => setIsLightboxOpen(true)}>
+                    {displayImageSrc ? (
+                      <>
+                        <img
+                          src={displayImageSrc}
+                          alt={selectedItem.name}
+                          className="w-full h-full object-contain p-2"
+                          onError={(e) => {
+                            if (selectedItem.image_url && e.currentTarget.src !== selectedItem.image_url) {
+                              e.currentTarget.src = selectedItem.image_url;
+                            }
+                          }}
+                        />
+                        <div className="absolute bottom-2 right-2 px-2 py-1 bg-slate-900/80 text-white text-[10px] font-bold rounded-md opacity-80 group-hover:opacity-100 transition-opacity">
+                          Tap for Fullscreen 🔍
+                        </div>
+                      </>
+                    ) : (
+                      <CategoryPlaceholder businessType={business.business_type} itemName={selectedItem.name} />
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedItem(null);
+                      }}
+                      className="absolute top-3 right-3 p-2 bg-slate-950/80 text-white rounded-full hover:bg-slate-950 transition-colors z-10 cursor-pointer"
+                    >
+                      <X className="w-5 h-5" />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-amber-400">
+                      {bMeta.itemTerm} Details
+                    </span>
+                    <button
+                      onClick={() => setSelectedItem(null)}
+                      className="p-1.5 bg-slate-800 text-slate-400 hover:text-white rounded-full transition-colors cursor-pointer"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
 
                 <div className="p-5 space-y-4 overflow-y-auto flex-1">
                   <div className="space-y-1">

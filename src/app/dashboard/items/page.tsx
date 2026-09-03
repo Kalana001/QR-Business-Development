@@ -346,7 +346,15 @@ export default function DashboardItemsPage() {
       }
     }
 
+    const showItemImages = business.show_item_images !== false;
     let finalImageUrl: string | null = imageUrl || null;
+
+    if (!showItemImages && editingItem) {
+      // If business has disabled image display, preserve existing image_url non-destructively
+      finalImageUrl = editingItem.image_url;
+    } else if (!showItemImages && !editingItem) {
+      finalImageUrl = null;
+    }
 
     const itemDataPayload = {
       business_id: business.id,
@@ -1198,7 +1206,8 @@ export default function DashboardItemsPage() {
             />
           </div>
 
-          {/* Item Image Upload & Preview Section */}
+          {/* Item Image Upload & Preview Section (Conditional on business.show_item_images) */}
+          {(business?.show_item_images !== false) && (
           <div className="space-y-3 p-4 bg-slate-50 border border-slate-200 rounded-xl">
             <div className="flex items-center justify-between">
               <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
@@ -1341,6 +1350,7 @@ export default function DashboardItemsPage() {
               </details>
             </div>
           </div>
+          )}
 
           <div className="flex items-center justify-between pt-2">
             <label className="flex items-center gap-2 cursor-pointer">
