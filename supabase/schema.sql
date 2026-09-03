@@ -547,7 +547,7 @@ BEGIN
   INSERT INTO public.subscription_payments (
     business_id, plan, billing_interval, amount, payment_reference, start_date, end_date, approved_by
   ) VALUES (
-    p_business_id, p_plan, v_interval, v_amount, 'Super Admin Manual Approval', p_start_date, p_end_date, auth.uid()
+    p_business_id, p_plan, v_interval, v_amount, 'Bank Transfer (Admin Approval)', p_start_date, p_end_date, auth.uid()
   );
 
   -- 7. Log Admin Audit Action

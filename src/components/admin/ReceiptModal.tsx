@@ -35,6 +35,13 @@ interface ReceiptModalProps {
   payment: PaymentTransaction | null;
 }
 
+function formatPaymentMethod(ref?: string | null): string {
+  if (!ref || ref === 'Super Admin Manual Approval' || ref === 'Super Admin Activation' || ref === 'Approval') {
+    return 'Bank Transfer (Admin Approval)';
+  }
+  return ref;
+}
+
 export function ReceiptModal({ isOpen, onClose, payment }: ReceiptModalProps) {
   const [copied, setCopied] = React.useState(false);
   const receiptRef = useRef<HTMLDivElement>(null);
@@ -191,7 +198,7 @@ export function ReceiptModal({ isOpen, onClose, payment }: ReceiptModalProps) {
           <div className="space-y-1 p-3.5 rounded-xl bg-slate-50 border border-slate-200">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Payment Information:</span>
             <div className="font-semibold text-slate-800">
-              Method: <span className="font-bold">{payment.payment_reference || 'Super Admin Activation'}</span>
+              Method: <span className="font-bold">{formatPaymentMethod(payment.payment_reference)}</span>
             </div>
             <div className="font-semibold text-slate-800">
               Billing Interval: <span className="capitalize font-bold">{payment.billing_interval}</span>

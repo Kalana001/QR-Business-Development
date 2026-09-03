@@ -613,7 +613,7 @@ export default function AdminIncomePage() {
                               {p.billing_interval}
                             </span>
                           </div>
-                          <div className="text-[10px] text-slate-500 mt-0.5">{p.payment_reference || 'Approval'}</div>
+                          <div className="text-[10px] text-slate-500 mt-0.5">{p.payment_reference === 'Super Admin Manual Approval' || !p.payment_reference ? 'Bank Transfer (Admin Approval)' : p.payment_reference}</div>
                         </td>
 
                         {/* Amount */}
