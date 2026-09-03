@@ -219,7 +219,8 @@ $$;
 -- ============================================================================
 
 -- 1. PUBLIC BUSINESSES VIEW (Exposes ONLY public customer branding/contact info - FIX #3 & #4)
-CREATE OR REPLACE VIEW public.public_businesses AS
+DROP VIEW IF EXISTS public.public_businesses CASCADE;
+CREATE VIEW public.public_businesses AS
 SELECT 
   id,
   name,

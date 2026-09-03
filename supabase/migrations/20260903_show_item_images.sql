@@ -5,8 +5,11 @@
 -- 1. Safely add show_item_images column to public.businesses table (defaults to TRUE)
 ALTER TABLE public.businesses ADD COLUMN IF NOT EXISTS show_item_images BOOLEAN NOT NULL DEFAULT true;
 
--- 2. Refresh public_businesses view to expose show_item_images to anonymous public catalog visitors
-CREATE OR REPLACE VIEW public.public_businesses AS
+-- 2. Drop existing view to avoid PostgreSQL 42P16 column position shift error
+DROP VIEW IF EXISTS public.public_businesses CASCADE;
+
+-- 3. Recreate public_businesses view exposing show_item_images
+CREATE VIEW public.public_businesses AS
 SELECT 
   id,
   name,
@@ -28,5 +31,5 @@ SELECT
 FROM public.businesses
 WHERE is_public = true;
 
--- Grant permissions on the view
+-- 4. Grant permissions on the view
 GRANT SELECT ON public.public_businesses TO anon, authenticated;
