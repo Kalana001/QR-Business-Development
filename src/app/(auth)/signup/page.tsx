@@ -183,10 +183,17 @@ export default function SignupPage() {
           <Button
             type="submit"
             isLoading={loading}
-            className="w-full bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold border-none py-2.5 mt-2"
+            className="w-full bg-teal-500 hover:bg-teal-400 text-slate-950 font-semibold border-none py-2.5 mt-2 cursor-pointer"
           >
-            Create Business & Open Dashboard <ArrowRight className="w-4 h-4 ml-2" />
+            Create Business &amp; Open Dashboard <ArrowRight className="w-4 h-4 ml-2" />
           </Button>
+
+          <p className="text-[11px] text-slate-500 text-center leading-relaxed pt-1">
+            By creating an account, you agree to our{' '}
+            <Link href="/terms" className="text-teal-400 hover:underline font-medium">Terms of Service</Link>{' '}
+            and{' '}
+            <Link href="/privacy" className="text-teal-400 hover:underline font-medium">Privacy Policy</Link>.
+          </p>
         </form>
 
         <div className="pt-4 border-t border-slate-800 text-center text-xs text-slate-400">
