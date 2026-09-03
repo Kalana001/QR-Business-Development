@@ -102,6 +102,7 @@ export interface SubscriptionPlanMeta {
   priceAnnualLKR: number;
   maxItems: number | null;
   maxCategories: number | null;
+  maxVariationsPerItem?: number | null; // 0 = None (Free), 2 = Pro Growth, null = Unlimited (Business Plus)
   badge: string;
   description: string;
   features: string[];
@@ -115,11 +116,13 @@ export const SUBSCRIPTION_PLANS_META: Record<SubscriptionPlan, SubscriptionPlanM
     priceAnnualLKR: 0,
     maxItems: 10,
     maxCategories: 5,
+    maxVariationsPerItem: 0,
     badge: 'Free Forever',
     description: 'Perfect for small businesses creating their first digital QR catalog.',
     features: [
       'Up to 10 Catalog Items',
       'Up to 5 Categories',
+      'Single-Price Items (No Variations)',
       'Instant Mobile QR Code View',
       'Standard Support',
     ],
@@ -131,11 +134,13 @@ export const SUBSCRIPTION_PLANS_META: Record<SubscriptionPlan, SubscriptionPlanM
     priceAnnualLKR: 21000,
     maxItems: 150,
     maxCategories: 20,
+    maxVariationsPerItem: 2,
     badge: 'Popular',
     description: 'Ideal for cafés, bookshops, and salons with expanding catalog needs.',
     features: [
       'Up to 150 Catalog Items',
       'Up to 20 Categories',
+      'Up to 2 Variations per Item (e.g. Small / Large)',
       'Custom Branding & Accent Colors',
       'Printable 5"x7" Table Tent Flyers',
       'Priority Admin Activation',
@@ -148,11 +153,13 @@ export const SUBSCRIPTION_PLANS_META: Record<SubscriptionPlan, SubscriptionPlanM
     priceAnnualLKR: 36000,
     maxItems: null, // NULL = Unlimited
     maxCategories: null, // NULL = Unlimited
+    maxVariationsPerItem: null, // NULL = Unlimited
     badge: 'Best Value',
     description: 'Built for large restaurants, retail stores, and multi-category shops.',
     features: [
       'Unlimited Catalog Items',
       'Unlimited Categories',
+      'Unlimited Item Variations & Sizes',
       'All Pro Growth Features Included',
       'Advanced QR & Catalog Analytics',
       'Premium Catalog Designs',
@@ -165,11 +172,13 @@ export const SUBSCRIPTION_PLANS_META: Record<SubscriptionPlan, SubscriptionPlanM
     priceAnnualLKR: 0,
     maxItems: null,
     maxCategories: null,
+    maxVariationsPerItem: null,
     badge: '🎁 Free Trial',
     description: 'Full Business Plus access granted as a Free Trial.',
     features: [
       'Unlimited Catalog Items',
       'Unlimited Categories',
+      'Unlimited Item Variations & Sizes',
       'All Pro Growth Features Included',
       'Advanced QR & Catalog Analytics',
       'Premium Catalog Designs',

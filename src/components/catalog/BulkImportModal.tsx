@@ -388,8 +388,8 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
         errors.push('Missing item name');
       }
 
-      // 2. Variations Parsing
-      const parsedVariations: ItemVariation[] = [];
+      // 2. Variations Parsing & Plan Limit Enforcement
+      let parsedVariations: ItemVariation[] = [];
       if (rawVariationsStr) {
         const segments = rawVariationsStr.split('|');
         segments.forEach((seg) => {
@@ -403,6 +403,17 @@ export const BulkImportModal: React.FC<BulkImportModalProps> = ({
             }
           }
         });
+
+        const plan = business?.subscription_plan || 'free';
+        const maxVarsAllowed = (plan === 'enterprise' || plan === 'enterprise_gift') ? null : (plan === 'pro' ? 2 : 0);
+
+        if (maxVarsAllowed === 0 && parsedVariations.length > 0) {
+          parsedVariations = [];
+          warnings.push('Item variations are locked on Starter Free plan (imported with base price only)');
+        } else if (maxVarsAllowed !== null && parsedVariations.length > maxVarsAllowed) {
+          parsedVariations = parsedVariations.slice(0, maxVarsAllowed);
+          warnings.push(`Capped at ${maxVarsAllowed} variations (Pro Growth plan limit)`);
+        }
       }
 
       // 3. Price Check (Fallback to lowest variation price if base price is empty)

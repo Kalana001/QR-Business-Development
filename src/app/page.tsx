@@ -475,6 +475,11 @@ export default function LandingPage() {
                       <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
                     </div>
                     <span>Up to <strong>5 Categories</strong></span>
+                  </li>                  <li className="flex items-start gap-2.5">
+                    <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                    </div>
+                    <span>Single-Price Items (No Variations)</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">
@@ -556,7 +561,13 @@ export default function LandingPage() {
                     <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">
                       <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
                     </div>
-                    <span>Custom Branding & Accent Colors</span>
+                    <span>Up to <strong>2 Variations per Item</strong> (e.g. Small / Large)</span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-teal-400 shrink-0" />
+                    </div>
+                    <span>Custom Branding &amp; Accent Colors</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">
@@ -634,13 +645,19 @@ export default function LandingPage() {
                     <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">
                       <CheckCircle className="w-4 h-4 text-purple-400 shrink-0" />
                     </div>
+                    <span><strong>Unlimited Variations &amp; Sizes</strong></span>
+                  </li>
+                  <li className="flex items-start gap-2.5">
+                    <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">
+                      <CheckCircle className="w-4 h-4 text-purple-400 shrink-0" />
+                    </div>
                     <span>All Pro Growth Features Included</span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">
                       <CheckCircle className="w-4 h-4 text-purple-400 shrink-0" />
                     </div>
-                    <span><strong>Advanced QR & Catalog Analytics</strong></span>
+                    <span><strong>Advanced QR &amp; Catalog Analytics</strong></span>
                   </li>
                   <li className="flex items-start gap-2.5">
                     <div className="w-4 h-4 flex items-center justify-center shrink-0 mt-0.5">

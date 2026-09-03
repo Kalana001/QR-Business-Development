@@ -30,6 +30,7 @@ export default function DashboardItemsPage() {
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isUpgradeModalOpen, setIsUpgradeModalOpen] = useState(false);
+  const [upgradeModalReason, setUpgradeModalReason] = useState<string | null>(null);
   const [isBulkImportOpen, setIsBulkImportOpen] = useState(false);
   const [isBulkPriceUpdateOpen, setIsBulkPriceUpdateOpen] = useState(false);
   const [isCreateCategoryModalOpen, setIsCreateCategoryModalOpen] = useState(false);
@@ -83,6 +84,16 @@ export default function DashboardItemsPage() {
   const [variationsList, setVariationsList] = useState<ItemVariation[]>([]);
 
   const handleAddVariationRow = () => {
+    if (maxAllowedVariations === 0) {
+      setUpgradeModalReason('Item portion and size variations (e.g. Small, Large) are available on Pro Growth and Business Plus plans. Upgrade now to unlock multi-price portion options!');
+      setIsUpgradeModalOpen(true);
+      return;
+    }
+    if (maxAllowedVariations !== null && variationsList.length >= maxAllowedVariations) {
+      setUpgradeModalReason(`You have reached the limit of ${maxAllowedVariations} variations per item on the Pro Growth plan. Upgrade to Business Plus for unlimited variations and portion sizes!`);
+      setIsUpgradeModalOpen(true);
+      return;
+    }
     setVariationsList([...variationsList, { name: '', price: 0, is_available: true }]);
   };
 
@@ -169,8 +180,13 @@ export default function DashboardItemsPage() {
   
   // NULL means Unlimited
   const rawMaxItems = business?.max_items;
-  const isUnlimited = isSuperAdmin || (!isExpired && (rawMaxItems === null || rawMaxItems === undefined || currentPlanKey === 'enterprise'));
+  const isUnlimited = isSuperAdmin || (!isExpired && (rawMaxItems === null || rawMaxItems === undefined || currentPlanKey === 'enterprise' || currentPlanKey === 'enterprise_gift'));
   const maxAllowedItems = isUnlimited ? Infinity : (isExpired ? 10 : (rawMaxItems ?? 10));
+
+  const isBusinessPlus = isSuperAdmin || (!isExpired && (currentPlanKey === 'enterprise' || currentPlanKey === 'enterprise_gift'));
+  const isPro = !isExpired && currentPlanKey === 'pro';
+  // Variations limit: Free = 0, Pro = 2, Business Plus = Unlimited (null)
+  const maxAllowedVariations: number | null = isBusinessPlus ? null : (isPro ? 2 : 0);
 
   const handleImageFileSelect = (file: File | null) => {
     if (!file) return;
@@ -959,12 +975,17 @@ export default function DashboardItemsPage() {
       {/* Upgrade / Renewal Modal */}
       <UpgradeModal
         isOpen={isUpgradeModalOpen}
-        onClose={() => setIsUpgradeModalOpen(false)}
+        onClose={() => {
+          setIsUpgradeModalOpen(false);
+          setUpgradeModalReason(null);
+        }}
         currentPlan={business?.subscription_plan}
         reason={
-          isExpired
-            ? `Your ${currentPlanMeta.name} subscription has expired. Renew your plan to unlock all ${items.length} items!`
-            : `You have used ${items.length} of your ${isUnlimited ? 'unlimited' : maxAllowedItems} item limit on the ${currentPlanMeta.name} plan.`
+          upgradeModalReason || (
+            isExpired
+              ? `Your ${currentPlanMeta.name} subscription has expired. Renew your plan to unlock all ${items.length} items!`
+              : `You have used ${items.length} of your ${isUnlimited ? 'unlimited' : maxAllowedItems} item limit on the ${currentPlanMeta.name} plan.`
+          )
         }
       />
 
@@ -1105,31 +1126,62 @@ export default function DashboardItemsPage() {
           {/* Item Variations / Options Section */}
           <div className="space-y-3 p-4 bg-slate-50 border border-slate-200 rounded-xl">
             <div className="flex items-center justify-between">
-              <div>
-                <label className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                  Item Variations / Options
-                </label>
+              <div className="space-y-0.5">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
+                    Item Variations / Options
+                  </label>
+                  {maxAllowedVariations === 0 && (
+                    <span className="px-2 py-0.5 rounded-md bg-purple-100 text-purple-700 font-extrabold text-[9px] uppercase tracking-wider flex items-center gap-1">
+                      <Lock className="w-2.5 h-2.5" /> Pro Plan
+                    </span>
+                  )}
+                  {maxAllowedVariations === 2 && (
+                    <span className="px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 font-bold text-[9px] uppercase tracking-wider">
+                      Up to 2 Options
+                    </span>
+                  )}
+                  {maxAllowedVariations === null && (
+                    <span className="px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 font-bold text-[9px] uppercase tracking-wider">
+                      Unlimited Options
+                    </span>
+                  )}
+                </div>
                 <p className="text-[11px] text-slate-500">
                   Portion sizes (Small, Large), book editions, service tiers, or item sizes with custom prices.
                 </p>
               </div>
-              <label className="flex items-center gap-2 cursor-pointer shrink-0">
-                <input
-                  type="checkbox"
-                  checked={hasVariations}
-                  onChange={(e) => {
-                    setHasVariations(e.target.checked);
-                    if (e.target.checked && variationsList.length === 0) {
-                      setVariationsList([{ name: '', price: 0, is_available: true }]);
-                    }
+
+              {maxAllowedVariations === 0 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setUpgradeModalReason('Item portion and size variations (e.g. Small, Large) are available on Pro Growth and Business Plus plans. Upgrade now to unlock multi-price portion options!');
+                    setIsUpgradeModalOpen(true);
                   }}
-                  className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500"
-                />
-                <span className="text-xs font-bold text-teal-700">Enable Variations</span>
-              </label>
+                  className="px-2.5 py-1 bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 rounded-lg text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors shadow-2xs"
+                >
+                  <Lock className="w-3 h-3" /> Unlock Variations
+                </button>
+              ) : (
+                <label className="flex items-center gap-2 cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={hasVariations}
+                    onChange={(e) => {
+                      setHasVariations(e.target.checked);
+                      if (e.target.checked && variationsList.length === 0) {
+                        setVariationsList([{ name: '', price: 0, is_available: true }]);
+                      }
+                    }}
+                    className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500"
+                  />
+                  <span className="text-xs font-bold text-teal-700">Enable Variations</span>
+                </label>
+              )}
             </div>
 
-            {hasVariations && (
+            {hasVariations && maxAllowedVariations !== 0 && (
               <div className="space-y-2 pt-2 border-t border-slate-200">
                 {variationsList.map((v, idx) => (
                   <div key={idx} className="flex items-center gap-2">
@@ -1152,7 +1204,7 @@ export default function DashboardItemsPage() {
                     <button
                       type="button"
                       onClick={() => handleRemoveVariationRow(idx)}
-                      className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg shrink-0"
+                      className="p-2 text-rose-600 hover:bg-rose-50 rounded-lg shrink-0 cursor-pointer"
                       title="Remove Option"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -1160,13 +1212,31 @@ export default function DashboardItemsPage() {
                   </div>
                 ))}
 
-                <button
-                  type="button"
-                  onClick={handleAddVariationRow}
-                  className="px-3 py-1.5 bg-white border border-slate-300 hover:border-teal-500 text-teal-700 font-bold text-xs rounded-lg flex items-center gap-1 mt-2 cursor-pointer"
-                >
-                  + Add Option
-                </button>
+                {maxAllowedVariations !== null && variationsList.length >= maxAllowedVariations ? (
+                  <div className="pt-2 flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-2.5 bg-amber-50 border border-amber-200 rounded-xl text-xs">
+                    <span className="font-bold text-amber-900">
+                      2/2 variations used (Pro Plan limit reached)
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setUpgradeModalReason('Upgrade to Business Plus for unlimited portion variations per item (Small, Medium, Large, Family, etc.)!');
+                        setIsUpgradeModalOpen(true);
+                      }}
+                      className="text-xs font-bold text-purple-700 hover:text-purple-900 underline cursor-pointer self-start sm:self-auto"
+                    >
+                      Upgrade to Business Plus for Unlimited →
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleAddVariationRow}
+                    className="px-3 py-1.5 bg-white border border-slate-300 hover:border-teal-500 text-teal-700 font-bold text-xs rounded-lg flex items-center gap-1 mt-2 cursor-pointer"
+                  >
+                    + Add Option {maxAllowedVariations !== null ? `(${variationsList.length}/${maxAllowedVariations})` : ''}
+                  </button>
+                )}
               </div>
             )}
           </div>
