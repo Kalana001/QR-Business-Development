@@ -471,7 +471,7 @@ export default function SuperAdminDashboardPage() {
                             </span>
                             <div className="text-[11px] text-slate-400 mt-1 font-semibold">
                               {biz.subscription_plan === 'enterprise_gift'
-                                ? '🎁 VIP Complimentary Gift'
+                                ? '🎁 Free Trial'
                                 : planMeta.priceLKR > 0
                                 ? biz.billing_interval === 'annual'
                                   ? `LKR ${planMeta.priceAnnualLKR.toLocaleString()}/yr (Annual)`
@@ -629,7 +629,7 @@ export default function SuperAdminDashboardPage() {
                       <div className="text-xs font-extrabold">{plan.name}</div>
                       <div className="text-xs text-purple-700 font-extrabold mt-1">
                         {planKey === 'enterprise_gift'
-                          ? '🎁 Free VIP Gift'
+                          ? '🎁 Free Trial'
                           : price > 0
                           ? `LKR ${price.toLocaleString()}/${isAnnual ? 'yr' : 'mo'}`
                           : 'Free Forever'}
