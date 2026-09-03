@@ -57,6 +57,7 @@ export default function AdminIncomePage() {
 
   // Receipt Modal State
   const [selectedPaymentForReceipt, setSelectedPaymentForReceipt] = useState<PaymentTransaction | null>(null);
+  const [hoveredPointIndex, setHoveredPointIndex] = useState<number | null>(null);
 
   // Load Admin Data
   const loadAdminFinancials = async () => {
@@ -156,7 +157,23 @@ export default function AdminIncomePage() {
       }
     });
 
-    // Sort last 6 months
+    // Chronological last 6 months (oldest to newest for line chart timeline)
+    const chronologicalMonths: { monthKey: string; monthName: string; amount: number; count: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date(currentYear, currentMonth - i, 1);
+      const y = d.getFullYear();
+      const m = d.getMonth();
+      const k = `${y}-${String(m + 1).padStart(2, '0')}`;
+      const label = d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      const record = monthlyAggregation[k];
+      chronologicalMonths.push({
+        monthKey: k,
+        monthName: label,
+        amount: record ? record.amount : 0,
+        count: record ? record.count : 0
+      });
+    }
+
     const monthlyList = Object.values(monthlyAggregation)
       .sort((a, b) => b.date.getTime() - a.date.getTime())
       .slice(0, 6);
@@ -214,6 +231,7 @@ export default function AdminIncomePage() {
       monthGrowthPercent,
       paidTransactionsCount,
       monthlyList,
+      chronologicalMonths,
       projected30Days,
       projected60Days,
       projected90Days,
@@ -418,44 +436,205 @@ export default function AdminIncomePage() {
         {/* Future Forecasting & Month-Over-Month Performance */}
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           
-          {/* Monthly Revenue Breakdown List */}
-          <div className="lg:col-span-2 p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4">
+          {/* Monthly Realized Income Line Chart */}
+          <div className="lg:col-span-2 p-6 rounded-2xl bg-slate-900 border border-slate-800 space-y-4 flex flex-col justify-between">
             <div className="flex items-center justify-between border-b border-slate-800 pb-3">
               <div className="flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-teal-400" />
+                <TrendingUp className="w-4 h-4 text-teal-400" />
                 <h2 className="text-sm font-bold text-white">Monthly Realized Income History</h2>
               </div>
-              <span className="text-[11px] text-slate-400">Last 6 Months</span>
+              <div className="flex items-center gap-3 text-xs">
+                <span className="text-[11px] text-slate-400">Last 6 Months Line Trend</span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-teal-500/10 text-teal-400 border border-teal-500/20">
+                  LKR {metrics.chronologicalMonths.reduce((sum, m) => sum + m.amount, 0).toLocaleString()} 6M Total
+                </span>
+              </div>
             </div>
 
-            {metrics.monthlyList.length === 0 ? (
-              <p className="text-xs text-slate-400 py-6 text-center">No payment history recorded yet.</p>
-            ) : (
-              <div className="space-y-3">
-                {metrics.monthlyList.map((m) => {
-                  const maxAmount = Math.max(...metrics.monthlyList.map((x) => x.amount), 1);
-                  const barWidth = Math.max(8, Math.round((m.amount / maxAmount) * 100));
+            {/* Line Chart Render */}
+            {(() => {
+              const months = metrics.chronologicalMonths;
+              const maxVal = Math.max(...months.map((m) => m.amount), 5000);
+              const paddingX = 40;
+              const paddingTop = 25;
+              const chartHeight = 140;
+              const totalWidth = 560;
+              const innerWidth = totalWidth - paddingX * 2;
+              const stepX = innerWidth / (months.length - 1);
 
-                  return (
-                    <div key={m.monthName} className="space-y-1.5">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-bold text-slate-200">{m.monthName}</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-[11px] text-slate-400">{m.count} payments</span>
-                          <span className="font-mono font-bold text-teal-400">{formatCurrency(m.amount, 'LKR')}</span>
-                        </div>
+              const points = months.map((m, idx) => {
+                const x = paddingX + idx * stepX;
+                const ratio = m.amount / maxVal;
+                const y = paddingTop + (chartHeight - ratio * chartHeight);
+                return { x, y, ...m };
+              });
+
+              // Construct Smooth Curve or Polyline Path
+              const pathD = points.reduce((acc, p, idx) => {
+                if (idx === 0) return `M ${p.x} ${p.y}`;
+                const prev = points[idx - 1];
+                const cx = (prev.x + p.x) / 2;
+                return `${acc} C ${cx} ${prev.y}, ${cx} ${p.y}, ${p.x} ${p.y}`;
+              }, '');
+
+              const firstPoint = points[0];
+              const lastPoint = points[points.length - 1];
+              const baseY = paddingTop + chartHeight;
+              const areaD = `${pathD} L ${lastPoint.x} ${baseY} L ${firstPoint.x} ${baseY} Z`;
+
+              return (
+                <div className="relative w-full overflow-hidden pt-2">
+                  <svg 
+                    viewBox={`0 0 ${totalWidth} 220`} 
+                    className="w-full h-auto overflow-visible select-none"
+                  >
+                    <defs>
+                      {/* Gradient Fill under the Line */}
+                      <linearGradient id="revenue-line-gradient" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="#14B8A6" stopOpacity="0.35" />
+                        <stop offset="70%" stopColor="#14B8A6" stopOpacity="0.05" />
+                        <stop offset="100%" stopColor="#14B8A6" stopOpacity="0" />
+                      </linearGradient>
+
+                      {/* Drop Glow on Line */}
+                      <filter id="teal-glow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feDropShadow dx="0" dy="4" stdDeviation="4" floodColor="#14B8A6" floodOpacity="0.4" />
+                      </filter>
+                    </defs>
+
+                    {/* Horizontal Gridlines & Y-Axis Labels */}
+                    {[1, 0.75, 0.5, 0.25, 0].map((level, i) => {
+                      const yPos = paddingTop + (chartHeight - level * chartHeight);
+                      const labelVal = Math.round(maxVal * level);
+                      return (
+                        <g key={i}>
+                          <line
+                            x1={paddingX}
+                            y1={yPos}
+                            x2={totalWidth - paddingX}
+                            y2={yPos}
+                            stroke="rgba(255, 255, 255, 0.08)"
+                            strokeDasharray={i === 4 ? '0' : '4,4'}
+                            strokeWidth="1"
+                          />
+                          <text
+                            x={paddingX - 8}
+                            y={yPos + 3}
+                            textAnchor="end"
+                            fill="#64748B"
+                            fontSize="9"
+                            fontFamily="monospace"
+                          >
+                            {labelVal >= 1000 ? `${(labelVal / 1000).toFixed(0)}k` : labelVal}
+                          </text>
+                        </g>
+                      );
+                    })}
+
+                    {/* Area Gradient Fill */}
+                    <path d={areaD} fill="url(#revenue-line-gradient)" />
+
+                    {/* Glow Line Stroke */}
+                    <path
+                      d={pathD}
+                      fill="none"
+                      stroke="#14B8A6"
+                      strokeWidth="3.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      filter="url(#teal-glow)"
+                    />
+
+                    {/* Nodes / Data Points */}
+                    {points.map((p, idx) => {
+                      const isHovered = hoveredPointIndex === idx;
+                      return (
+                        <g 
+                          key={idx}
+                          className="cursor-pointer transition-all duration-200"
+                          onMouseEnter={() => setHoveredPointIndex(idx)}
+                          onMouseLeave={() => setHoveredPointIndex(null)}
+                        >
+                          {/* Outer pulse aura if hovered */}
+                          {isHovered && (
+                            <circle
+                              cx={p.x}
+                              cy={p.y}
+                              r="12"
+                              fill="#14B8A6"
+                              opacity="0.25"
+                              className="animate-ping"
+                            />
+                          )}
+
+                          {/* Outer ring */}
+                          <circle
+                            cx={p.x}
+                            cy={p.y}
+                            r={isHovered ? '7' : '5'}
+                            fill="#0F172A"
+                            stroke="#2DD4BF"
+                            strokeWidth={isHovered ? '3.5' : '2.5'}
+                          />
+
+                          {/* Center dot */}
+                          <circle
+                            cx={p.x}
+                            cy={p.y}
+                            r={isHovered ? '3' : '2'}
+                            fill="#FFFFFF"
+                          />
+
+                          {/* Month X-Axis Label */}
+                          <text
+                            x={p.x}
+                            y={baseY + 22}
+                            textAnchor="middle"
+                            fill={isHovered ? '#2DD4BF' : '#94A3B8'}
+                            fontSize="11"
+                            fontWeight={isHovered ? 'bold' : 'normal'}
+                          >
+                            {p.monthName}
+                          </text>
+
+                          {/* Data Value Label above Node */}
+                          {p.amount > 0 && (
+                            <text
+                              x={p.x}
+                              y={p.y - 12}
+                              textAnchor="middle"
+                              fill={isHovered ? '#2DD4BF' : '#E2E8F0'}
+                              fontSize="10"
+                              fontWeight="bold"
+                              fontFamily="monospace"
+                            >
+                              {p.amount >= 1000 ? `${(p.amount / 1000).toFixed(1)}k` : p.amount}
+                            </text>
+                          )}
+                        </g>
+                      );
+                    })}
+                  </svg>
+
+                  {/* Hovered Month Detail Card */}
+                  {hoveredPointIndex !== null && points[hoveredPointIndex] && (
+                    <div 
+                      className="absolute top-2 left-1/2 -translate-x-1/2 px-3 py-1.5 rounded-xl bg-slate-950/95 border border-teal-500/40 text-xs shadow-xl flex items-center gap-3 backdrop-blur-md animate-fade-in pointer-events-none"
+                    >
+                      <div>
+                        <span className="font-bold text-white">{points[hoveredPointIndex].monthName}:</span>{' '}
+                        <span className="font-mono font-black text-teal-400">
+                          {formatCurrency(points[hoveredPointIndex].amount, 'LKR')}
+                        </span>
                       </div>
-                      <div className="w-full bg-slate-800 rounded-full h-2 overflow-hidden">
-                        <div 
-                          className="bg-gradient-to-r from-teal-500 to-emerald-400 h-full rounded-full transition-all duration-500" 
-                          style={{ width: `${barWidth}%` }}
-                        />
-                      </div>
+                      <span className="text-[10px] text-slate-400 font-semibold px-2 py-0.5 rounded-md bg-slate-800">
+                        {points[hoveredPointIndex].count} paid activations
+                      </span>
                     </div>
-                  );
-                })}
-              </div>
-            )}
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* Future Projection Pipeline */}
