@@ -158,6 +158,56 @@ export function ReceiptModal({ isOpen, onClose, payment }: ReceiptModalProps) {
         </div>
       }
     >
+            {/* Dedicated Print Media Styles for 1-Page Crisp Clean Output */}
+      <style jsx global>{`
+        @media print {
+          /* Hide everything in the document */
+          html, body {
+            background: #ffffff !important;
+            color: #000000 !important;
+            height: auto !important;
+            overflow: visible !important;
+          }
+          
+          body * {
+            visibility: hidden !important;
+          }
+          
+          /* Only display the receipt container and its children */
+          #printable-receipt,
+          #printable-receipt * {
+            visibility: visible !important;
+          }
+          
+          #printable-receipt {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            max-width: 100% !important;
+            margin: 0 !important;
+            padding: 24px !important;
+            border: 1px solid #cbd5e1 !important;
+            border-radius: 12px !important;
+            background: #ffffff !important;
+            color: #0f172a !important;
+            box-shadow: none !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+
+          /* Hide scrollbars, dialog shadows, and buttons */
+          ::-webkit-scrollbar {
+            display: none !important;
+          }
+
+          @page {
+            size: A4 portrait;
+            margin: 12mm;
+          }
+        }
+      `}</style>
+
       {/* Printable Receipt Container */}
       <div 
         ref={receiptRef}
