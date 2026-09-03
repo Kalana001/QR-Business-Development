@@ -1,16 +1,16 @@
 'use client';
 
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { 
-  Percent, DollarSign, Tag, CheckSquare, Square, Search, Filter, 
-  ArrowRight, ArrowLeft, RefreshCw, AlertCircle, CheckCircle2, 
-  TrendingUp, TrendingDown, Layers, Sparkles
+  CheckSquare, Square, Search, RefreshCw, AlertCircle, 
+  ArrowUpRight, ArrowDownRight, Layers, Sparkles, Save, RotateCcw, 
+  ChevronDown, ChevronUp
 } from 'lucide-react';
 import { Modal } from '@/components/ui/Modal';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { createClient } from '@/lib/supabase/client';
-import { Business, CatalogItem, Category } from '@/lib/types';
+import { Business, CatalogItem, Category, ItemVariation } from '@/lib/types';
 import { formatCurrency } from '@/lib/utils';
 
 export interface UndoPriceItem {
@@ -18,6 +18,8 @@ export interface UndoPriceItem {
   name: string;
   oldPrice: number;
   newPrice: number;
+  oldVariations?: ItemVariation[] | null;
+  newVariations?: ItemVariation[] | null;
 }
 
 interface BulkPriceUpdateModalProps {
@@ -29,32 +31,6 @@ interface BulkPriceUpdateModalProps {
   onUpdateSuccess: (count: number, undoList: UndoPriceItem[]) => void;
 }
 
-type UpdateMethod = 'percentage' | 'fixed' | 'exact';
-type Direction = 'increase' | 'decrease';
-
-export function calculateNewPrice(
-  currentPrice: number,
-  method: UpdateMethod,
-  direction: Direction,
-  value: number
-): number {
-  let newPrice = currentPrice;
-  if (method === 'percentage') {
-    const factor = direction === 'increase' ? 1 + value / 100 : 1 - value / 100;
-    newPrice = currentPrice * factor;
-  } else if (method === 'fixed') {
-    newPrice = direction === 'increase' ? currentPrice + value : currentPrice - value;
-  } else if (method === 'exact') {
-    newPrice = value;
-  }
-
-  // Proper currency decimal rounding to avoid floating point issues (e.g. 1612.49999999)
-  newPrice = Math.round((newPrice + Number.EPSILON) * 100) / 100;
-
-  // Prevent negative prices
-  return Math.max(0, newPrice);
-}
-
 export const BulkPriceUpdateModal: React.FC<BulkPriceUpdateModalProps> = ({
   isOpen,
   onClose,
@@ -63,9 +39,6 @@ export const BulkPriceUpdateModal: React.FC<BulkPriceUpdateModalProps> = ({
   items,
   onUpdateSuccess,
 }) => {
-  // Step state: 'select' | 'preview'
-  const [step, setStep] = useState<'select' | 'preview'>('select');
-
   // Search & Filter State
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategoryFilter, setSelectedCategoryFilter] = useState('all');
@@ -73,10 +46,14 @@ export const BulkPriceUpdateModal: React.FC<BulkPriceUpdateModalProps> = ({
   // Selected item IDs (Set for O(1) lookups)
   const [selectedItemIds, setSelectedItemIds] = useState<Set<string>>(new Set());
 
-  // Price Update Rule State
-  const [method, setMethod] = useState<UpdateMethod>('percentage');
-  const [direction, setDirection] = useState<Direction>('increase');
-  const [inputValue, setInputValue] = useState<string>('10');
+  // Direct Edited Prices State: Record<itemId, string>
+  const [editedPrices, setEditedPrices] = useState<Record<string, string>>({});
+
+  // Direct Edited Variations State: Record<itemId, ItemVariation[]>
+  const [editedVariations, setEditedVariations] = useState<Record<string, ItemVariation[]>>({});
+
+  // Expanded item rows for variations
+  const [expandedVariations, setExpandedVariations] = useState<Set<string>>(new Set());
 
   // Processing state
   const [isUpdating, setIsUpdating] = useState(false);
@@ -89,41 +66,57 @@ export const BulkPriceUpdateModal: React.FC<BulkPriceUpdateModalProps> = ({
     return map;
   }, [categories]);
 
-  // Filtered items based on search and category
-  const filteredItems = useMemo(() => {
-    return items.filter((item) => {
-      const q = searchQuery.toLowerCase().trim();
-      const matchesSearch =
-        !q ||
-        item.name.toLowerCase().includes(q) ||
-        (item.description && item.description.toLowerCase().includes(q)) ||
-        (item.author && item.author.toLowerCase().includes(q));
-
-      const matchesCat =
-        selectedCategoryFilter === 'all' || item.category_id === selectedCategoryFilter;
-
-      return matchesSearch && matchesCat;
-    });
-  }, [items, searchQuery, selectedCategoryFilter]);
-
   // Handle Item Checkbox Toggle
-  const toggleItemSelection = (id: string) => {
+  const toggleItemSelection = (item: CatalogItem) => {
     setSelectedItemIds((prev) => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
+      if (next.has(item.id)) {
+        next.delete(item.id);
       } else {
-        next.add(id);
+        next.add(item.id);
+        // Initialize price input if not yet touched
+        if (editedPrices[item.id] === undefined) {
+          setEditedPrices((p) => ({
+            ...p,
+            [item.id]: (item.price ?? 0).toString(),
+          }));
+        }
+        // Initialize variations if any
+        if (item.variations && item.variations.length > 0 && editedVariations[item.id] === undefined) {
+          setEditedVariations((v) => ({
+            ...v,
+            [item.id]: JSON.parse(JSON.stringify(item.variations)),
+          }));
+          // Auto-expand variation rows for easy inspection
+          setExpandedVariations((exp) => new Set(exp).add(item.id));
+        }
       }
       return next;
     });
   };
 
   // Select All Filtered Items
-  const handleSelectAllFiltered = () => {
+  const handleSelectAllFiltered = (filteredList: CatalogItem[]) => {
     setSelectedItemIds((prev) => {
       const next = new Set(prev);
-      filteredItems.forEach((item) => next.add(item.id));
+      const newPrices = { ...editedPrices };
+      const newVars = { ...editedVariations };
+      const newExp = new Set(expandedVariations);
+
+      filteredList.forEach((item) => {
+        next.add(item.id);
+        if (newPrices[item.id] === undefined) {
+          newPrices[item.id] = (item.price ?? 0).toString();
+        }
+        if (item.variations && item.variations.length > 0 && newVars[item.id] === undefined) {
+          newVars[item.id] = JSON.parse(JSON.stringify(item.variations));
+          newExp.add(item.id);
+        }
+      });
+
+      setEditedPrices(newPrices);
+      setEditedVariations(newVars);
+      setExpandedVariations(newExp);
       return next;
     });
   };
@@ -136,54 +129,154 @@ export const BulkPriceUpdateModal: React.FC<BulkPriceUpdateModalProps> = ({
   // Quick Select by Category
   const handleSelectByCategory = (catId: string) => {
     if (!catId || catId === 'all') return;
-    setSelectedItemIds((prev) => {
+    const catItems = items.filter((item) => item.category_id === catId);
+    handleSelectAllFiltered(catItems);
+  };
+
+  // Handle Base Item Price Input Change
+  const handlePriceChange = (itemId: string, value: string) => {
+    setEditedPrices((prev) => ({
+      ...prev,
+      [itemId]: value,
+    }));
+  };
+
+  // Handle Variation Price Change
+  const handleVariationPriceChange = (itemId: string, varIndex: number, value: string) => {
+    const num = parseFloat(value);
+    const validNum = isNaN(num) ? 0 : Math.max(0, num);
+
+    setEditedVariations((prev) => {
+      const itemVars = prev[itemId] || [];
+      const updated = [...itemVars];
+      if (updated[varIndex]) {
+        updated[varIndex] = {
+          ...updated[varIndex],
+          price: validNum,
+        };
+      }
+      return {
+        ...prev,
+        [itemId]: updated,
+      };
+    });
+  };
+
+  // Toggle expand/collapse variations for an item
+  const toggleExpandVariations = (itemId: string) => {
+    setExpandedVariations((prev) => {
       const next = new Set(prev);
-      items.filter((item) => item.category_id === catId).forEach((item) => next.add(item.id));
+      if (next.has(itemId)) {
+        next.delete(itemId);
+      } else {
+        next.add(itemId);
+      }
       return next;
     });
   };
 
-  // Numeric parsed value
-  const numericValue = parseFloat(inputValue);
-  const isInputValid =
-    !isNaN(numericValue) &&
-    (method === 'exact' ? numericValue >= 0 : numericValue > 0);
+  // Reset an item's edited price back to original
+  const handleResetItemPrice = (item: CatalogItem) => {
+    setEditedPrices((prev) => ({
+      ...prev,
+      [item.id]: (item.price ?? 0).toString(),
+    }));
+    if (item.variations) {
+      setEditedVariations((prev) => ({
+        ...prev,
+        [item.id]: JSON.parse(JSON.stringify(item.variations)),
+      }));
+    }
+  };
 
-  // Calculate items to be updated and their preview data
-  const previewItems = useMemo(() => {
-    if (!isInputValid || selectedItemIds.size === 0) return [];
+  // Filter and dynamic sort: SELECTED ITEMS FLOAT TO TOP!
+  const displayItems = useMemo(() => {
+    const q = searchQuery.toLowerCase().trim();
 
-    const list: {
+    // 1. Filter items by search query and category
+    const filtered = items.filter((item) => {
+      const matchesSearch =
+        !q ||
+        item.name.toLowerCase().includes(q) ||
+        (item.description && item.description.toLowerCase().includes(q)) ||
+        (item.author && item.author.toLowerCase().includes(q)) ||
+        (item.variations && item.variations.some((v) => v.name.toLowerCase().includes(q)));
+
+      const matchesCat =
+        selectedCategoryFilter === 'all' || item.category_id === selectedCategoryFilter;
+
+      return matchesSearch && matchesCat;
+    });
+
+    // 2. Sort: Selected items float to TOP, followed by unselected items
+    return [...filtered].sort((a, b) => {
+      const aSelected = selectedItemIds.has(a.id);
+      const bSelected = selectedItemIds.has(b.id);
+
+      if (aSelected && !bSelected) return -1;
+      if (!aSelected && bSelected) return 1;
+
+      return 0;
+    });
+  }, [items, searchQuery, selectedCategoryFilter, selectedItemIds]);
+
+  // Compute changed items list
+  const changesSummary = useMemo(() => {
+    const changedList: {
       item: CatalogItem;
       oldPrice: number;
       newPrice: number;
       difference: number;
-      categoryName: string;
+      oldVariations?: ItemVariation[] | null;
+      newVariations?: ItemVariation[] | null;
     }[] = [];
 
-    items.forEach((item) => {
-      if (selectedItemIds.has(item.id)) {
-        const oldPrice = typeof item.price === 'number' ? item.price : 0;
-        const newPrice = calculateNewPrice(oldPrice, method, direction, numericValue);
-        const difference = Math.round((newPrice - oldPrice + Number.EPSILON) * 100) / 100;
-        const categoryName = item.category_id ? categoryMap.get(item.category_id) || 'Uncategorized' : 'Uncategorized';
+    selectedItemIds.forEach((id) => {
+      const item = items.find((i) => i.id === id);
+      if (!item) return;
 
-        list.push({
+      const oldPrice = typeof item.price === 'number' ? item.price : 0;
+      const priceStr = editedPrices[id] !== undefined ? editedPrices[id] : oldPrice.toString();
+      let newPrice = parseFloat(priceStr);
+
+      if (isNaN(newPrice) || newPrice < 0) {
+        newPrice = oldPrice;
+      }
+      newPrice = Math.round((newPrice + Number.EPSILON) * 100) / 100;
+
+      const currentVars = item.variations || [];
+      const updatedVars = editedVariations[id] || currentVars;
+
+      const basePriceChanged = Math.abs(newPrice - oldPrice) > 0.001;
+      let varsChanged = false;
+
+      if (currentVars.length > 0 && updatedVars.length === currentVars.length) {
+        for (let i = 0; i < currentVars.length; i++) {
+          if (Math.abs((updatedVars[i]?.price ?? 0) - (currentVars[i]?.price ?? 0)) > 0.001) {
+            varsChanged = true;
+            break;
+          }
+        }
+      }
+
+      if (basePriceChanged || varsChanged) {
+        changedList.push({
           item,
           oldPrice,
           newPrice,
-          difference,
-          categoryName,
+          difference: Math.round((newPrice - oldPrice + Number.EPSILON) * 100) / 100,
+          oldVariations: item.variations,
+          newVariations: currentVars.length > 0 ? updatedVars : null,
         });
       }
     });
 
-    return list;
-  }, [items, selectedItemIds, isInputValid, method, direction, numericValue, categoryMap]);
+    return changedList;
+  }, [items, selectedItemIds, editedPrices, editedVariations]);
 
-  // Handle Apply Updates to Database
-  const handleApplyUpdates = async () => {
-    if (previewItems.length === 0) return;
+  // Handle Save Price Updates to Database
+  const handleSavePriceUpdates = async () => {
+    if (selectedItemIds.size === 0) return;
 
     setIsUpdating(true);
     setErrorMessage(null);
@@ -191,56 +284,94 @@ export const BulkPriceUpdateModal: React.FC<BulkPriceUpdateModalProps> = ({
     try {
       const supabase = createClient();
       const undoList: UndoPriceItem[] = [];
+      let updatedCount = 0;
 
-      // Update items in batches of 25 for optimal performance and tenant safety
+      const updatePayloads: {
+        item: CatalogItem;
+        oldPrice: number;
+        newPrice: number;
+        newVariations: ItemVariation[] | null;
+        oldVariations: ItemVariation[] | null;
+      }[] = [];
+
+      selectedItemIds.forEach((id) => {
+        const item = items.find((i) => i.id === id);
+        if (!item) return;
+
+        const oldPrice = typeof item.price === 'number' ? item.price : 0;
+        const priceStr = editedPrices[id] !== undefined ? editedPrices[id] : oldPrice.toString();
+        let newPrice = parseFloat(priceStr);
+
+        if (isNaN(newPrice) || newPrice < 0) {
+          newPrice = oldPrice;
+        }
+        newPrice = Math.round((newPrice + Number.EPSILON) * 100) / 100;
+
+        const newVars = editedVariations[id] || (item.variations ? [...item.variations] : null);
+
+        updatePayloads.push({
+          item,
+          oldPrice,
+          newPrice,
+          newVariations: newVars,
+          oldVariations: item.variations || null,
+        });
+      });
+
+      // Update in batches of 25 for safe performance
       const BATCH_SIZE = 25;
-      for (let i = 0; i < previewItems.length; i += BATCH_SIZE) {
-        const batch = previewItems.slice(i, i + BATCH_SIZE);
-        
+      for (let i = 0; i < updatePayloads.length; i += BATCH_SIZE) {
+        const batch = updatePayloads.slice(i, i + BATCH_SIZE);
+
         await Promise.all(
-          batch.map(async ({ item, oldPrice, newPrice }) => {
+          batch.map(async ({ item, oldPrice, newPrice, newVariations, oldVariations }) => {
+            const updateObj: Record<string, any> = {
+              price: newPrice,
+              updated_at: new Date().toISOString(),
+            };
+
+            if (newVariations) {
+              updateObj.variations = newVariations;
+            }
+
             const { error } = await supabase
               .from('catalog_items')
-              .update({
-                price: newPrice,
-                updated_at: new Date().toISOString(),
-              })
+              .update(updateObj)
               .eq('id', item.id)
               .eq('business_id', business.id);
 
-            if (error) {
-              throw error;
-            }
+            if (error) throw error;
 
+            updatedCount++;
             undoList.push({
               id: item.id,
               name: item.name,
               oldPrice,
               newPrice,
+              oldVariations,
+              newVariations,
             });
           })
         );
       }
 
-      // Trigger success callback and close modal
-      onUpdateSuccess(previewItems.length, undoList);
+      onUpdateSuccess(updatedCount, undoList);
       handleResetAndClose();
     } catch (err: any) {
       console.error('Bulk price update error:', err);
-      setErrorMessage(err.message || 'Price update failed. Please check your connection and try again.');
+      setErrorMessage(err.message || 'Price update failed. Please check your network connection and try again.');
     } finally {
       setIsUpdating(false);
     }
   };
 
   const handleResetAndClose = () => {
-    setStep('select');
     setSearchQuery('');
     setSelectedCategoryFilter('all');
     setSelectedItemIds(new Set());
-    setMethod('percentage');
-    setDirection('increase');
-    setInputValue('10');
+    setEditedPrices({});
+    setEditedVariations({});
+    setExpandedVariations(new Set());
     setErrorMessage(null);
     onClose();
   };
@@ -254,604 +385,411 @@ export const BulkPriceUpdateModal: React.FC<BulkPriceUpdateModalProps> = ({
       isOpen={isOpen}
       onClose={handleResetAndClose}
       title="Bulk Price Update"
-      maxWidth="lg"
+      maxWidth="xl"
     >
-      <div className="space-y-6">
-        {/* Step Indicator Header */}
-        <div className="flex items-center justify-between pb-4 border-b border-slate-200">
+      <div className="space-y-4">
+        {/* Header Subtitle & Status Badges */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-slate-200 gap-2">
           <div>
-            <h3 className="text-base font-extrabold text-slate-900">
-              {step === 'select' ? 'Select Items & Set Rule' : 'Review & Confirm Changes'}
+            <h3 className="text-sm font-extrabold text-slate-900">
+              Direct Price Editor
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              {step === 'select'
-                ? 'Choose the catalog items and the price adjustment formula.'
-                : 'Carefully verify the new prices before saving to your live menu.'}
+              Select items below to enter their new prices directly. Selected items automatically float to the top.
             </p>
           </div>
-          <div className="flex items-center gap-1.5 text-xs font-bold">
-            <span
-              className={`px-2.5 py-1 rounded-full ${
-                step === 'select'
-                  ? 'bg-slate-900 text-teal-400'
-                  : 'bg-emerald-100 text-emerald-700'
-              }`}
-            >
-              1. Select
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-teal-500/10 text-teal-800 border border-teal-500/20">
+              {selectedItemIds.size} Selected
             </span>
-            <span className="text-slate-300">→</span>
-            <span
-              className={`px-2.5 py-1 rounded-full ${
-                step === 'preview'
-                  ? 'bg-slate-900 text-teal-400'
-                  : 'bg-slate-100 text-slate-400'
-              }`}
-            >
-              2. Preview & Confirm
-            </span>
+            {changesSummary.length > 0 && (
+              <span className="px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-500/10 text-emerald-800 border border-emerald-500/20 flex items-center gap-1">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                {changesSummary.length} Modified
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Error Notification */}
+        {/* Error Alert */}
         {errorMessage && (
-          <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-start gap-3 text-xs animate-shake">
+          <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 flex items-start gap-2.5 text-xs animate-shake">
             <AlertCircle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
             <div className="flex-1">
-              <span className="font-bold">Price update failed:</span> {errorMessage}
+              <span className="font-bold">Error updating prices:</span> {errorMessage}
             </div>
           </div>
         )}
 
-        {/* ========================================================================= */}
-        {/* STEP 1: ITEM SELECTION & PRICE RULE FORMULA                               */}
-        {/* ========================================================================= */}
-        {step === 'select' && (
-          <div className="space-y-5">
-            {/* Search & Category Filter Toolbar */}
-            <div className="grid grid-cols-1 sm:grid-cols-12 gap-3">
-              <div className="sm:col-span-6 relative">
-                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-                <Input
-                  placeholder="Search items by name..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-9 text-xs h-9 bg-slate-50"
-                />
-              </div>
+        {/* Search & Category Filter Toolbar */}
+        <div className="grid grid-cols-1 sm:grid-cols-12 gap-2.5">
+          <div className="sm:col-span-6 relative">
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+            <Input
+              placeholder="Search dishes or items..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9 text-xs h-9 bg-slate-50 border-slate-300"
+            />
+          </div>
 
-              <div className="sm:col-span-6 flex items-center gap-2">
-                <select
-                  value={selectedCategoryFilter}
-                  onChange={(e) => setSelectedCategoryFilter(e.target.value)}
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-950 font-medium h-9"
-                >
-                  <option value="all">All Categories ({items.length})</option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name} (
-                      {items.filter((i) => i.category_id === cat.id).length})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
+          <div className="sm:col-span-6 flex items-center gap-2">
+            <select
+              value={selectedCategoryFilter}
+              onChange={(e) => setSelectedCategoryFilter(e.target.value)}
+              className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-lg text-slate-900 focus:outline-none focus:ring-2 focus:ring-slate-950 font-medium h-9"
+            >
+              <option value="all">All Categories ({items.length})</option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name} ({items.filter((i) => i.category_id === cat.id).length})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
 
-            {/* Quick Selection Actions Bar */}
-            <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-slate-50 rounded-xl border border-slate-200 text-xs">
-              <div className="flex items-center gap-2">
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  onClick={handleSelectAllFiltered}
-                  className="text-xs h-7.5 px-2.5 bg-white font-semibold"
-                >
-                  <CheckSquare className="w-3.5 h-3.5 mr-1 text-teal-600" />
-                  Select All Filtered ({filteredItems.length})
-                </Button>
+        {/* Quick Selection Toolbar */}
+        <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-slate-50 rounded-xl border border-slate-200 text-xs">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <Button
+              type="button"
+              size="sm"
+              variant="outline"
+              onClick={() => handleSelectAllFiltered(displayItems)}
+              className="text-xs h-7.5 px-2.5 bg-white font-semibold"
+            >
+              <CheckSquare className="w-3.5 h-3.5 mr-1 text-teal-600" />
+              Select All Filtered ({displayItems.length})
+            </Button>
 
-                {selectedItemIds.size > 0 && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="ghost"
-                    onClick={handleClearSelection}
-                    className="text-xs h-7.5 px-2.5 text-slate-500 hover:text-slate-800"
-                  >
-                    <Square className="w-3.5 h-3.5 mr-1" />
-                    Clear Selection
-                  </Button>
-                )}
-              </div>
-
-              {/* Quick Select by Category Shortcut */}
-              <div className="flex items-center gap-1.5 text-xs text-slate-600">
-                <span className="hidden sm:inline font-medium text-[11px]">Quick Add Category:</span>
-                <select
-                  onChange={(e) => {
-                    handleSelectByCategory(e.target.value);
-                    e.target.value = '';
-                  }}
-                  defaultValue=""
-                  className="px-2 py-1 text-xs bg-white border border-slate-300 rounded-md font-medium text-slate-700"
-                >
-                  <option value="" disabled>
-                    + Select Category
-                  </option>
-                  {categories.map((cat) => (
-                    <option key={cat.id} value={cat.id}>
-                      {cat.name} ({items.filter((i) => i.category_id === cat.id).length})
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            {/* Selection Counter Badge */}
-            <div className="flex items-center justify-between text-xs px-1">
-              <span className="font-bold text-slate-700">
-                Selected Items:{' '}
-                <span className="px-2 py-0.5 bg-teal-500/20 text-teal-900 rounded-md font-black">
-                  {selectedItemIds.size} of {items.length} items
-                </span>
-              </span>
-              <span className="text-slate-400 text-[11px]">
-                Showing {filteredItems.length} filtered items
-              </span>
-            </div>
-
-            {/* Scrollable Item Table */}
-            <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs max-h-56 overflow-y-auto divide-y divide-slate-100 bg-white">
-              {filteredItems.length === 0 ? (
-                <div className="p-8 text-center text-xs text-slate-400">
-                  No items match your search filter.
-                </div>
-              ) : (
-                filteredItems.map((item) => {
-                  const isChecked = selectedItemIds.has(item.id);
-                  const catName = item.category_id
-                    ? categoryMap.get(item.category_id) || 'Uncategorized'
-                    : 'Uncategorized';
-
-                  return (
-                    <div
-                      key={item.id}
-                      onClick={() => toggleItemSelection(item.id)}
-                      className={`flex items-center justify-between px-3.5 py-2.5 text-xs transition-colors cursor-pointer select-none ${
-                        isChecked
-                          ? 'bg-teal-50/70 hover:bg-teal-100/60'
-                          : 'hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3 min-w-0 pr-2">
-                        <input
-                          type="checkbox"
-                          checked={isChecked}
-                          onChange={() => {}} // Handled by parent div
-                          className="w-4 h-4 rounded text-teal-600 focus:ring-teal-500 border-slate-300 cursor-pointer shrink-0"
-                        />
-                        <div className="min-w-0">
-                          <p className="font-bold text-slate-900 truncate">{item.name}</p>
-                          <p className="text-[11px] text-slate-400 truncate">{catName}</p>
-                        </div>
-                      </div>
-                      <div className="text-right shrink-0">
-                        <span className="font-mono font-bold text-slate-800">
-                          {formatCurrency(item.price, currencySymbol)}
-                        </span>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
-            </div>
-
-            {/* =================================================================== */}
-            {/* PRICE UPDATE METHOD CONFIGURATION                                   */}
-            {/* =================================================================== */}
-            <div className="p-4 bg-slate-900 rounded-2xl text-white space-y-4 shadow-sm border border-slate-800">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Tag className="w-4 h-4 text-teal-400" />
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-teal-300">
-                    Price Update Formula
-                  </h4>
-                </div>
-                <span className="text-[11px] text-slate-400 font-medium">
-                  Active Method: {method.toUpperCase()}
-                </span>
-              </div>
-
-              {/* Method Selector Tabs */}
-              <div className="grid grid-cols-3 gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMethod('percentage');
-                    setInputValue('10');
-                  }}
-                  className={`p-2.5 rounded-xl text-xs font-bold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
-                    method === 'percentage'
-                      ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-slate-950 shadow-md font-black'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700/80'
-                  }`}
-                >
-                  <Percent className="w-4 h-4" />
-                  <span>Percentage (%)</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMethod('fixed');
-                    setInputValue('100');
-                  }}
-                  className={`p-2.5 rounded-xl text-xs font-bold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
-                    method === 'fixed'
-                      ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-slate-950 shadow-md font-black'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700/80'
-                  }`}
-                >
-                  <DollarSign className="w-4 h-4" />
-                  <span>Fixed Amount</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMethod('exact');
-                    setInputValue('1000');
-                  }}
-                  className={`p-2.5 rounded-xl text-xs font-bold flex flex-col items-center justify-center gap-1 transition-all cursor-pointer ${
-                    method === 'exact'
-                      ? 'bg-gradient-to-r from-teal-500 to-emerald-500 text-slate-950 shadow-md font-black'
-                      : 'bg-slate-800 text-slate-300 hover:bg-slate-700/80'
-                  }`}
-                >
-                  <Tag className="w-4 h-4" />
-                  <span>Set Exact Price</span>
-                </button>
-              </div>
-
-              {/* Formula Inputs */}
-              <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-800 space-y-3">
-                {/* Method A: Percentage */}
-                {method === 'percentage' && (
-                  <div className="space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                      <div className="flex rounded-lg overflow-hidden border border-slate-700 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => setDirection('increase')}
-                          className={`px-3 py-1.5 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors ${
-                            direction === 'increase'
-                              ? 'bg-emerald-500 text-slate-950'
-                              : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                          }`}
-                        >
-                          <TrendingUp className="w-3.5 h-3.5" /> Increase (+)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDirection('decrease')}
-                          className={`px-3 py-1.5 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors ${
-                            direction === 'decrease'
-                              ? 'bg-rose-500 text-white'
-                              : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                          }`}
-                        >
-                          <TrendingDown className="w-3.5 h-3.5" /> Decrease (-)
-                        </button>
-                      </div>
-
-                      <div className="flex-1 flex items-center gap-2">
-                        <span className="text-xs text-slate-300 font-medium whitespace-nowrap">
-                          By:
-                        </span>
-                        <div className="relative flex-1">
-                          <Input
-                            type="number"
-                            min="0"
-                            step="any"
-                            placeholder="e.g. 10"
-                            value={inputValue}
-                            onChange={(e) => setInputValue(e.target.value)}
-                            className="bg-slate-900 border-slate-700 text-white font-mono font-bold pr-8 text-xs h-8.5"
-                          />
-                          <span className="absolute right-3 top-2 text-xs font-bold text-slate-400">
-                            %
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Quick percentage presets */}
-                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                      <span className="text-[10px] text-slate-400 font-semibold mr-1">
-                        Quick presets:
-                      </span>
-                      {['5', '10', '15', '20', '25'].map((pct) => (
-                        <button
-                          key={pct}
-                          type="button"
-                          onClick={() => setInputValue(pct)}
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-colors cursor-pointer ${
-                            inputValue === pct
-                              ? 'bg-teal-500/20 text-teal-300 border-teal-500/40'
-                              : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200'
-                          }`}
-                        >
-                          {pct}%
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Method B: Fixed Amount */}
-                {method === 'fixed' && (
-                  <div className="space-y-3">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                      <div className="flex rounded-lg overflow-hidden border border-slate-700 shrink-0">
-                        <button
-                          type="button"
-                          onClick={() => setDirection('increase')}
-                          className={`px-3 py-1.5 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors ${
-                            direction === 'increase'
-                              ? 'bg-emerald-500 text-slate-950'
-                              : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                          }`}
-                        >
-                          <TrendingUp className="w-3.5 h-3.5" /> Increase (+)
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setDirection('decrease')}
-                          className={`px-3 py-1.5 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors ${
-                            direction === 'decrease'
-                              ? 'bg-rose-500 text-white'
-                              : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                          }`}
-                        >
-                          <TrendingDown className="w-3.5 h-3.5" /> Decrease (-)
-                        </button>
-                      </div>
-
-                      <div className="flex-1 flex items-center gap-2">
-                        <span className="text-xs text-slate-300 font-medium whitespace-nowrap">
-                          Amount ({currencySymbol}):
-                        </span>
-                        <Input
-                          type="number"
-                          min="0"
-                          step="any"
-                          placeholder="e.g. 100"
-                          value={inputValue}
-                          onChange={(e) => setInputValue(e.target.value)}
-                          className="bg-slate-900 border-slate-700 text-white font-mono font-bold text-xs h-8.5"
-                        />
-                      </div>
-                    </div>
-
-                    {/* Quick amount presets */}
-                    <div className="flex flex-wrap items-center gap-1.5 pt-1">
-                      <span className="text-[10px] text-slate-400 font-semibold mr-1">
-                        Quick presets:
-                      </span>
-                      {['50', '100', '200', '500', '1000'].map((amt) => (
-                        <button
-                          key={amt}
-                          type="button"
-                          onClick={() => setInputValue(amt)}
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold border transition-colors cursor-pointer ${
-                            inputValue === amt
-                              ? 'bg-teal-500/20 text-teal-300 border-teal-500/40'
-                              : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200'
-                          }`}
-                        >
-                          +{amt}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-
-                {/* Method C: Set Exact Price */}
-                {method === 'exact' && (
-                  <div className="space-y-2">
-                    <div className="flex flex-col sm:flex-row sm:items-center gap-3">
-                      <span className="text-xs text-slate-300 font-medium whitespace-nowrap">
-                        Assign Exact Price ({currencySymbol}) for all selected:
-                      </span>
-                      <Input
-                        type="number"
-                        min="0"
-                        step="any"
-                        placeholder="e.g. 1200"
-                        value={inputValue}
-                        onChange={(e) => setInputValue(e.target.value)}
-                        className="bg-slate-900 border-slate-700 text-white font-mono font-bold text-xs h-8.5 flex-1"
-                      />
-                    </div>
-                    <p className="text-[11px] text-slate-400">
-                      Note: Setting an exact price will overwrite the current price of all{' '}
-                      {selectedItemIds.size} selected items with this exact value (0.00 is allowed).
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Step 1 Footer Action Bar */}
-            <div className="flex items-center justify-between pt-3 border-t border-slate-200">
-              <Button type="button" variant="outline" onClick={handleResetAndClose} size="sm">
-                Cancel
-              </Button>
-
+            {selectedItemIds.size > 0 && (
               <Button
                 type="button"
-                onClick={() => setStep('preview')}
-                disabled={selectedItemIds.size === 0 || !isInputValid}
-                className="gap-2 font-bold shadow-xs"
                 size="sm"
+                variant="ghost"
+                onClick={handleClearSelection}
+                className="text-xs h-7.5 px-2.5 text-slate-500 hover:text-slate-800"
               >
-                <span>Preview Price Updates ({selectedItemIds.size})</span>
-                <ArrowRight className="w-4 h-4" />
+                <Square className="w-3.5 h-3.5 mr-1" />
+                Clear Selection
               </Button>
+            )}
+          </div>
+
+          {/* Quick Add by Category */}
+          <div className="flex items-center gap-1.5 text-xs text-slate-600">
+            <span className="hidden sm:inline font-medium text-[11px]">Select Category:</span>
+            <select
+              onChange={(e) => {
+                handleSelectByCategory(e.target.value);
+                e.target.value = '';
+              }}
+              defaultValue=""
+              className="px-2 py-1 text-xs bg-white border border-slate-300 rounded-md font-medium text-slate-700"
+            >
+              <option value="" disabled>
+                + Choose Category
+              </option>
+              {categories.map((cat) => (
+                <option key={cat.id} value={cat.id}>
+                  {cat.name} ({items.filter((i) => i.category_id === cat.id).length})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* ========================================================================= */}
+        {/* DIRECT SPREADSHEET PRICE TABLE                                            */}
+        {/* ========================================================================= */}
+        <div className="border border-slate-200 rounded-2xl overflow-hidden shadow-2xs bg-white">
+          {/* Table Header */}
+          <div className="grid grid-cols-12 gap-2 px-4 py-2.5 bg-slate-900 text-[11px] font-bold text-slate-200 uppercase tracking-wider sticky top-0 z-10">
+            <div className="col-span-6 sm:col-span-5 flex items-center gap-2">
+              <span>Item &amp; Category</span>
+            </div>
+            <div className="col-span-3 sm:col-span-3 text-right">
+              <span>Current Price</span>
+            </div>
+            <div className="col-span-3 sm:col-span-4 text-right">
+              <span>New Item Price ({currencySymbol})</span>
             </div>
           </div>
-        )}
 
-        {/* ========================================================================= */}
-        {/* STEP 2: LIVE PREVIEW & CONFIRMATION                                       */}
-        {/* ========================================================================= */}
-        {step === 'preview' && (
-          <div className="space-y-5">
-            {/* Operation Overview Banner */}
-            <div className="p-4 bg-teal-500/10 border-2 border-teal-500/30 rounded-2xl space-y-1.5">
-              <div className="flex items-center gap-2 text-xs font-bold text-teal-800 uppercase tracking-wider">
-                <Sparkles className="w-4 h-4 text-teal-600" />
-                <span>Price Update Summary</span>
+          {/* Table Rows */}
+          <div className="max-h-[380px] overflow-y-auto divide-y divide-slate-100">
+            {displayItems.length === 0 ? (
+              <div className="p-10 text-center text-xs text-slate-400 space-y-1">
+                <Search className="w-6 h-6 text-slate-300 mx-auto mb-2" />
+                <p className="font-semibold text-slate-600">No items match your filter</p>
+                <p className="text-[11px]">Try clearing search or choosing another category.</p>
               </div>
-              <p className="text-xs text-slate-800 leading-relaxed font-medium">
-                {method === 'percentage' && (
-                  <>
-                    You are about to{' '}
-                    <strong className="text-teal-900">{direction} the prices</strong> of{' '}
-                    <strong>{previewItems.length} items</strong> by{' '}
-                    <strong>{inputValue}%</strong>.
-                  </>
-                )}
-                {method === 'fixed' && (
-                  <>
-                    You are about to{' '}
-                    <strong className="text-teal-900">{direction} the prices</strong> of{' '}
-                    <strong>{previewItems.length} items</strong> by{' '}
-                    <strong>
-                      {formatCurrency(numericValue, currencySymbol)}
-                    </strong>
-                    .
-                  </>
-                )}
-                {method === 'exact' && (
-                  <>
-                    You are about to set the exact price of{' '}
-                    <strong>{previewItems.length} items</strong> to{' '}
-                    <strong>
-                      {formatCurrency(numericValue, currencySymbol)}
-                    </strong>
-                    .
-                  </>
-                )}
-              </p>
-            </div>
+            ) : (
+              displayItems.map((item) => {
+                const isSelected = selectedItemIds.has(item.id);
+                const oldPrice = typeof item.price === 'number' ? item.price : 0;
+                const priceInputValue = editedPrices[item.id] !== undefined ? editedPrices[item.id] : oldPrice.toString();
+                const numericNewPrice = parseFloat(priceInputValue);
+                const isValidNewPrice = !isNaN(numericNewPrice) && numericNewPrice >= 0;
+                const difference = isValidNewPrice ? Math.round((numericNewPrice - oldPrice + Number.EPSILON) * 100) / 100 : 0;
+                const isIncreased = difference > 0;
+                const isDecreased = difference < 0;
 
-            {/* Live Comparison Table */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between text-xs font-bold text-slate-700 px-1">
-                <span>Detailed Price Comparison:</span>
-                <span className="text-teal-700 font-extrabold">
-                  {previewItems.length} items will be updated
-                </span>
-              </div>
+                const catName = item.category_id
+                  ? categoryMap.get(item.category_id) || 'Uncategorized'
+                  : 'Uncategorized';
 
-              <div className="border border-slate-200 rounded-xl overflow-hidden shadow-2xs max-h-64 overflow-y-auto divide-y divide-slate-100 bg-white">
-                <div className="grid grid-cols-12 gap-2 px-3.5 py-2 bg-slate-50 text-[11px] font-bold text-slate-500 uppercase tracking-wider sticky top-0 z-10 border-b border-slate-200">
-                  <div className="col-span-5">Item &amp; Category</div>
-                  <div className="col-span-3 text-right">Current Price</div>
-                  <div className="col-span-4 text-right">New Price (Diff)</div>
-                </div>
+                const hasVars = item.variations && item.variations.length > 0;
+                const itemVars = editedVariations[item.id] || item.variations || [];
+                const isExpanded = expandedVariations.has(item.id);
 
-                {previewItems.map(({ item, oldPrice, newPrice, difference, categoryName }) => {
-                  const isIncreased = difference > 0;
-                  const isDecreased = difference < 0;
-
-                  return (
-                    <div
-                      key={item.id}
-                      className="grid grid-cols-12 gap-2 px-3.5 py-2.5 text-xs items-center hover:bg-slate-50/80 transition-colors"
-                    >
-                      <div className="col-span-5 min-w-0 pr-1">
-                        <p className="font-bold text-slate-900 truncate">{item.name}</p>
-                        <p className="text-[10px] text-slate-400 truncate">{categoryName}</p>
+                return (
+                  <div
+                    key={item.id}
+                    className={`transition-colors ${
+                      isSelected
+                        ? 'bg-teal-50/40 hover:bg-teal-50/70 border-l-4 border-teal-500'
+                        : 'hover:bg-slate-50/80'
+                    }`}
+                  >
+                    {/* Main Item Row */}
+                    <div className="grid grid-cols-12 gap-2 px-4 py-3 text-xs items-center">
+                      {/* Item Info & Checkbox */}
+                      <div className="col-span-6 sm:col-span-5 flex items-start gap-2.5 min-w-0 pr-1">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleItemSelection(item)}
+                          className="w-4 h-4 mt-0.5 rounded text-teal-600 focus:ring-teal-500 border-slate-300 cursor-pointer shrink-0"
+                          title="Select item for price update"
+                        />
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span
+                              onClick={() => toggleItemSelection(item)}
+                              className={`font-bold truncate cursor-pointer select-none ${
+                                isSelected ? 'text-slate-950 font-extrabold' : 'text-slate-800'
+                              }`}
+                            >
+                              {item.name}
+                            </span>
+                            {isSelected && (
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-black uppercase tracking-wider bg-teal-500 text-slate-950">
+                                Active
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[10px] text-slate-400 truncate">{catName}</span>
+                            {hasVars && (
+                              <button
+                                type="button"
+                                onClick={() => toggleExpandVariations(item.id)}
+                                className="inline-flex items-center gap-0.5 text-[10px] text-teal-700 font-bold hover:underline cursor-pointer"
+                              >
+                                <span>{itemVars.length} variations</span>
+                                {isExpanded ? (
+                                  <ChevronUp className="w-3 h-3" />
+                                ) : (
+                                  <ChevronDown className="w-3 h-3" />
+                                )}
+                              </button>
+                            )}
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="col-span-3 text-right font-mono text-slate-500">
+                      {/* Current Price */}
+                      <div className="col-span-3 sm:col-span-3 text-right font-mono font-semibold text-slate-600">
                         {formatCurrency(oldPrice, currencySymbol)}
                       </div>
 
-                      <div className="col-span-4 text-right font-mono">
-                        <span className="font-bold text-slate-900">
-                          {formatCurrency(newPrice, currencySymbol)}
-                        </span>
-                        {difference !== 0 && (
-                          <span
-                            className={`block text-[10px] font-bold ${
-                              isIncreased
-                                ? 'text-emerald-600'
-                                : isDecreased
-                                ? 'text-rose-600'
-                                : 'text-slate-400'
-                            }`}
+                      {/* New Item Price Input Column */}
+                      <div className="col-span-3 sm:col-span-4 flex flex-col items-end gap-1">
+                        {isSelected ? (
+                          <div className="w-full max-w-[170px] space-y-1">
+                            <div className="relative">
+                              <Input
+                                type="number"
+                                min="0"
+                                step="any"
+                                value={priceInputValue}
+                                onChange={(e) => handlePriceChange(item.id, e.target.value)}
+                                placeholder="0.00"
+                                className={`text-right font-mono font-bold text-xs h-8.5 pr-2 bg-white transition-all ${
+                                  difference !== 0
+                                    ? 'border-teal-500 ring-2 ring-teal-500/20 text-slate-950 bg-teal-50/30'
+                                    : 'border-slate-300 text-slate-900'
+                                }`}
+                              />
+                            </div>
+
+                            {/* Difference indicator */}
+                            <div className="flex items-center justify-end gap-1 text-[10px] font-bold font-mono">
+                              {difference !== 0 ? (
+                                <span
+                                  className={`inline-flex items-center gap-0.5 px-1.5 py-0.2 rounded-md ${
+                                    isIncreased
+                                      ? 'bg-emerald-100 text-emerald-800'
+                                      : 'bg-rose-100 text-rose-800'
+                                  }`}
+                                >
+                                  {isIncreased ? (
+                                    <ArrowUpRight className="w-3 h-3 text-emerald-600" />
+                                  ) : (
+                                    <ArrowDownRight className="w-3 h-3 text-rose-600" />
+                                  )}
+                                  {isIncreased ? '+' : ''}
+                                  {formatCurrency(difference, currencySymbol)}
+                                </span>
+                              ) : (
+                                <span className="text-slate-400 font-normal">No change</span>
+                              )}
+
+                              {difference !== 0 && (
+                                <button
+                                  type="button"
+                                  onClick={() => handleResetItemPrice(item)}
+                                  title="Reset to original price"
+                                  className="text-slate-400 hover:text-slate-700 p-0.5 cursor-pointer"
+                                >
+                                  <RotateCcw className="w-2.5 h-2.5" />
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            type="button"
+                            onClick={() => toggleItemSelection(item)}
+                            className="px-2.5 py-1 text-[11px] font-semibold text-slate-400 hover:text-teal-700 bg-slate-100 hover:bg-teal-50 rounded-lg transition-colors cursor-pointer"
                           >
-                            {isIncreased ? '+' : ''}
-                            {formatCurrency(difference, currencySymbol)}
-                          </span>
+                            + Click to Edit
+                          </button>
                         )}
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            </div>
 
-            {/* Confirmation Box */}
-            <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex items-start gap-2.5 text-xs text-slate-700">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-              <div>
-                <strong>Are you sure you want to apply these price updates?</strong>
-                <p className="text-slate-500 text-[11px] mt-0.5">
-                  This will safely update the selected catalog items in your database and live QR catalog.
-                </p>
-              </div>
-            </div>
+                    {/* Nested Variations Rows (If Expanded) */}
+                    {isSelected && hasVars && isExpanded && (
+                      <div className="bg-slate-50/90 px-6 py-2.5 border-t border-slate-200/80 space-y-2">
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1">
+                          <Layers className="w-3 h-3 text-teal-600" />
+                          <span>Portion / Size Variations for {item.name}:</span>
+                        </div>
 
-            {/* Step 2 Footer Action Bar */}
-            <div className="flex items-center justify-between pt-3 border-t border-slate-200">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => setStep('select')}
-                disabled={isUpdating}
-                size="sm"
-                className="gap-1.5"
-              >
-                <ArrowLeft className="w-4 h-4" />
-                <span>Back to Edit</span>
-              </Button>
+                        <div className="space-y-1.5 divide-y divide-slate-200/50">
+                          {itemVars.map((v, vIdx) => {
+                            const origVarPrice = item.variations?.[vIdx]?.price ?? 0;
+                            const varDiff = Math.round(((v.price ?? 0) - origVarPrice + Number.EPSILON) * 100) / 100;
+                            const isVarInc = varDiff > 0;
+                            const isVarDec = varDiff < 0;
 
-              <Button
-                type="button"
-                onClick={handleApplyUpdates}
-                disabled={isUpdating || previewItems.length === 0}
-                className="gap-2 font-bold bg-teal-600 hover:bg-teal-500 shadow-md"
-                size="sm"
-              >
-                {isUpdating ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Updating Prices...</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Update Prices ({previewItems.length} items)</span>
-                  </>
-                )}
-              </Button>
-            </div>
+                            return (
+                              <div
+                                key={vIdx}
+                                className="grid grid-cols-12 gap-2 pt-1.5 text-xs items-center"
+                              >
+                                <div className="col-span-5 text-slate-700 font-medium pl-2 truncate">
+                                  ↳ {v.name}
+                                </div>
+                                <div className="col-span-3 text-right font-mono text-[11px] text-slate-500">
+                                  {formatCurrency(origVarPrice, currencySymbol)}
+                                </div>
+                                <div className="col-span-4 flex items-center justify-end gap-1.5">
+                                  <Input
+                                    type="number"
+                                    min="0"
+                                    step="any"
+                                    value={v.price ?? 0}
+                                    onChange={(e) =>
+                                      handleVariationPriceChange(item.id, vIdx, e.target.value)
+                                    }
+                                    className="w-24 text-right font-mono font-bold text-xs h-7.5 bg-white border-slate-300"
+                                  />
+                                  {varDiff !== 0 && (
+                                    <span
+                                      className={`text-[9px] font-bold font-mono px-1 py-0.5 rounded ${
+                                        isVarInc
+                                          ? 'bg-emerald-100 text-emerald-800'
+                                          : 'bg-rose-100 text-rose-800'
+                                      }`}
+                                    >
+                                      {isVarInc ? '+' : ''}
+                                      {formatCurrency(varDiff, currencySymbol)}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
           </div>
-        )}
+        </div>
+
+        {/* ========================================================================= */}
+        {/* MODAL FOOTER ACTION BAR                                                  */}
+        {/* ========================================================================= */}
+        <div className="flex flex-col sm:flex-row items-center justify-between pt-3 border-t border-slate-200 gap-3">
+          <div className="text-xs text-slate-600 font-medium">
+            {changesSummary.length > 0 ? (
+              <span>
+                Ready to save{' '}
+                <strong className="text-emerald-700 font-black">
+                  {changesSummary.length} price update{changesSummary.length === 1 ? '' : 's'}
+                </strong>
+                .
+              </span>
+            ) : selectedItemIds.size > 0 ? (
+              <span>
+                {selectedItemIds.size} item{selectedItemIds.size === 1 ? '' : 's'} selected. Type new prices above to apply changes.
+              </span>
+            ) : (
+              <span>Select items from the list to update prices.</span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleResetAndClose}
+              disabled={isUpdating}
+              size="sm"
+            >
+              Cancel
+            </Button>
+
+            <Button
+              type="button"
+              onClick={handleSavePriceUpdates}
+              disabled={isUpdating || selectedItemIds.size === 0}
+              className="gap-2 font-bold bg-teal-600 hover:bg-teal-500 text-slate-950 shadow-md text-xs px-4"
+              size="sm"
+            >
+              {isUpdating ? (
+                <>
+                  <RefreshCw className="w-4 h-4 animate-spin" />
+                  <span>Saving Updates...</span>
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  <span>
+                    Save Price Updates ({changesSummary.length > 0 ? changesSummary.length : selectedItemIds.size})
+                  </span>
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
       </div>
     </Modal>
   );
