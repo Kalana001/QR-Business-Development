@@ -225,9 +225,12 @@ export default function AdminIncomePage() {
     };
   }, [payments, businesses]);
 
-  // Filtered Payments List
+  // Filtered Payments List (Excluding Free Tier)
   const filteredPayments = useMemo(() => {
     return payments.filter((p) => {
+      // Exclude free package customers from payment & receipt ledger
+      if (p.plan === 'free') return false;
+
       const bName = p.businesses?.name?.toLowerCase() || '';
       const bSlug = p.businesses?.slug?.toLowerCase() || '';
       const receiptNo = `rcp-${new Date(p.created_at).getFullYear()}-${p.id.slice(0, 6)}`.toLowerCase();
@@ -530,11 +533,10 @@ export default function AdminIncomePage() {
                 onChange={(e) => setSelectedPlanFilter(e.target.value)}
                 className="px-2.5 py-1.5 rounded-xl bg-slate-950 border border-slate-800 text-xs text-slate-300 focus:outline-hidden focus:border-teal-500"
               >
-                <option value="all">All Plans</option>
+                <option value="all">All Paid Plans</option>
                 <option value="pro">Pro Growth</option>
                 <option value="enterprise">Business Plus</option>
                 <option value="enterprise_gift">Free Trial / Gift</option>
-                <option value="free">Starter Free</option>
               </select>
 
               <select
