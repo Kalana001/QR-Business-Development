@@ -607,15 +607,15 @@ export default function SuperAdminDashboardPage() {
       <Modal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
-        title={`Approve Subscription — ${selectedBiz?.name}`}
-        maxWidth="lg"
+        title={`Manage Subscription & Business Tier — ${selectedBiz?.name}`}
+        maxWidth="xl"
         footer={
           <>
             <Button type="button" variant="outline" onClick={() => setIsModalOpen(false)}>
               Cancel
             </Button>
             <Button type="submit" form="approval-form" isLoading={submitting} className="bg-teal-500 hover:bg-teal-400 text-slate-950 font-bold">
-              Approve & Activate 1 Month
+              Save & Activate {endDateStr ? `(Valid until ${new Date(endDateStr).toLocaleDateString()})` : ''}
             </Button>
           </>
         }
@@ -632,6 +632,31 @@ export default function SuperAdminDashboardPage() {
             <div className="p-3 bg-rose-500/10 border border-rose-500/30 rounded-xl text-rose-400 text-xs font-semibold flex items-center gap-2">
               <AlertCircle className="w-4 h-4 shrink-0" />
               <span>{errorMsg}</span>
+            </div>
+          )}
+
+          {/* Current Subscription Standing Card */}
+          {selectedBiz && (
+            <div className="p-3.5 bg-slate-100 border border-slate-300 rounded-xl flex items-center justify-between text-xs">
+              <div className="space-y-0.5">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-500">Current Standing</span>
+                <div className="font-extrabold text-slate-900 flex items-center gap-2">
+                  <span>{SUBSCRIPTION_PLANS_META[selectedBiz.subscription_plan || 'free'].name}</span>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                    getDaysRemaining(selectedBiz.subscription_end_date, selectedBiz.is_super_admin_owner).isExpired
+                      ? 'bg-rose-100 text-rose-700'
+                      : 'bg-emerald-100 text-emerald-800'
+                  }`}>
+                    {getDaysRemaining(selectedBiz.subscription_end_date, selectedBiz.is_super_admin_owner).text}
+                  </span>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="text-[10px] text-slate-500 font-semibold">Current Expiry</div>
+                <div className="text-xs font-mono font-bold text-slate-800">
+                  {selectedBiz.subscription_end_date ? new Date(selectedBiz.subscription_end_date).toLocaleDateString() : 'N/A (Perpetual Free)'}
+                </div>
+              </div>
             </div>
           )}
 
@@ -669,7 +694,7 @@ export default function SuperAdminDashboardPage() {
                       </div>
                     </div>
                     <div className="text-[10px] text-slate-500 mt-2">
-                      {plan.maxItems === null ? 'Unlimited' : `${plan.maxItems} Items limit`}
+                      {plan.maxItems === null ? 'Unlimited Items' : `${plan.maxItems} Items limit`}
                     </div>
                   </button>
                 );
@@ -678,14 +703,17 @@ export default function SuperAdminDashboardPage() {
           </div>
 
           {/* Select Billing Interval */}
-          <div className="space-y-2 pt-2">
+          <div className="space-y-2 pt-1">
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
               Select Billing Interval
             </label>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
-                onClick={() => setSelectedBillingInterval('monthly')}
+                onClick={() => {
+                  setSelectedBillingInterval('monthly');
+                  applyPresetDuration(1);
+                }}
                 className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
                   selectedBillingInterval === 'monthly'
                     ? 'border-purple-600 bg-purple-50 text-slate-900 font-extrabold shadow-sm'
@@ -698,7 +726,10 @@ export default function SuperAdminDashboardPage() {
 
               <button
                 type="button"
-                onClick={() => setSelectedBillingInterval('annual')}
+                onClick={() => {
+                  setSelectedBillingInterval('annual');
+                  applyPresetDuration(12);
+                }}
                 className={`p-3 rounded-xl border text-left transition-all cursor-pointer ${
                   selectedBillingInterval === 'annual'
                     ? 'border-purple-600 bg-purple-50 text-slate-900 font-extrabold shadow-sm'
@@ -721,7 +752,7 @@ export default function SuperAdminDashboardPage() {
             <div className="p-3 bg-purple-50 border border-purple-200 rounded-xl flex items-center justify-between text-xs">
               <div className="space-y-0.5">
                 <div className="font-extrabold text-purple-950">
-                  Approved Package: {SUBSCRIPTION_PLANS_META[selectedPlan].name} ({selectedBillingInterval === 'annual' ? 'Annual' : 'Monthly'})
+                  Selected Package: {SUBSCRIPTION_PLANS_META[selectedPlan].name} ({selectedBillingInterval === 'annual' ? 'Annual' : 'Monthly'})
                 </div>
                 <div className="text-[11px] text-purple-800">
                   {selectedBillingInterval === 'annual' 
@@ -740,26 +771,110 @@ export default function SuperAdminDashboardPage() {
             </div>
           )}
 
-          {/* Start / Payment Date Picker */}
-          <div className="space-y-1">
-            <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700">
-              Payment / Subscription Start Date
-            </label>
-            <Input
-              type="date"
-              value={startDateStr}
-              onChange={(e) => setStartDateStr(e.target.value)}
-              required
-            />
-            <p className="text-[11px] text-slate-500 mt-1">
-              Validity will be automatically extended for <strong>{selectedBillingInterval === 'annual' ? '12 months (1 year)' : '1 month'}</strong> from this start date.
-            </p>
+          {/* Dual Date Pickers & Quick Presets */}
+          <div className="space-y-3 p-4 bg-slate-50 border border-slate-200 rounded-xl">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-bold uppercase tracking-wider text-slate-800">
+                Subscription Duration &amp; Expiry Dates
+              </label>
+              <span className="text-[11px] font-semibold text-teal-700">
+                Fully Customizable
+              </span>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-slate-600">
+                  Subscription Start Date
+                </label>
+                <Input
+                  type="date"
+                  value={startDateStr}
+                  onChange={(e) => setStartDateStr(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="block text-[11px] font-bold text-slate-600">
+                  Subscription End / Expiry Date
+                </label>
+                <Input
+                  type="date"
+                  value={endDateStr}
+                  onChange={(e) => setEndDateStr(e.target.value)}
+                  required
+                />
+              </div>
+            </div>
+
+            {/* Quick 1-Click Duration & Renewal Presets */}
+            <div className="space-y-1.5 pt-2 border-t border-slate-200">
+              <div className="text-[10px] font-bold uppercase tracking-wider text-slate-500">
+                1-Click Quick Presets (From Start Date):
+              </div>
+              <div className="flex flex-wrap items-center gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => applyPresetDuration(1)}
+                  className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-[11px] font-bold text-slate-700 transition-colors cursor-pointer"
+                >
+                  +1 Month
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyPresetDuration(3)}
+                  className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-[11px] font-bold text-slate-700 transition-colors cursor-pointer"
+                >
+                  +3 Months
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyPresetDuration(6)}
+                  className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-[11px] font-bold text-slate-700 transition-colors cursor-pointer"
+                >
+                  +6 Months
+                </button>
+                <button
+                  type="button"
+                  onClick={() => applyPresetDuration(12)}
+                  className="px-2.5 py-1 bg-white hover:bg-slate-100 border border-slate-300 rounded-lg text-[11px] font-bold text-slate-700 transition-colors cursor-pointer"
+                >
+                  +1 Year
+                </button>
+              </div>
+
+              {/* Advance Payment from Current Expiry Presets */}
+              {selectedBiz?.subscription_end_date && new Date(selectedBiz.subscription_end_date) > new Date() && (
+                <div className="pt-2">
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-emerald-700">
+                    Advance Payment / Renewal Extension (From Current Expiry):
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-1">
+                    <button
+                      type="button"
+                      onClick={() => applyPresetDuration(1, true)}
+                      className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg text-[11px] font-bold text-emerald-800 transition-colors cursor-pointer"
+                    >
+                      +1 Mo from Expiry
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => applyPresetDuration(12, true)}
+                      className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 border border-emerald-300 rounded-lg text-[11px] font-bold text-emerald-800 transition-colors cursor-pointer"
+                    >
+                      +1 Yr from Expiry
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
 
           {/* Public Catalog URL Slug Admin Unlock & Override */}
-          <div className="space-y-1 pt-3 border-t border-slate-200">
+          <div className="space-y-1 pt-2 border-t border-slate-200">
             <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 flex items-center justify-between">
-              <span>Public Catalog URL Slug (Admin Unlock & Override)</span>
+              <span>Public Catalog URL Slug (Admin Unlock &amp; Override)</span>
               <span className="text-[10px] text-purple-700 font-extrabold uppercase bg-purple-50 px-2 py-0.5 rounded-md border border-purple-200">
                 Admin Unlock
               </span>
