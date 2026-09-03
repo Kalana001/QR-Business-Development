@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { 
   QrCode, Store, Utensils, BookOpen, Scissors, ArrowRight, ShieldCheck, 
   Smartphone, CheckCircle, Laptop, Printer, MessageSquare, Sparkles, 
-  Layers, SlidersHorizontal, FileSpreadsheet, BarChart3, CheckCircle2 
+  Layers, SlidersHorizontal, FileSpreadsheet, BarChart3, CheckCircle2,
+  ShoppingCart, Palette
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { BillingInterval, calculatePackageDiscount } from '@/lib/types';
@@ -222,10 +223,10 @@ export default function LandingPage() {
 
                     <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-1.5">
                       <div className="p-2 bg-emerald-500/10 text-emerald-400 rounded-lg w-fit">
-                        <MessageSquare className="w-4 h-4" />
+                        <ShoppingCart className="w-4 h-4" />
                       </div>
-                      <h4 className="text-sm font-bold text-white">1-Click WhatsApp Orders</h4>
-                      <p className="text-xs text-slate-400">Selected dish, portion size, and price pre-fill the customer&apos;s WhatsApp chat.</p>
+                      <h4 className="text-sm font-bold text-white">1-Click Add to Cart</h4>
+                      <p className="text-xs text-slate-400">Customers select portion sizes, adjust quantities, and build their order seamlessly.</p>
                     </div>
 
                     <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-1.5">
@@ -380,10 +381,10 @@ export default function LandingPage() {
 
                     <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-1.5">
                       <div className="p-2 bg-purple-500/10 text-purple-400 rounded-lg w-fit">
-                        <QrCode className="w-4 h-4" />
+                        <Palette className="w-4 h-4" />
                       </div>
-                      <h4 className="text-sm font-bold text-white">Custom Table Numbers</h4>
-                      <p className="text-xs text-slate-400">Generate table-specific QR flyers so staff know exactly where orders originate.</p>
+                      <h4 className="text-sm font-bold text-white">Custom Brand &amp; Logo Styling</h4>
+                      <p className="text-xs text-slate-400">Embed your restaurant logo, custom tagline, and brand colors onto ready-to-print flyers.</p>
                     </div>
 
                     <div className="p-4 bg-slate-950/60 border border-slate-800 rounded-2xl space-y-1.5">
