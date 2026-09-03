@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  Search, Phone, Mail, MapPin, Globe, Star, Clock, CheckCircle2, AlertCircle, X, ChevronRight, Store, BookOpen, Scissors, Utensils 
+  Search, Phone, Mail, MapPin, Globe, Star, Clock, CheckCircle2, AlertCircle, 
+  X, ChevronRight, Store, BookOpen, Scissors, Utensils, ShoppingCart, 
+  Trash2, Plus, Minus, ShoppingBag, ArrowRight
 } from 'lucide-react';
 import { CategoryPlaceholder } from '@/components/placeholders/CategoryPlaceholder';
 import { Business, CatalogItem, Category, BUSINESS_TYPES_META, ItemVariation } from '@/lib/types';
@@ -11,6 +13,17 @@ import { CatalogThemeSettings, CATALOG_TEMPLATES, TemplateId } from '@/lib/templ
 import { BackgroundRenderer } from '@/components/catalog/BackgroundRenderer';
 import { normalizeBackgroundStyleId } from '@/lib/backgrounds';
 import { getOriginalImageUrl } from '@/lib/storage';
+
+export interface CartItem {
+  id: string; // Unique cart line item ID (e.g. `${item.id}-${variation?.name || 'default'}`)
+  itemId: string;
+  name: string;
+  imageUrl?: string | null;
+  variationName?: string | null;
+  unitPrice: number;
+  quantity: number;
+  subtotal: number;
+}
 
 interface CatalogRendererProps {
   business: Business;
@@ -34,6 +47,50 @@ export function CatalogRenderer({
   const [selectedItem, setSelectedItem] = useState<CatalogItem | null>(null);
   const [selectedVariation, setSelectedVariation] = useState<ItemVariation | null>(null);
   const [isLightboxOpen, setIsLightboxOpen] = useState<boolean>(false);
+
+  // Cart State
+  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [isCartOpen, setIsCartOpen] = useState<boolean>(false);
+  const [itemQuantity, setItemQuantity] = useState<number>(1);
+  const [showAddedToast, setShowAddedToast] = useState<boolean>(false);
+
+  const cartStorageKey = `cart_${business?.id || business?.slug || 'default'}`;
+
+  // Load cart from sessionStorage on mount
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        const saved = sessionStorage.getItem(cartStorageKey);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) {
+            setCartItems(parsed);
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load cart from session storage:', e);
+    }
+  }, [cartStorageKey]);
+
+  // Sync cart to sessionStorage whenever updated
+  useEffect(() => {
+    try {
+      if (typeof window !== 'undefined' && window.sessionStorage) {
+        sessionStorage.setItem(cartStorageKey, JSON.stringify(cartItems));
+      }
+    } catch (e) {
+      console.error('Failed to save cart to session storage:', e);
+    }
+  }, [cartItems, cartStorageKey]);
+
+  const totalCartQuantity = useMemo(() => {
+    return cartItems.reduce((sum, item) => sum + item.quantity, 0);
+  }, [cartItems]);
+
+  const totalCartPrice = useMemo(() => {
+    return cartItems.reduce((sum, item) => sum + item.subtotal, 0);
+  }, [cartItems]);
 
   const templateId = (themeSettings?.template_id || 'minimal-clean') as TemplateId;
   const templateMeta = CATALOG_TEMPLATES[templateId] || CATALOG_TEMPLATES['minimal-clean'];
@@ -80,6 +137,7 @@ export function CatalogRenderer({
 
   const handleItemClick = (item: CatalogItem) => {
     setSelectedItem(item);
+    setItemQuantity(1);
     if (item.variations && item.variations.length > 0) {
       setSelectedVariation(item.variations[0]);
     } else {
@@ -93,9 +151,82 @@ export function CatalogRenderer({
     if (onSearchChange) onSearchChange(val);
   };
 
+  // Add Item to Cart
+  const handleAddToCart = () => {
+    if (!selectedItem) return;
+    const unitPrice = selectedVariation ? selectedVariation.price : selectedItem.price;
+    const cartItemId = `${selectedItem.id}-${selectedVariation ? selectedVariation.name : 'default'}`;
+    const qty = Math.max(1, itemQuantity);
+
+    setCartItems((prev) => {
+      const existingIdx = prev.findIndex((ci) => ci.id === cartItemId);
+      if (existingIdx >= 0) {
+        const updated = [...prev];
+        const newQty = updated[existingIdx].quantity + qty;
+        updated[existingIdx] = {
+          ...updated[existingIdx],
+          quantity: newQty,
+          subtotal: newQty * unitPrice,
+        };
+        return updated;
+      } else {
+        return [
+          ...prev,
+          {
+            id: cartItemId,
+            itemId: selectedItem.id,
+            name: selectedItem.name,
+            imageUrl: selectedItem.image_url,
+            variationName: selectedVariation ? selectedVariation.name : null,
+            unitPrice,
+            quantity: qty,
+            subtotal: qty * unitPrice,
+          },
+        ];
+      }
+    });
+
+    setShowAddedToast(true);
+    setTimeout(() => {
+      setShowAddedToast(false);
+      setSelectedItem(null);
+      setItemQuantity(1);
+    }, 700);
+  };
+
+  // Modify Quantity in Cart
+  const handleUpdateCartQuantity = (cartItemId: string, delta: number) => {
+    setCartItems((prev) => {
+      return prev
+        .map((ci) => {
+          if (ci.id === cartItemId) {
+            const newQty = ci.quantity + delta;
+            if (newQty <= 0) return null;
+            return {
+              ...ci,
+              quantity: newQty,
+              subtotal: newQty * ci.unitPrice,
+            };
+          }
+          return ci;
+        })
+        .filter(Boolean) as CartItem[];
+    });
+  };
+
+  // Remove Item from Cart
+  const handleRemoveCartItem = (cartItemId: string) => {
+    setCartItems((prev) => prev.filter((ci) => ci.id !== cartItemId));
+  };
+
+  // Clear Entire Cart
+  const handleClearCart = () => {
+    setCartItems([]);
+  };
+
   return (
     <div 
-      className="min-h-screen text-slate-900 flex justify-center selection:bg-slate-900 selection:text-white transition-colors duration-300"
+      className="min-h-screen text-slate-900 flex justify-center selection:bg-slate-900 selection:text-white transition-colors duration-300 relative"
       style={{ backgroundColor: bgColor }}
     >
       {/* Mobile Viewport Container with Integrated Background Style */}
@@ -104,7 +235,7 @@ export function CatalogRenderer({
         primaryColor={primaryColor}
         accentColor={accentColor}
         isDarkTemplate={isDarkTemplate}
-        className="w-full max-w-md min-h-screen border-x shadow-2xl flex flex-col justify-between relative overflow-hidden"
+        className="w-full max-w-md min-h-screen border-x shadow-2xl flex flex-col justify-between relative overflow-hidden pb-20"
       >
         {/* Header / Brand Banner with subtle depth */}
         <header
@@ -135,16 +266,32 @@ export function CatalogRenderer({
               <span className="px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-widest bg-white/10 backdrop-blur-xs border border-white/20">
                 {bMeta.label}
               </span>
-              {business.website && (
-                <a
-                  href={business.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+              <div className="flex items-center gap-2">
+                {business.website && (
+                  <a
+                    href={business.website}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors"
+                  >
+                    <Globe className="w-3.5 h-3.5" />
+                  </a>
+                )}
+                {/* Header Cart Shortcut */}
+                <button
+                  type="button"
+                  onClick={() => setIsCartOpen(true)}
+                  className="p-2 rounded-full bg-white/10 hover:bg-white/20 transition-colors relative cursor-pointer"
+                  aria-label="Open Cart"
                 >
-                  <Globe className="w-3.5 h-3.5" />
-                </a>
-              )}
+                  <ShoppingCart className="w-3.5 h-3.5 text-white" />
+                  {totalCartQuantity > 0 && (
+                    <span className="absolute -top-1 -right-1 bg-amber-400 text-slate-950 font-black text-[9px] w-4 h-4 rounded-full flex items-center justify-center shadow-md">
+                      {totalCartQuantity}
+                    </span>
+                  )}
+                </button>
+              </div>
             </div>
 
             {/* Business Logo & Name */}
@@ -199,29 +346,51 @@ export function CatalogRenderer({
             borderColor: isDarkTemplate ? 'rgba(255, 255, 255, 0.1)' : 'rgba(226, 232, 240, 0.8)' 
           }}
         >
-          {/* Search Box */}
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3.5 top-2.5 text-slate-400" />
-            <input
-              type="text"
-              placeholder={`Search ${bMeta.itemTerm.toLowerCase()}s...`}
-              value={searchQuery}
-              onChange={(e) => handleSearchInput(e.target.value)}
-              className="w-full pl-9 pr-8 py-2 border rounded-xl text-xs focus:outline-none transition-all placeholder:text-slate-400"
+          {/* Search Box & Cart Button */}
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <Search className="w-4 h-4 absolute left-3.5 top-2.5 text-slate-400" />
+              <input
+                type="text"
+                placeholder={`Search ${bMeta.itemTerm.toLowerCase()}s...`}
+                value={searchQuery}
+                onChange={(e) => handleSearchInput(e.target.value)}
+                className="w-full pl-9 pr-8 py-2 border rounded-xl text-xs focus:outline-none transition-all placeholder:text-slate-400"
+                style={{
+                  backgroundColor: isDarkTemplate ? 'rgba(255, 255, 255, 0.08)' : '#F1F5F9',
+                  borderColor: isDarkTemplate ? 'rgba(255, 255, 255, 0.15)' : '#CBD5E1',
+                  color: textColor,
+                }}
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => handleSearchInput('')}
+                  className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsCartOpen(true)}
+              className="relative p-2.5 rounded-xl border flex items-center justify-center transition-all cursor-pointer shrink-0 shadow-xs"
               style={{
                 backgroundColor: isDarkTemplate ? 'rgba(255, 255, 255, 0.08)' : '#F1F5F9',
                 borderColor: isDarkTemplate ? 'rgba(255, 255, 255, 0.15)' : '#CBD5E1',
                 color: textColor,
               }}
-            />
-            {searchQuery && (
-              <button
-                onClick={() => handleSearchInput('')}
-                className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            )}
+              title="Open Cart"
+              aria-label="View Cart"
+            >
+              <ShoppingCart className="w-4 h-4" />
+              {totalCartQuantity > 0 && (
+                <span className="absolute -top-1.5 -right-1.5 bg-amber-400 text-slate-950 font-black text-[10px] w-5 h-5 rounded-full flex items-center justify-center shadow-md">
+                  {totalCartQuantity}
+                </span>
+              )}
+            </button>
           </div>
 
           {/* Category Pill Tabs */}
@@ -421,16 +590,19 @@ export function CatalogRenderer({
           )}
         </main>
 
-        {/* Item Details Popup Modal */}
+        {/* ========================================================================= */}
+        {/* ITEM DETAILS POPUP MODAL (WITH ADD TO CART)                               */}
+        {/* ========================================================================= */}
         {selectedItem && (() => {
           const originalImageUrl = getOriginalImageUrl(selectedItem.image_url);
           const displayImageSrc = originalImageUrl || selectedItem.image_url;
+          const currentUnitPrice = selectedVariation ? selectedVariation.price : selectedItem.price;
 
           return (
             <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-950/80 backdrop-blur-xs animate-fade-in">
               <div className="w-full max-w-md bg-slate-900 border border-slate-800 text-white rounded-t-3xl sm:rounded-3xl overflow-hidden shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
                 {/* Large Uncropped Product Image with Object-Contain */}
-                <div className="relative h-64 sm:h-72 w-full bg-slate-950 flex items-center justify-center overflow-hidden group cursor-pointer" onClick={() => setIsLightboxOpen(true)}>
+                <div className="relative h-60 sm:h-64 w-full bg-slate-950 flex items-center justify-center overflow-hidden group cursor-pointer" onClick={() => setIsLightboxOpen(true)}>
                   {displayImageSrc ? (
                     <>
                       <img
@@ -438,7 +610,6 @@ export function CatalogRenderer({
                         alt={selectedItem.name}
                         className="w-full h-full object-contain p-2"
                         onError={(e) => {
-                          // Fallback to image_url if original fails
                           if (selectedItem.image_url && e.currentTarget.src !== selectedItem.image_url) {
                             e.currentTarget.src = selectedItem.image_url;
                           }
@@ -456,15 +627,15 @@ export function CatalogRenderer({
                       e.stopPropagation();
                       setSelectedItem(null);
                     }}
-                    className="absolute top-3 right-3 p-2 bg-slate-950/80 text-white rounded-full hover:bg-slate-950 transition-colors z-10"
+                    className="absolute top-3 right-3 p-2 bg-slate-950/80 text-white rounded-full hover:bg-slate-950 transition-colors z-10 cursor-pointer"
                   >
                     <X className="w-5 h-5" />
                   </button>
                 </div>
 
-                <div className="p-6 space-y-4 overflow-y-auto">
+                <div className="p-5 space-y-4 overflow-y-auto flex-1">
                   <div className="space-y-1">
-                    <h3 className="text-lg font-bold text-white">{selectedItem.name}</h3>
+                    <h3 className="text-lg font-black text-white">{selectedItem.name}</h3>
                     {selectedItem.author && <p className="text-xs text-teal-400 font-semibold">by {selectedItem.author}</p>}
                   </div>
 
@@ -500,39 +671,74 @@ export function CatalogRenderer({
                     </div>
                   )}
 
+                  {/* Unit Price Display */}
                   <div className="flex items-center justify-between pt-2 border-t border-slate-800">
-                    <div className="text-xs text-slate-400 uppercase font-semibold">
-                      {selectedVariation ? `Price (${selectedVariation.name})` : 'Price'}
+                    <div className="text-xs text-slate-400 uppercase font-bold tracking-wider">
+                      {selectedVariation ? `Price (${selectedVariation.name})` : 'Unit Price'}
                     </div>
-                    <div className="text-xl font-black text-amber-400">
-                      {formatCurrency(selectedVariation ? selectedVariation.price : selectedItem.price, business.currency)}
+                    <div className="text-lg font-black text-amber-400 font-mono">
+                      {formatCurrency(currentUnitPrice, business.currency)}
                     </div>
                   </div>
 
-                  {/* Order via WhatsApp */}
-                  {business.phone && (
-                    <a
-                      href={`https://wa.me/${business.phone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(
-                        `Hello! I would like to order: ${selectedItem.name}${
-                          selectedVariation
-                            ? ` (${selectedVariation.name} - ${formatCurrency(selectedVariation.price, business.currency)})`
-                            : ` (${formatCurrency(selectedItem.price, business.currency)})`
-                        }`
-                      )}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs transition-colors flex items-center justify-center gap-2 cursor-pointer shadow-md"
-                    >
-                      <Phone className="w-4 h-4" /> Order via WhatsApp
-                    </a>
-                  )}
+                  {/* Quantity Counter */}
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-800">
+                    <div className="text-xs text-slate-400 uppercase font-bold tracking-wider">
+                      Quantity
+                    </div>
+                    <div className="flex items-center gap-3 bg-slate-800/90 px-3 py-1.5 rounded-xl border border-slate-700/80">
+                      <button
+                        type="button"
+                        onClick={() => setItemQuantity(Math.max(1, itemQuantity - 1))}
+                        disabled={itemQuantity <= 1}
+                        className="w-7 h-7 rounded-lg bg-slate-700 hover:bg-slate-600 disabled:opacity-40 disabled:hover:bg-slate-700 text-white font-bold flex items-center justify-center text-sm transition-colors cursor-pointer"
+                        aria-label="Decrease quantity"
+                      >
+                        <Minus className="w-3.5 h-3.5" />
+                      </button>
+                      <span className="w-8 text-center font-mono font-black text-white text-base">
+                        {itemQuantity}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setItemQuantity(itemQuantity + 1)}
+                        className="w-7 h-7 rounded-lg bg-slate-700 hover:bg-slate-600 text-white font-bold flex items-center justify-center text-sm transition-colors cursor-pointer"
+                        aria-label="Increase quantity"
+                      >
+                        <Plus className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  </div>
 
-                  <button
-                    onClick={() => setSelectedItem(null)}
-                    className="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition-colors cursor-pointer"
-                  >
-                    Close Item Details
-                  </button>
+                  {/* Add to Cart CTA */}
+                  <div className="pt-2 space-y-2">
+                    <button
+                      type="button"
+                      onClick={handleAddToCart}
+                      className="w-full py-3.5 bg-gradient-to-r from-amber-400 to-amber-500 hover:from-amber-300 hover:to-amber-400 text-slate-950 font-black rounded-xl text-sm transition-all shadow-lg hover:shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
+                    >
+                      {showAddedToast ? (
+                        <>
+                          <CheckCircle2 className="w-5 h-5 text-slate-950 animate-bounce" />
+                          <span>Added to Cart!</span>
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart className="w-4 h-4" />
+                          <span>
+                            Add to Cart — {formatCurrency(currentUnitPrice * itemQuantity, business.currency)}
+                          </span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      onClick={() => setSelectedItem(null)}
+                      className="w-full py-2.5 bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold rounded-xl text-xs transition-colors cursor-pointer"
+                    >
+                      Continue Browsing
+                    </button>
+                  </div>
                 </div>
               </div>
 
@@ -558,6 +764,187 @@ export function CatalogRenderer({
             </div>
           );
         })()}
+
+        {/* ========================================================================= */}
+        {/* FLOATING STICKY BOTTOM CART BAR                                           */}
+        {/* ========================================================================= */}
+        {totalCartQuantity > 0 && !selectedItem && (
+          <div className="fixed bottom-4 left-4 right-4 max-w-md mx-auto z-40 animate-slide-up">
+            <div
+              onClick={() => setIsCartOpen(true)}
+              className="bg-slate-900/95 backdrop-blur-md text-white p-3 px-4 rounded-2xl shadow-2xl border border-slate-700/80 flex items-center justify-between cursor-pointer hover:bg-slate-850 hover:border-amber-400/50 transition-all group"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center font-black relative shrink-0">
+                  <ShoppingCart className="w-5 h-5" />
+                  <span className="absolute -top-1.5 -right-1.5 bg-rose-500 text-white text-[10px] w-5 h-5 rounded-full flex items-center justify-center font-bold border-2 border-slate-900">
+                    {totalCartQuantity}
+                  </span>
+                </div>
+                <div>
+                  <p className="text-[11px] text-slate-400 font-medium">
+                    {totalCartQuantity} {totalCartQuantity === 1 ? 'item' : 'items'} in Cart
+                  </p>
+                  <p className="text-sm font-black text-amber-400">
+                    {formatCurrency(totalCartPrice, business.currency)}
+                  </p>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                className="px-4 py-2 bg-amber-400 group-hover:bg-amber-300 text-slate-950 font-black text-xs rounded-xl flex items-center gap-1.5 transition-colors shadow-md"
+              >
+                <span>View Cart</span>
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ========================================================================= */}
+        {/* ORDER CART DRAWER / SLIDE-OVER SHEET                                      */}
+        {/* ========================================================================= */}
+        {isCartOpen && (
+          <div 
+            className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in"
+            onClick={() => setIsCartOpen(false)}
+          >
+            <div
+              className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-t-3xl sm:rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh] text-white animate-slide-up"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Cart Header */}
+              <div className="p-4 px-5 border-b border-slate-800 flex items-center justify-between bg-slate-950/60">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-amber-400/10 text-amber-400 border border-amber-400/20">
+                    <ShoppingCart className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-white">Your Order Cart</h3>
+                    <p className="text-[10px] text-slate-400">
+                      {totalCartQuantity} {totalCartQuantity === 1 ? 'item' : 'items'} selected
+                    </p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsCartOpen(false)}
+                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-white transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* Cart Item List */}
+              <div className="p-4 space-y-3 overflow-y-auto flex-1 divide-y divide-slate-800/60">
+                {cartItems.length === 0 ? (
+                  <div className="py-12 text-center space-y-3">
+                    <div className="w-12 h-12 rounded-2xl bg-slate-800 flex items-center justify-center mx-auto text-slate-500">
+                      <ShoppingBag className="w-6 h-6" />
+                    </div>
+                    <p className="text-sm font-bold text-slate-300">Your cart is empty</p>
+                    <p className="text-xs text-slate-500 max-w-xs mx-auto">
+                      Browse dishes and items on our menu and click "Add to Cart".
+                    </p>
+                  </div>
+                ) : (
+                  cartItems.map((ci) => (
+                    <div key={ci.id} className="pt-3 first:pt-0 flex items-center justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <h4 className="text-xs font-bold text-white truncate">{ci.name}</h4>
+                        {ci.variationName && (
+                          <span className="inline-block text-[10px] px-2 py-0.5 rounded-md bg-amber-400/10 text-amber-300 font-semibold mt-0.5">
+                            {ci.variationName}
+                          </span>
+                        )}
+                        <div className="text-[11px] text-slate-400 mt-1 font-mono">
+                          {formatCurrency(ci.unitPrice, business.currency)} each
+                        </div>
+                      </div>
+
+                      {/* Quantity adjustments & Subtotal */}
+                      <div className="flex items-center gap-2.5 shrink-0">
+                        <div className="flex items-center gap-1.5 bg-slate-800 px-2 py-1 rounded-lg border border-slate-700">
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateCartQuantity(ci.id, -1)}
+                            className="w-5 h-5 rounded bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center text-xs font-bold cursor-pointer"
+                            aria-label="Decrease"
+                          >
+                            <Minus className="w-3 h-3" />
+                          </button>
+                          <span className="w-5 text-center font-mono font-bold text-xs text-white">
+                            {ci.quantity}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleUpdateCartQuantity(ci.id, 1)}
+                            className="w-5 h-5 rounded bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center text-xs font-bold cursor-pointer"
+                            aria-label="Increase"
+                          >
+                            <Plus className="w-3 h-3" />
+                          </button>
+                        </div>
+
+                        <div className="text-right min-w-[70px]">
+                          <div className="text-xs font-mono font-bold text-amber-400">
+                            {formatCurrency(ci.subtotal, business.currency)}
+                          </div>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => handleRemoveCartItem(ci.id)}
+                          title="Remove item"
+                          className="p-1.5 rounded-lg text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors cursor-pointer"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Cart Footer */}
+              {cartItems.length > 0 && (
+                <div className="p-4 px-5 border-t border-slate-800 bg-slate-950/90 space-y-3">
+                  <div className="flex items-center justify-between text-xs">
+                    <span className="text-slate-400">Items Total ({totalCartQuantity} items)</span>
+                    <span className="font-mono text-slate-300">
+                      {formatCurrency(totalCartPrice, business.currency)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center justify-between pt-2 border-t border-slate-800/80">
+                    <span className="text-sm font-extrabold text-white">Total Price</span>
+                    <span className="text-lg font-black text-amber-400 font-mono">
+                      {formatCurrency(totalCartPrice, business.currency)}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      type="button"
+                      onClick={handleClearCart}
+                      className="py-2.5 px-3 rounded-xl border border-slate-700 text-slate-400 hover:text-rose-400 hover:border-rose-500/30 text-xs font-bold transition-colors cursor-pointer"
+                    >
+                      Clear All
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsCartOpen(false)}
+                      className="flex-1 py-2.5 bg-amber-400 hover:bg-amber-300 text-slate-950 font-black rounded-xl text-xs transition-colors cursor-pointer shadow-md text-center"
+                    >
+                      Continue Browsing
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Footer */}
         <footer className="p-4 text-center text-[11px] border-t space-y-1" style={{ borderColor: 'rgba(226, 232, 240, 0.15)', color: subtextColor }}>
