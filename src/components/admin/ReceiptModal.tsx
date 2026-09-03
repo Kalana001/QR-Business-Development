@@ -44,7 +44,6 @@ function formatPaymentMethod(ref?: string | null): string {
 
 export function ReceiptModal({ isOpen, onClose, payment }: ReceiptModalProps) {
   const [copied, setCopied] = React.useState(false);
-  const receiptRef = useRef<HTMLDivElement>(null);
 
   if (!payment) return null;
 
@@ -80,8 +79,328 @@ export function ReceiptModal({ isOpen, onClose, payment }: ReceiptModalProps) {
   const currency = payment.currency || payment.businesses?.currency || 'LKR';
   const isFreeTrial = payment.plan === 'enterprise_gift' || payment.amount === 0;
 
+  // Dedicated Bulletproof 1-Page Isolated Print Handler
   const handlePrint = () => {
-    window.print();
+    const iframe = document.createElement('iframe');
+    iframe.style.position = 'fixed';
+    iframe.style.right = '0';
+    iframe.style.bottom = '0';
+    iframe.style.width = '0';
+    iframe.style.height = '0';
+    iframe.style.border = '0';
+    document.body.appendChild(iframe);
+
+    const doc = iframe.contentWindow?.document;
+    if (!doc) {
+      window.print();
+      return;
+    }
+
+    const formattedAmount = formatCurrency(payment.amount, currency);
+    const methodStr = formatPaymentMethod(payment.payment_reference);
+
+    doc.open();
+    doc.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Receipt - ${receiptNo}</title>
+          <style>
+            @page {
+              size: A4 portrait;
+              margin: 12mm;
+            }
+            * {
+              box-sizing: border-box;
+              margin: 0;
+              padding: 0;
+            }
+            body {
+              font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+              color: #0f172a;
+              background: #ffffff;
+              padding: 0;
+              -webkit-print-color-adjust: exact;
+              print-color-adjust: exact;
+            }
+            .receipt-card {
+              width: 100%;
+              max-width: 680px;
+              margin: 0 auto;
+              border: 1px solid #cbd5e1;
+              border-radius: 16px;
+              padding: 24px;
+              background: #ffffff;
+            }
+            .header {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              border-bottom: 1px solid #e2e8f0;
+              padding-bottom: 16px;
+              margin-bottom: 18px;
+            }
+            .brand-logo {
+              display: flex;
+              align-items: center;
+              gap: 10px;
+            }
+            .logo-badge {
+              width: 34px;
+              height: 34px;
+              background: #0f172a;
+              color: #ffffff;
+              border-radius: 10px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-weight: 900;
+              font-size: 13px;
+            }
+            .brand-title {
+              font-size: 17px;
+              font-weight: 800;
+              color: #0f172a;
+            }
+            .brand-sub {
+              font-size: 11px;
+              color: #64748b;
+            }
+            .badge-official {
+              display: inline-block;
+              padding: 3px 10px;
+              border-radius: 9999px;
+              font-size: 10px;
+              font-weight: 900;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+              background: #ecfdf5;
+              color: #065f46;
+              border: 1px solid #a7f3d0;
+              margin-bottom: 3px;
+            }
+            .badge-trial {
+              display: inline-block;
+              padding: 3px 10px;
+              border-radius: 9999px;
+              font-size: 10px;
+              font-weight: 900;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+              background: #f5f3ff;
+              color: #5b21b6;
+              border: 1px solid #ddd6fe;
+              margin-bottom: 3px;
+            }
+            .receipt-id {
+              font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+              font-weight: 700;
+              font-size: 12px;
+              color: #0f172a;
+            }
+            .receipt-date {
+              font-size: 11px;
+              color: #64748b;
+            }
+            .meta-grid {
+              display: grid;
+              grid-template-columns: 1fr 1fr;
+              gap: 14px;
+              margin-bottom: 18px;
+            }
+            .meta-box {
+              background: #f8fafc;
+              border: 1px solid #e2e8f0;
+              border-radius: 12px;
+              padding: 12px 14px;
+              font-size: 12px;
+            }
+            .meta-title {
+              font-size: 10px;
+              font-weight: 700;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+              color: #64748b;
+              margin-bottom: 4px;
+            }
+            .meta-val-bold {
+              font-weight: 800;
+              font-size: 13px;
+              color: #0f172a;
+            }
+            .meta-row {
+              color: #334155;
+              margin-top: 2px;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              border: 1px solid #e2e8f0;
+              border-radius: 12px;
+              overflow: hidden;
+              margin-bottom: 16px;
+              font-size: 12px;
+            }
+            th {
+              background: #f1f5f9;
+              padding: 10px 14px;
+              text-align: left;
+              font-size: 10px;
+              font-weight: 800;
+              text-transform: uppercase;
+              letter-spacing: 0.05em;
+              color: #475569;
+              border-bottom: 1px solid #e2e8f0;
+            }
+            td {
+              padding: 12px 14px;
+              border-bottom: 1px solid #f1f5f9;
+              vertical-align: top;
+            }
+            .total-section {
+              display: flex;
+              justify-content: flex-end;
+              margin-bottom: 16px;
+            }
+            .total-box {
+              width: 220px;
+              font-size: 12px;
+            }
+            .total-row {
+              display: flex;
+              justify-content: space-between;
+              color: #64748b;
+              margin-bottom: 4px;
+            }
+            .total-row.final {
+              border-top: 1px solid #cbd5e1;
+              padding-top: 6px;
+              font-size: 13px;
+              font-weight: 900;
+              color: #0f172a;
+            }
+            .final-val {
+              color: #0f766e;
+              font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            }
+            .footer-note {
+              border-top: 1px solid #e2e8f0;
+              padding-top: 12px;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              font-size: 11px;
+              color: #64748b;
+            }
+            .verified-tag {
+              color: #0f766e;
+              font-weight: 700;
+            }
+          </style>
+        </head>
+        <body>
+          <div class="receipt-card">
+            <div class="header">
+              <div class="brand-logo">
+                <div class="logo-badge">QR</div>
+                <div>
+                  <div class="brand-title">QR Business Suite</div>
+                  <div class="brand-sub">Digital Catalog Management &amp; Invoicing</div>
+                </div>
+              </div>
+              <div style="text-align: right;">
+                <div class="${isFreeTrial ? 'badge-trial' : 'badge-official'}">
+                  ${isFreeTrial ? '✓ COMPLIMENTARY TRIAL' : '✓ OFFICIAL RECEIPT'}
+                </div>
+                <div class="receipt-id">${receiptNo}</div>
+                <div class="receipt-date">Issued: ${paymentDate}</div>
+              </div>
+            </div>
+
+            <div class="meta-grid">
+              <div class="meta-box">
+                <div class="meta-title">Billed To (Client):</div>
+                <div class="meta-val-bold">${businessName}</div>
+                <div class="meta-row" style="font-family: monospace; font-size: 11px;">URL Slug: /c/${businessSlug}</div>
+                ${businessPhone !== 'N/A' ? `<div class="meta-row">Phone: ${businessPhone}</div>` : ''}
+                ${businessEmail !== 'N/A' ? `<div class="meta-row">Email: ${businessEmail}</div>` : ''}
+                ${businessAddress !== 'N/A' ? `<div class="meta-row">Address: ${businessAddress}</div>` : ''}
+              </div>
+
+              <div class="meta-box">
+                <div class="meta-title">Payment Information:</div>
+                <div class="meta-row"><strong>Method:</strong> ${methodStr}</div>
+                <div class="meta-row"><strong>Billing Interval:</strong> <span style="text-transform: capitalize;">${payment.billing_interval}</span></div>
+                <div class="meta-row"><strong>Payment Status:</strong> <strong style="color: ${isFreeTrial ? '#6b21a8' : '#047857'}; text-transform: uppercase;">${isFreeTrial ? 'Free' : 'PAID IN FULL ✓'}</strong></div>
+                <div class="meta-row"><strong>Currency:</strong> ${currency}</div>
+              </div>
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th>Subscription Item Description</th>
+                  <th style="text-align: center;">Duration</th>
+                  <th style="text-align: right;">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>
+                    <strong style="color: #0f172a; font-size: 13px;">${planMeta.name} Plan Activation</strong>
+                    <div style="color: #64748b; font-size: 11px; margin-top: 2px;">
+                      Full workspace access, digital QR catalog hosting, printable flyers, and analytics.
+                    </div>
+                    <div style="color: #0f766e; font-size: 11px; margin-top: 4px;">
+                      Coverage: <strong>${startDateFormatted}</strong> to <strong>${endDateFormatted}</strong>
+                    </div>
+                  </td>
+                  <td style="text-align: center; color: #334155; font-weight: 600;">
+                    ${payment.billing_interval === 'annual' ? '12 Months (1 Year)' : '1 Month'}
+                  </td>
+                  <td style="text-align: right; font-weight: 800; font-family: monospace; font-size: 13px;">
+                    ${formattedAmount}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+
+            <div class="total-section">
+              <div class="total-box">
+                <div class="total-row">
+                  <span>Subtotal:</span>
+                  <span style="font-family: monospace;">${formattedAmount}</span>
+                </div>
+                <div class="total-row">
+                  <span>Taxes / Fees:</span>
+                  <span style="font-family: monospace;">LKR 0.00</span>
+                </div>
+                <div class="total-row final">
+                  <span>Total Paid:</span>
+                  <span class="final-val">${formattedAmount}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="footer-note">
+              <div class="verified-tag">✓ Verified Payment &bull; PostgreSQL RLS Secured</div>
+              <div>Thank you for choosing QR Business Development!</div>
+            </div>
+          </div>
+        </body>
+      </html>
+    `);
+    doc.close();
+
+    setTimeout(() => {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+      }, 2500);
+    }, 250);
   };
 
   const whatsappReceiptMessage = encodeURIComponent(
@@ -107,7 +426,7 @@ export function ReceiptModal({ isOpen, onClose, payment }: ReceiptModalProps) {
       `Plan: ${planMeta.name} (${payment.billing_interval})\n` +
       `Amount: ${formatCurrency(payment.amount, currency)}\n` +
       `Period: ${startDateFormatted} - ${endDateFormatted}\n` +
-      `Status: PAID IN FULL ✓`;
+      `Status: ${isFreeTrial ? 'Free' : 'PAID IN FULL ✓'}`;
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
@@ -158,59 +477,8 @@ export function ReceiptModal({ isOpen, onClose, payment }: ReceiptModalProps) {
         </div>
       }
     >
-            {/* Dedicated Print Media Styles for 1-Page Crisp Clean Output */}
-      <style jsx global>{`
-        @media print {
-          /* Hide everything in the document */
-          html, body {
-            background: #ffffff !important;
-            color: #000000 !important;
-            height: auto !important;
-            overflow: visible !important;
-          }
-          
-          body * {
-            visibility: hidden !important;
-          }
-          
-          /* Only display the receipt container and its children */
-          #printable-receipt,
-          #printable-receipt * {
-            visibility: visible !important;
-          }
-          
-          #printable-receipt {
-            position: absolute !important;
-            left: 0 !important;
-            top: 0 !important;
-            width: 100% !important;
-            max-width: 100% !important;
-            margin: 0 !important;
-            padding: 24px !important;
-            border: 1px solid #cbd5e1 !important;
-            border-radius: 12px !important;
-            background: #ffffff !important;
-            color: #0f172a !important;
-            box-shadow: none !important;
-            page-break-inside: avoid !important;
-            break-inside: avoid !important;
-          }
-
-          /* Hide scrollbars, dialog shadows, and buttons */
-          ::-webkit-scrollbar {
-            display: none !important;
-          }
-
-          @page {
-            size: A4 portrait;
-            margin: 12mm;
-          }
-        }
-      `}</style>
-
-      {/* Printable Receipt Container */}
+      {/* On-Screen Receipt Preview */}
       <div 
-        ref={receiptRef}
         id="printable-receipt" 
         className="p-6 sm:p-8 bg-white text-slate-900 rounded-2xl border border-slate-200 shadow-sm space-y-6 select-text"
       >
@@ -227,8 +495,10 @@ export function ReceiptModal({ isOpen, onClose, payment }: ReceiptModalProps) {
           </div>
 
           <div className="text-left sm:text-right space-y-0.5">
-            <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 border border-emerald-300 inline-block mb-1">
-              ✓ OFFICIAL RECEIPT
+            <span className={`px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider border inline-block mb-1 ${
+              isFreeTrial ? 'bg-purple-100 text-purple-800 border-purple-300' : 'bg-emerald-100 text-emerald-800 border-emerald-300'
+            }`}>
+              {isFreeTrial ? '✓ COMPLIMENTARY TRIAL' : '✓ OFFICIAL RECEIPT'}
             </span>
             <div className="text-xs font-mono font-bold text-slate-900">{receiptNo}</div>
             <div className="text-[11px] text-slate-500">Issued: {paymentDate}</div>
@@ -256,10 +526,10 @@ export function ReceiptModal({ isOpen, onClose, payment }: ReceiptModalProps) {
             </div>
             <div className="font-semibold text-slate-800">
               Payment Status: {isFreeTrial ? (
-              <span className="text-purple-700 font-extrabold uppercase">Free</span>
-            ) : (
-              <span className="text-emerald-700 font-extrabold uppercase">Paid in Full ✓</span>
-            )}
+                <span className="text-purple-700 font-extrabold uppercase">Free</span>
+              ) : (
+                <span className="text-emerald-700 font-extrabold uppercase">Paid in Full ✓</span>
+              )}
             </div>
             <div className="font-semibold text-slate-800">
               Currency: <span className="font-bold">{currency}</span>
