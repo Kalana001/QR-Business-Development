@@ -30,7 +30,7 @@ export default function PrivacyPolicyPage() {
         <div className="space-y-8 text-sm sm:text-base text-slate-300 leading-relaxed">
           
           <p>
-            Welcome to the QR Business Development digital catalog platform (&quot;the Platform&quot;, &quot;we&quot;, &quot;our&quot;, or &quot;us&quot;).
+            Welcome to the QR Business Development digital catalog platform.
             We are dedicated to safeguarding your business information, intellectual property, and public visitor interactions.
             This Privacy Policy explains in detail how we collect, process, store, and protect your information when you create an account,
             manage your digital catalog, generate QR codes, or when customers visit your public catalog link.
