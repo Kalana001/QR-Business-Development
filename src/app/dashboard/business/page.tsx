@@ -264,7 +264,7 @@ export default function DashboardBusinessSettingsPage() {
     );
   }
 
-  const whatsappRequestUrl = `https://wa.me/94712220731?text=${encodeURIComponent(
+  const whatsappRequestUrl = `https://wa.me/94764689907?text=${encodeURIComponent(
     `Hello Admin, I want to request a URL Slug change for my business "${name || business?.name}" (Current URL slug: "${slug || business?.slug}"). Desired new slug: `
   )}`;
 

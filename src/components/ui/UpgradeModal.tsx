@@ -191,7 +191,7 @@ export const UpgradeModal: React.FC<UpgradeModalProps> = ({
 
                 <div className="pt-6">
                   <a
-                    href={`https://wa.me/94712220731?text=${encodeURIComponent(messageText)}`}
+                    href={`https://wa.me/94764689907?text=${encodeURIComponent(messageText)}`}
                     target="_blank"
                     rel="noopener noreferrer"
                     className={`flex items-center justify-center gap-2 w-full py-2.5 px-4 rounded-xl text-xs font-bold transition-all ${
