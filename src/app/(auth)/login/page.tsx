@@ -115,7 +115,7 @@ function LoginFormContent() {
             <div className="p-2 bg-teal-500 text-slate-950 rounded-lg">
               <QrCode className="w-6 h-6" />
             </div>
-            <span>QR Catalog Studio</span>
+            <span>QuickMenu</span>
           </Link>
           <h2 className="text-xl font-bold text-white pt-2">Welcome Back</h2>
           <p className="text-xs text-slate-400">Sign in to manage your digital catalog or admin portal</p>

@@ -83,7 +83,7 @@ export default function SignupPage() {
             <div className="p-2 bg-teal-500 text-slate-950 rounded-lg">
               <QrCode className="w-6 h-6" />
             </div>
-            <span>QR Catalog Studio</span>
+            <span>QuickMenu</span>
           </Link>
           <h2 className="text-xl font-bold text-white pt-2">Create your Business Catalog</h2>
           <p className="text-xs text-slate-400">Instant registration with zero email verification required</p>

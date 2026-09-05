@@ -162,7 +162,7 @@ function ResetPasswordFormContent() {
             <div className="p-2 bg-teal-500 text-slate-950 rounded-lg">
               <QrCode className="w-6 h-6" />
             </div>
-            <span>QR Catalog Studio</span>
+            <span>QuickMenu</span>
           </Link>
           <h2 className="text-xl font-bold text-white pt-2">Reset your password</h2>
           <p className="text-xs text-slate-400">Enter a new password for your account.</p>

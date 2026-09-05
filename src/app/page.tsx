@@ -28,7 +28,7 @@ export default function LandingPage() {
             <div className="p-2 bg-teal-500 text-slate-950 rounded-lg">
               <QrCode className="w-5 h-5" />
             </div>
-            <span>QR Catalog Studio</span>
+            <span>QuickMenu</span>
           </div>
 
           <div className="flex items-center gap-6">
@@ -705,7 +705,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="border-t border-slate-800 py-8 text-center text-xs text-slate-500">
         <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4">
-          <p>© {new Date().getFullYear()} QR Catalog Studio. Production Multi-tenant SaaS.</p>
+          <p>© {new Date().getFullYear()} QuickMenu. Production Multi-tenant SaaS.</p>
           <div className="flex flex-wrap items-center justify-center gap-4">
             <Link href="/terms" className="hover:text-slate-300 transition-colors">
               Terms of Service
