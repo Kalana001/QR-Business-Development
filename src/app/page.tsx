@@ -706,13 +706,17 @@ export default function LandingPage() {
       <footer className="border-t border-slate-800 py-8 text-center text-xs text-slate-500">
         <div className="max-w-6xl mx-auto px-4 flex flex-col sm:flex-row justify-between items-center gap-4">
           <p>© {new Date().getFullYear()} QR Catalog Studio. Production Multi-tenant SaaS.</p>
-          <div className="flex items-center gap-4">
+          <div className="flex flex-wrap items-center justify-center gap-4">
             <Link href="/terms" className="hover:text-slate-300 transition-colors">
               Terms of Service
             </Link>
             <span>•</span>
             <Link href="/privacy" className="hover:text-slate-300 transition-colors">
               Privacy Policy
+            </Link>
+            <span>•</span>
+            <Link href="/refund-policy" className="hover:text-slate-300 transition-colors">
+              Refund Policy
             </Link>
             <span>•</span>
             <span className="flex items-center gap-1 text-slate-400">

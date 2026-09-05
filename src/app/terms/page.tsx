@@ -102,9 +102,13 @@ export default function TermsOfServicePage() {
         </div>
 
         {/* Footer Link */}
-        <div className="pt-8 border-t border-slate-800 text-center text-xs text-slate-500 flex items-center justify-center gap-4">
+        <div className="pt-8 border-t border-slate-800 text-center text-xs text-slate-500 flex flex-wrap items-center justify-center gap-4">
           <Link href="/privacy" className="text-teal-400 hover:underline font-semibold">
             Privacy Policy
+          </Link>
+          <span>•</span>
+          <Link href="/refund-policy" className="text-teal-400 hover:underline font-semibold">
+            Refund Policy
           </Link>
           <span>•</span>
           <span className="flex items-center gap-1 text-slate-400">
