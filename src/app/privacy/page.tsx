@@ -87,12 +87,12 @@ export default function PrivacyPolicyPage() {
             </p>
             <div className="pt-2">
               <a
-                href="https://wa.me/94712220731?text=Hello%20Admin%2C%20I%20have%20an%20inquiry%20regarding%20the%20Privacy%20Policy."
+                href="https://wa.me/94764689907?text=Hello%20Admin%2C%20I%20have%20an%20inquiry%20regarding%20the%20Privacy%20Policy."
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-xs"
               >
-                <MessageSquare className="w-4 h-4" /> WhatsApp Administration Desk (+94 71 222 0731)
+                <MessageSquare className="w-4 h-4" /> WhatsApp Administration Desk (+94 76 468 9907)
               </a>
             </div>
           </section>
