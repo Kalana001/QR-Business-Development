@@ -231,7 +231,7 @@ export default function RefundPolicyPage() {
           {/* Section 9 */}
           <section className="space-y-3">
             <h2 className="text-lg sm:text-xl font-bold text-white tracking-tight border-b border-slate-800 pb-2">
-              9. Business Orders and Customer Inquiries
+              9. Business Orders and Customer Refunds
             </h2>
             <p>
               QuickMenu may provide businesses with tools that allow customers to browse catalogs and, where enabled, submit orders or requests.
@@ -249,9 +249,17 @@ export default function RefundPolicyPage() {
               <div>• Prices</div>
               <div>• Product descriptions</div>
               <div>• Availability</div>
+              <div>• Order acceptance</div>
+              <div>• Order preparation</div>
+              <div>• Delivery</div>
+              <div>• Product quality</div>
+              <div>• Cancellations</div>
+              <div>• Returns</div>
+              <div>• Exchanges</div>
+              <div>• Customer refunds</div>
             </div>
             <p className="pt-2">
-              Therefore, if you view or select a product, food item, or service from a business through a QuickMenu-powered catalog, any questions, inquiries, or requests regarding product details, menu options, pricing, and availability should be directed to the respective business.
+              Therefore, if you purchase a product, food item, or service from a business through a QuickMenu-powered catalog, any return or refund request relating to that purchase should normally be directed to the business that accepted the order.
             </p>
           </section>
 
